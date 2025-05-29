@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include "bitboard.h"
 
 typedef struct
@@ -9,4 +10,7 @@ typedef struct
     Bitboard occupied_white;
     Bitboard occupied_black;
     Bitboard occupied_all;
+    bool white_to_move;
+    uint8_t castling_rights;   // first 4 bits: white kingside, white queenside, black kingside, black queenside
+    uint8_t en_passant_square; // 0-63 for a square, 64 if no en passant
 } Board;
