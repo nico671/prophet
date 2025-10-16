@@ -1,0 +1,11 @@
+
+☐ FEN + board state + hash skeleton
+☐ Pseudo-legal movegen (all piece types)
+☐ Legal move filter + in-check/pin logic
+☐ Make/Unmake with full state and hash
+☐ Perft to confirm correctness and speed
+☐ Basic evaluation (material + PST)
+☐ Alpha-beta + iterative deepening + qsearch
+☐ Move ordering + TT + null-move pruning
+☐ UCI driver and time management
+☐ Evaluation refinements, pawn hash, tuning, and endgame logic
