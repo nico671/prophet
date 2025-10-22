@@ -46,6 +46,7 @@ CBoard fenToCBoard(char *fenString)
             break;
         case 'K':
             board.whiteKing |= squareMask;
+            board.whiteKingSquare = squareIndex;
             break;
         case 'p':
             board.blackPawns |= squareMask;
@@ -64,6 +65,7 @@ CBoard fenToCBoard(char *fenString)
             break;
         case 'k':
             board.blackKing |= squareMask;
+            board.blackKingSquare = squareIndex;
             break;
         default:
             fprintf(stderr, "Unexpected character in FEN: %c\n", ch);
@@ -72,7 +74,6 @@ CBoard fenToCBoard(char *fenString)
 
         file++;
     }
-    recomputeOccupancies(&board);
 
     // build derived occupancies once
     recomputeOccupancies(&board);

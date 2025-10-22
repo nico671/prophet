@@ -39,6 +39,13 @@ typedef struct CBoard
     uint8_t epSquare;        // square index (0-63) or 64 if no en passant available
     uint16_t halfmoveClock;  // for fifty-move rule
     uint16_t fullmoveNumber; // starts at 1, incremented after Black's move
+
+    // king squares
+    uint8_t whiteKingSquare;
+    uint8_t blackKingSquare;
+
+    // zobrist key
+    uint64_t zobristKey;
 } CBoard;
 
 void recomputeOccupancies(CBoard *board);
