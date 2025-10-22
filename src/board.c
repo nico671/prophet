@@ -8,41 +8,60 @@ void recomputeOccupancies(CBoard *board)
     board->blackPieces = board->blackBishops | board->blackKing | board->blackKnights | board->blackPawns | board->blackQueens | board->blackRooks; // black pieces are the OR of all black piece bitboards
     board->allPieces = board->whitePieces | board->blackPieces;                                                                                     // all pieces are the OR of white and black pieces
 }
-// Bitboard consistency
-// Exactly one king per side: whitePawns and blackPawns each have exactly one bit set
-// Piece counts within legal bounds: max 8 pawns, 2 rooks/bishops/knights, 1 queen per side
-// Pawn placement rules
-// No pawns on ranks 1 or 8 (they must have promoted)
-// Pawn count consistency: if more than 8 pawns total for one side, some pawns promoted, so missing pieces should account for this
-// King safety and check rules
-// At most one side can be in check (the side not to move)
-// If the side not to move is in check, that's an illegal position (you can't move into check)
-// Castling rights consistency
-// If white king-side castling is allowed: white king on e1, white rook on h1
-// If white queen-side castling is allowed: white king on e1, white rook on a1
-// Same logic for black castling rights with king on e8, rooks on a8/h8
-// No castling rights if the king or relevant rook has moved (can't validate this from position alone, but check basic placement)
-// En passant validity
-// If epSquare != 64: the square must be on rank 3 (for white to capture) or rank 6 (for black to capture)
-// The square behind the en passant target must contain an enemy pawn
-// The capturing side must have a pawn adjacent to the en passant target pawn
-// The en passant capture must not leave the capturing side's king in check
-// Game state bounds
-// whiteToMove is either true or false (boolean constraint)
-// halfmoveClock should be reasonable (0-100+ for fifty-move rule)
-// fullmoveNumber should be positive (starts at 1)
-// epSquare should be 0-63 or the sentinel value 64
-bool validateBoard(CBoard *board)
+
+void printBoard(CBoard *board)
 {
-    // No overlapping pieces: each square occupied by at most one piece across all 12 piece bitboards
-    if ((board->allPieces != (board->whitePieces | board->blackPieces)) ||
-        (board->blackPieces != (board->blackBishops | board->blackKing | board->blackKnights | board->blackPawns | board->blackQueens | board->blackRooks)) ||
-        (board->whitePieces != (board->whiteBishops | board->whiteKing | board->whiteKnights | board->whitePawns | board->whiteQueens | board->whiteRooks)))
+    if (!board)
     {
-        return false;
+        printf("Board is NULL\n");
+        return;
     }
 
-    // Add more validations here...
+    for (int rank = 7; rank >= 0; rank--)
+    {
+        for (int file = 0; file < 8; file++)
+        {
+            int squareIndex = rank * 8 + file; // Fixed calculation
+            char pieceChar = '.';
+            Bitboard squareMask = (Bitboard)1 << squareIndex;
+            if (board->whitePawns & squareMask)
+                pieceChar = 'P';
+            else if (board->whiteKnights & squareMask)
+                pieceChar = 'N';
+            else if (board->whiteBishops & squareMask)
+                pieceChar = 'B';
+            else if (board->whiteRooks & squareMask)
+                pieceChar = 'R';
+            else if (board->whiteQueens & squareMask)
+                pieceChar = 'Q';
+            else if (board->whiteKing & squareMask)
+                pieceChar = 'K';
+            else if (board->blackPawns & squareMask)
+                pieceChar = 'p';
+            else if (board->blackKnights & squareMask)
+                pieceChar = 'n';
+            else if (board->blackBishops & squareMask)
+                pieceChar = 'b';
+            else if (board->blackRooks & squareMask)
+                pieceChar = 'r';
+            else if (board->blackQueens & squareMask)
+                pieceChar = 'q';
+            else if (board->blackKing & squareMask)
+                pieceChar = 'k';
+            printf("%c ", pieceChar);
+        }
+        printf("\n"); // Add newline after each rank
+    }
+    printf("\n");
+    printf("White to move: %s\n", board->whiteToMove ? "Yes" : "No");
+    printf("En passant square: %d\n", board->epSquare);
+    printf("Halfmove clock: %d\n", board->halfmoveClock);
+    printf("Fullmove number: %d\n", board->fullmoveNumber);
+}
 
-    return true; // Missing this!
+CBoard setToFen(CBoard *board)
+{
+    // This function is a placeholder and does not have an implementation yet.
+    CBoard newBoard = {0};
+    return newBoard;
 }
