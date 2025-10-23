@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "stdint.h": "c",
-        "board.h": "c"
+        "board.h": "c",
+        "bitboard.h": "c"
     }
 }

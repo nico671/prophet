@@ -1,11 +1,9 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>
-
+#include "bitboard.h"
 #ifndef BOARD_H
 #define BOARD_H
-// A1 = LSB, H8 = MSB, little-endian rank-file mapping
-typedef uint64_t Bitboard;
 
 typedef struct CBoard
 {

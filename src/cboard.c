@@ -1,5 +1,5 @@
 
-#include "board.h"
+#include "cboard.h"
 
 // Recompute occupancy bitboards based on individual piece bitboards
 void recomputeOccupancies(CBoard *board)
