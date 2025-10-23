@@ -6,8 +6,12 @@
 #include "bitboard.h"
 int main()
 {
-    Bitboard b = getKnightAttacks(D4);
-    printBBoard(b);
+    for (int sq = 0; sq < 64; sq++)
+    {
+        Bitboard b = getBlackPawnAttacks(sq);
+        printf("Black pawn attacks from square %d:\n", sq);
+        printBBoard(b);
+    }
 
     return 0;
 }

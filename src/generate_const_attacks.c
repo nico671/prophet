@@ -1,5 +1,41 @@
 #include "generate_const_attacks.h"
 
+// the following function was used to generate the constant array
+// for knight attacks
+// uncomment and run separately to regenerate if needed
+// Bitboard knight_attacks[64];
+// void initKnightAttacks()
+// {
+//     for (int sq = 0; sq < 64; sq++)
+//     {
+//         Bitboard attacks = 0;
+//         int rank = sq / 8;
+//         int file = sq % 8;
+
+//         int knight_moves[8][2] = {
+//             {2, 1}, {1, 2}, {-1, 2}, {-2, 1}, {-2, -1}, {-1, -2}, {1, -2}, {2, -1}};
+
+//         for (int i = 0; i < 8; i++)
+//         {
+//             int new_rank = rank + knight_moves[i][0];
+//             int new_file = file + knight_moves[i][1];
+
+//             if (new_rank >= 0 && new_rank < 8 && new_file >= 0 && new_file < 8)
+//             {
+//                 attacks |= ((Bitboard)1 << (new_rank * 8 + new_file));
+//             }
+//         }
+//         knight_attacks[sq] = attacks;
+//     }
+//     // print knight attacks for storage as constant array
+//     printf("const Bitboard knight_attacks[64] = {\n");
+//     for (int i = 0; i < 64; i++)
+//     {
+//         printf("    0x%016llxULL,%s\n", knight_attacks[i], (i % 8 == 7) ? "" : " ");
+//     }
+//     printf("};\n");
+// }
+
 // precomputed knight attack bitboards for each square, indexing same as Square enum
 const Bitboard knight_attacks[64] = {
     0x0000000000020400ULL,
@@ -67,42 +103,6 @@ const Bitboard knight_attacks[64] = {
     0x0010a00000000000ULL,
     0x0020400000000000ULL,
 };
-
-// the following function was used to generate the above constant array
-// for knight attacks
-// uncomment and run separately to regenerate if needed
-// Bitboard knight_attacks[64];
-// void initKnightAttacks()
-// {
-//     for (int sq = 0; sq < 64; sq++)
-//     {
-//         Bitboard attacks = 0;
-//         int rank = sq / 8;
-//         int file = sq % 8;
-
-//         int knight_moves[8][2] = {
-//             {2, 1}, {1, 2}, {-1, 2}, {-2, 1}, {-2, -1}, {-1, -2}, {1, -2}, {2, -1}};
-
-//         for (int i = 0; i < 8; i++)
-//         {
-//             int new_rank = rank + knight_moves[i][0];
-//             int new_file = file + knight_moves[i][1];
-
-//             if (new_rank >= 0 && new_rank < 8 && new_file >= 0 && new_file < 8)
-//             {
-//                 attacks |= ((Bitboard)1 << (new_rank * 8 + new_file));
-//             }
-//         }
-//         knight_attacks[sq] = attacks;
-//     }
-//     // print knight attacks for storage as constant array
-//     printf("const Bitboard knight_attacks[64] = {\n");
-//     for (int i = 0; i < 64; i++)
-//     {
-//         printf("    0x%016llxULL,%s\n", knight_attacks[i], (i % 8 == 7) ? "" : " ");
-//     }
-//     printf("};\n");
-// }
 
 Bitboard getKnightAttacks(int square)
 {
@@ -213,3 +213,212 @@ Bitboard getKingAttacks(int square)
 {
     return king_attacks[square];
 }
+
+// can probably remove the first rank and last rank entries as they are all 0
+const Bitboard white_pawn_attacks[64] = {
+    0x0000000000000200ULL,
+    0x0000000000000500ULL,
+    0x0000000000000a00ULL,
+    0x0000000000001400ULL,
+    0x0000000000002800ULL,
+    0x0000000000005000ULL,
+    0x000000000000a000ULL,
+    0x0000000000004000ULL,
+    0x0000000000020000ULL,
+    0x0000000000050000ULL,
+    0x00000000000a0000ULL,
+    0x0000000000140000ULL,
+    0x0000000000280000ULL,
+    0x0000000000500000ULL,
+    0x0000000000a00000ULL,
+    0x0000000000400000ULL,
+    0x0000000002000000ULL,
+    0x0000000005000000ULL,
+    0x000000000a000000ULL,
+    0x0000000014000000ULL,
+    0x0000000028000000ULL,
+    0x0000000050000000ULL,
+    0x00000000a0000000ULL,
+    0x0000000040000000ULL,
+    0x0000000200000000ULL,
+    0x0000000500000000ULL,
+    0x0000000a00000000ULL,
+    0x0000001400000000ULL,
+    0x0000002800000000ULL,
+    0x0000005000000000ULL,
+    0x000000a000000000ULL,
+    0x0000004000000000ULL,
+    0x0000020000000000ULL,
+    0x0000050000000000ULL,
+    0x00000a0000000000ULL,
+    0x0000140000000000ULL,
+    0x0000280000000000ULL,
+    0x0000500000000000ULL,
+    0x0000a00000000000ULL,
+    0x0000400000000000ULL,
+    0x0002000000000000ULL,
+    0x0005000000000000ULL,
+    0x000a000000000000ULL,
+    0x0014000000000000ULL,
+    0x0028000000000000ULL,
+    0x0050000000000000ULL,
+    0x00a0000000000000ULL,
+    0x0040000000000000ULL,
+    0x0200000000000000ULL,
+    0x0500000000000000ULL,
+    0x0a00000000000000ULL,
+    0x1400000000000000ULL,
+    0x2800000000000000ULL,
+    0x5000000000000000ULL,
+    0xa000000000000000ULL,
+    0x4000000000000000ULL,
+    0x0000000000000000ULL,
+    0x0000000000000000ULL,
+    0x0000000000000000ULL,
+    0x0000000000000000ULL,
+    0x0000000000000000ULL,
+    0x0000000000000000ULL,
+    0x0000000000000000ULL,
+    0x0000000000000000ULL,
+};
+
+Bitboard getWhitePawnAttacks(int square)
+{
+    return white_pawn_attacks[square];
+}
+
+// can probably remove the first rank and last rank entries as they are all 0
+const Bitboard black_pawn_attacks[64] = {
+    0x0000000000000000ULL,
+    0x0000000000000000ULL,
+    0x0000000000000000ULL,
+    0x0000000000000000ULL,
+    0x0000000000000000ULL,
+    0x0000000000000000ULL,
+    0x0000000000000000ULL,
+    0x0000000000000000ULL,
+    0x0000000000000002ULL,
+    0x0000000000000005ULL,
+    0x000000000000000aULL,
+    0x0000000000000014ULL,
+    0x0000000000000028ULL,
+    0x0000000000000050ULL,
+    0x00000000000000a0ULL,
+    0x0000000000000040ULL,
+    0x0000000000000200ULL,
+    0x0000000000000500ULL,
+    0x0000000000000a00ULL,
+    0x0000000000001400ULL,
+    0x0000000000002800ULL,
+    0x0000000000005000ULL,
+    0x000000000000a000ULL,
+    0x0000000000004000ULL,
+    0x0000000000020000ULL,
+    0x0000000000050000ULL,
+    0x00000000000a0000ULL,
+    0x0000000000140000ULL,
+    0x0000000000280000ULL,
+    0x0000000000500000ULL,
+    0x0000000000a00000ULL,
+    0x0000000000400000ULL,
+    0x0000000002000000ULL,
+    0x0000000005000000ULL,
+    0x000000000a000000ULL,
+    0x0000000014000000ULL,
+    0x0000000028000000ULL,
+    0x0000000050000000ULL,
+    0x00000000a0000000ULL,
+    0x0000000040000000ULL,
+    0x0000000200000000ULL,
+    0x0000000500000000ULL,
+    0x0000000a00000000ULL,
+    0x0000001400000000ULL,
+    0x0000002800000000ULL,
+    0x0000005000000000ULL,
+    0x000000a000000000ULL,
+    0x0000004000000000ULL,
+    0x0000020000000000ULL,
+    0x0000050000000000ULL,
+    0x00000a0000000000ULL,
+    0x0000140000000000ULL,
+    0x0000280000000000ULL,
+    0x0000500000000000ULL,
+    0x0000a00000000000ULL,
+    0x0000400000000000ULL,
+    0x0002000000000000ULL,
+    0x0005000000000000ULL,
+    0x000a000000000000ULL,
+    0x0014000000000000ULL,
+    0x0028000000000000ULL,
+    0x0050000000000000ULL,
+    0x00a0000000000000ULL,
+    0x0040000000000000ULL,
+};
+
+Bitboard getBlackPawnAttacks(int square)
+{
+    return black_pawn_attacks[square];
+}
+// void initWhitePawnAttacks()
+// {
+//     for (int sq = 0; sq < 64; sq++)
+//     {
+//         Bitboard attacks = 0;
+//         int rank = sq / 8;
+//         int file = sq % 8;
+
+//         // white pawn attacks diagonally forward left and right
+//         int attack_moves[2][2] = {
+//             {1, -1}, {1, 1}};
+
+//         for (int i = 0; i < 2; i++)
+//         {
+//             int new_rank = rank + attack_moves[i][0];
+//             int new_file = file + attack_moves[i][1];
+
+//             if (new_rank >= 0 && new_rank < 8 && new_file >= 0 && new_file < 8)
+//             {
+//                 attacks |= ((Bitboard)1 << (new_rank * 8 + new_file));
+//             }
+//         }
+//         pawn_attacks_white[sq] = attacks;
+//     }
+//     printf("const Bitboard white_pawn_attacks[64] = {\n");
+//     for (int i = 0; i < 64; i++)
+//     {
+//         printf("    0x%016llxULL,%s\n", pawn_attacks_white[i], (i % 8 == 7) ? "" : " ");
+//     }
+//     printf("};\n");
+// }
+
+// void initBlackPawnAttacks()
+// {
+//     for (int sq = 64; sq < 64; sq++)
+//     {
+//         Bitboard attacks = 0;
+//         int rank = sq / 8;
+//         int file = sq % 8;
+
+//         // black pawn attacks diagonally forward left and right
+//         int attack_moves[2][2] = {
+//             {-1, -1}, {-1, 1}};
+
+//         for (int i = 0; i < 2; i++)
+//         {
+//             int new_rank = rank + attack_moves[i][0];
+//             int new_file = file + attack_moves[i][1];
+
+//             if (new_rank >= 0 && new_rank < 8 && new_file >= 0 && new_file < 8)
+//             {
+//                 attacks |= ((Bitboard)1 << (new_rank * 8 + new_file));
+//             }
+//         }
+//         pawn_attacks_black[sq] = attacks;
+//     }
+//     printf("const Bitboard black_pawn_attacks[64] = {\n");
+//     for (int i = 0; i < 64; i++)
+//     {
+//         printf("    0x%016llxULL,%s\n", pawn_attacks_black[i], (i % 8 == 7) ? "" : " ");
+//     }
+//     printf("};\n");
+// }

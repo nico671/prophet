@@ -51,6 +51,8 @@ static inline int bitboardMSBIndex(Bitboard bb)
 // Pop & return index of the least‐significant 1-bit
 static inline int bb_pop_lsb(Bitboard *b)
 {
+    if (isBitboardEmpty(*b))
+        return -1; // or handle error as appropriate
     int idx = __builtin_ctzll(*b);
     *b &= *b - 1;
     return idx;
@@ -175,5 +177,46 @@ static inline void printBBoard(Bitboard b)
     }
     printf("\n");
 }
+
+/* file masks (A..H) and complements */
+static const Bitboard FILE_A = 0x0101010101010101ULL;
+static const Bitboard FILE_B = FILE_A << 1;
+static const Bitboard FILE_C = FILE_A << 2;
+static const Bitboard FILE_D = FILE_A << 3;
+static const Bitboard FILE_E = FILE_A << 4;
+static const Bitboard FILE_F = FILE_A << 5;
+static const Bitboard FILE_G = FILE_A << 6;
+static const Bitboard FILE_H = FILE_A << 7;
+
+static const Bitboard NOT_FILE_A = ~FILE_A;
+static const Bitboard NOT_FILE_H = ~FILE_H;
+static const Bitboard NOT_FILE_AB = ~(FILE_A | FILE_B);
+static const Bitboard NOT_FILE_GH = ~(FILE_G | FILE_H);
+
+/* rank masks (1..8) */
+static const Bitboard RANK_1 = 0x00000000000000FFULL;
+static const Bitboard RANK_2 = RANK_1 << 8;
+static const Bitboard RANK_3 = RANK_1 << 16;
+static const Bitboard RANK_4 = RANK_1 << 24;
+static const Bitboard RANK_5 = RANK_1 << 32;
+static const Bitboard RANK_6 = RANK_1 << 40;
+static const Bitboard RANK_7 = RANK_1 << 48;
+static const Bitboard RANK_8 = RANK_1 << 56;
+
+/* build a mask for a single square by index */
+static inline Bitboard square_mask(int sq)
+{
+    return (Bitboard)1 << sq;
+}
+
+/* Safe directional shifts (no wrap-around across files) */
+static inline Bitboard north(Bitboard b) { return b << 8; }
+static inline Bitboard south(Bitboard b) { return b >> 8; }
+static inline Bitboard east(Bitboard b) { return (b << 1) & NOT_FILE_A; } // file++ (mask out wraps into file A)
+static inline Bitboard west(Bitboard b) { return (b >> 1) & NOT_FILE_H; } // file-- (mask out wraps into file H)
+static inline Bitboard north_east(Bitboard b) { return (b << 9) & NOT_FILE_A; }
+static inline Bitboard north_west(Bitboard b) { return (b << 7) & NOT_FILE_H; }
+static inline Bitboard south_east(Bitboard b) { return (b >> 7) & NOT_FILE_A; }
+static inline Bitboard south_west(Bitboard b) { return (b >> 9) & NOT_FILE_H; }
 
 #endif // BITBOARD_H
