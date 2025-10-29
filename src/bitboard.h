@@ -14,7 +14,7 @@ static inline bool isBitboardEmpty(Bitboard bb)
 {
     return bb == 0;
 }
-
+// shoutout chessprogramming wiki
 static const uint64_t K1 = 0x5555555555555555ULL; /*  -1/3   */
 static const uint64_t K2 = 0x3333333333333333ULL; /*  -1/5   */
 static const uint64_t K4 = 0x0f0f0f0f0f0f0f0fULL; /*  -1/17  */
@@ -52,13 +52,14 @@ static inline int bitboardMSBIndex(Bitboard bb)
 static inline int bb_pop_lsb(Bitboard *b)
 {
     if (isBitboardEmpty(*b))
-        return -1; // or handle error as appropriate
-    int idx = __builtin_ctzll(*b);
+        return -1;                 // or handle error as appropriate
+    int idx = __builtin_ctzll(*b); // count trailing zeros, built-in function
     *b &= *b - 1;
     return idx;
 }
 
 // squares enum
+// aligns with bitboard indexing
 typedef enum
 {
     A1,
@@ -209,11 +210,11 @@ static inline Bitboard square_mask(int sq)
     return (Bitboard)1 << sq;
 }
 
-/* Safe directional shifts (no wrap-around across files) */
+/* Safe directional shifts (no wraps) */
 static inline Bitboard north(Bitboard b) { return b << 8; }
 static inline Bitboard south(Bitboard b) { return b >> 8; }
-static inline Bitboard east(Bitboard b) { return (b << 1) & NOT_FILE_A; } // file++ (mask out wraps into file A)
-static inline Bitboard west(Bitboard b) { return (b >> 1) & NOT_FILE_H; } // file-- (mask out wraps into file H)
+static inline Bitboard east(Bitboard b) { return (b << 1) & NOT_FILE_A; } // file++ (mask out wraps into file a)
+static inline Bitboard west(Bitboard b) { return (b >> 1) & NOT_FILE_H; } // file-- (mask out wraps into file h)
 static inline Bitboard north_east(Bitboard b) { return (b << 9) & NOT_FILE_A; }
 static inline Bitboard north_west(Bitboard b) { return (b << 7) & NOT_FILE_H; }
 static inline Bitboard south_east(Bitboard b) { return (b >> 7) & NOT_FILE_A; }
