@@ -4,9 +4,10 @@
 #include "fen.h"
 #include "generate_const_attacks.h"
 #include "bitboard.h"
+#include "sliding_attacks.h"
+
 int main()
 {
-    Bitboard b = square_mask(E4);
-    printBBoard(b);
+    computeBishopOccupancyMaps();
     return 0;
 }

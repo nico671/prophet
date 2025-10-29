@@ -4,7 +4,7 @@
 #ifndef BITBOARD_H
 #define BITBOARD_H
 // A1 = LSB, H8 = MSB, little-endian rank-file mapping
-typedef uint64_t Bitboard;
+typedef unsigned long long Bitboard;
 
 // much of the code below comes from the chessprograming wiki
 // https://www.chessprogramming.org/Population_Count
@@ -189,6 +189,10 @@ static const Bitboard FILE_F = FILE_A << 5;
 static const Bitboard FILE_G = FILE_A << 6;
 static const Bitboard FILE_H = FILE_A << 7;
 
+static const Bitboard FILES[8] = {
+    FILE_A, FILE_B, FILE_C, FILE_D,
+    FILE_E, FILE_F, FILE_G, FILE_H};
+
 static const Bitboard NOT_FILE_A = ~FILE_A;
 static const Bitboard NOT_FILE_H = ~FILE_H;
 static const Bitboard NOT_FILE_AB = ~(FILE_A | FILE_B);
@@ -203,7 +207,9 @@ static const Bitboard RANK_5 = RANK_1 << 32;
 static const Bitboard RANK_6 = RANK_1 << 40;
 static const Bitboard RANK_7 = RANK_1 << 48;
 static const Bitboard RANK_8 = RANK_1 << 56;
-
+static const Bitboard RANKS[8] = {
+    RANK_1, RANK_2, RANK_3, RANK_4,
+    RANK_5, RANK_6, RANK_7, RANK_8};
 /* build a mask for a single square by index */
 static inline Bitboard square_mask(int sq)
 {

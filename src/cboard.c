@@ -58,10 +58,3 @@ void printBoard(CBoard *board)
     printf("Halfmove clock: %d\n", board->halfmoveClock);
     printf("Fullmove number: %d\n", board->fullmoveNumber);
 }
-
-CBoard setToFen(CBoard *board)
-{
-    // This function is a placeholder and does not have an implementation yet.
-    CBoard newBoard = {0};
-    return newBoard;
-}
