@@ -2,6 +2,7 @@
     "files.associations": {
         "stdint.h": "c",
         "board.h": "c",
-        "bitboard.h": "c"
+        "bitboard.h": "c",
+        "constant_attacks.h": "c"
     }
 }

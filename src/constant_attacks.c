@@ -1,4 +1,4 @@
-#include "generate_const_attacks.h"
+#include "constant_attacks.h"
 
 // the following function was used to generate the constant array
 // for knight attacks
@@ -104,7 +104,7 @@ const Bitboard knight_attacks[64] = {
     0x0020400000000000ULL,
 };
 
-Bitboard getKnightAttacks(int square)
+Bitboard getKnightAttacks(Square square)
 {
     return knight_attacks[square];
 }
@@ -209,7 +209,7 @@ const Bitboard king_attacks[64] = {
     0x40c0000000000000ULL,
 };
 
-Bitboard getKingAttacks(int square)
+Bitboard getKingAttacks(Square square)
 {
     return king_attacks[square];
 }
@@ -282,7 +282,7 @@ const Bitboard white_pawn_attacks[64] = {
     0x0000000000000000ULL,
 };
 
-Bitboard getWhitePawnAttacks(int square)
+Bitboard getWhitePawnAttacks(Square square)
 {
     return white_pawn_attacks[square];
 }
@@ -355,7 +355,7 @@ const Bitboard black_pawn_attacks[64] = {
     0x0040000000000000ULL,
 };
 
-Bitboard getBlackPawnAttacks(int square)
+Bitboard getBlackPawnAttacks(Square square)
 {
     return black_pawn_attacks[square];
 }
