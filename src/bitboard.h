@@ -134,16 +134,10 @@ typedef enum
     black
 } Color;
 
-// map (rank 0-7, file 0-7) → bit index 0-63
-static inline int square_index(int rank, int file)
-{
-    return rank * 8 + file;
-}
-
 // build a bitboard with exactly that square set
 static inline Bitboard BB(int rank, int file)
 {
-    return (Bitboard)1 << square_index(rank, file);
+    return (Bitboard)1 << (rank * 8 + file);
 }
 
 // Test whether bitboard b has bit sq set (0 or 1)
@@ -177,6 +171,18 @@ static inline void printBBoard(Bitboard b)
         printf("\n");
     }
     printf("\n");
+}
+
+// get square index of ith bit in bitboard b
+// precondition: i < popCount(b)
+static inline int bb_get_ith_square(Bitboard b, int i)
+{
+    Bitboard temp = b;
+    for (int j = 0; j < i; j++)
+    {
+        temp &= temp - 1; // clear least significant bit
+    }
+    return bitboardLSBIndex(temp);
 }
 
 /* file masks (A..H) and complements */
