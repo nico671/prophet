@@ -149,18 +149,6 @@ Bitboard getQueenAttacks(int square, Bitboard occupancy);
 Bitboard generateBishopAttacks(int square, Bitboard blockers); // For testing
 Bitboard generateRookAttacks(int square, Bitboard blockers);   // For testing
 
-// the above magic numbers were computed with the following code, courtesy of
-// https://www.chessprogramming.org/Looking_for_Magics
-// Bitboard random_Bitboard()
-// {
-//     Bitboard u1, u2, u3, u4;
-//     u1 = (Bitboard)(random()) & 0xFFFF;
-//     u2 = (Bitboard)(random()) & 0xFFFF;
-//     u3 = (Bitboard)(random()) & 0xFFFF;
-//     u4 = (Bitboard)(random()) & 0xFFFF;
-//     return u1 | (u2 << 16) | (u3 << 32) | (u4 << 48);
-// }
-
 // Bitboard random_Bitboard_fewbits()
 // {
 //     return random_Bitboard() & random_Bitboard() & random_Bitboard();
