@@ -32,7 +32,7 @@ static inline int popCount(Bitboard bb)
 // precondition: bb != 0
 static inline int bitboardLSBIndex(Bitboard bb)
 {
-    return popCount((bb & -bb) - 1);
+    return __builtin_ctzll(bb);
 }
 
 // returns index (0-63) of most significant 1 bit

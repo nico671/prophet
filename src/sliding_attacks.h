@@ -146,6 +146,8 @@ void initSlidingAttacks(void);
 Bitboard getRookAttacks(int square, Bitboard occupancy);
 Bitboard getBishopAttacks(int square, Bitboard occupancy);
 Bitboard getQueenAttacks(int square, Bitboard occupancy);
+Bitboard generateBishopAttacks(int square, Bitboard blockers); // For testing
+Bitboard generateRookAttacks(int square, Bitboard blockers);   // For testing
 
 // the above magic numbers were computed with the following code, courtesy of
 // https://www.chessprogramming.org/Looking_for_Magics
