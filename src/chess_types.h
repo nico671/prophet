@@ -77,4 +77,15 @@ typedef enum
     BLACK = 1
 } Color;
 #define NO_SQUARE 64
+
+typedef enum
+{
+    PAWN,
+    KNIGHT,
+    BISHOP,
+    ROOK,
+    QUEEN,
+    KING,
+    NO_PIECE
+} PieceType;
 #endif // CHESS_TYPES_H

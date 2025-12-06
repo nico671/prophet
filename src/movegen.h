@@ -1,3 +1,4 @@
+
 #ifndef MOVEGEN_H
 #define MOVEGEN_H
 
@@ -66,6 +67,78 @@ typedef struct
     Move moves[256]; // Maximum possible moves in a position
     int count;
 } MoveList;
+
+// move construction macros
+
+// Create a quiet move
+#define MAKE_MOVE(from, to) ((Move){from, to, QUIET})
+
+// make a capture move
+#define MAKE_CAPTURE(from, to) ((Move){from, to, CAPTURE})
+// make an en passant move
+#define MAKE_EP(from, to) ((Move){from, to, EP_CAPTURE})
+// make a double pawn push move
+#define MAKE_DOUBLE_PUSH(from, to) ((Move){from, to, DOUBLE_PAWN_PUSH})
+// make a kingside castle move
+#define MAKE_CASTLE_KING(from, to) ((Move){from, to, KINGSIDE_CASTLE})
+// make a queenside castle move
+#define MAKE_CASTLE_QUEEN(from, to) ((Move){from, to, QUEENSIDE_CASTLE})
+
+// make a promotion move
+static inline Move MAKE_PROMOTION(Square from, Square to, PieceType pieceType)
+{
+    MoveFlag promoFlag;
+    switch (pieceType)
+    {
+    case KNIGHT:
+        promoFlag = KNIGHT_PROMO_QUIET;
+        break;
+    case BISHOP:
+        promoFlag = BISHOP_PROMO_QUIET;
+        break;
+    case ROOK:
+        promoFlag = ROOK_PROMO_QUIET;
+        break;
+    case QUEEN:
+        promoFlag = QUEEN_PROMO_QUIET;
+        break;
+    default:
+        promoFlag = QUIET; // default to quiet if invalid pieceType
+        break;
+    }
+    return ((Move){from, to, promoFlag});
+}
+
+// make a promotion capture move
+static inline Move MAKE_PROMOTION_CAPTURE(Square from, Square to, PieceType pieceType)
+{
+    MoveFlag promoCapFlag;
+    switch (pieceType)
+    {
+    case KNIGHT:
+        promoCapFlag = KNIGHT_PROMO_CAPTURE;
+        break;
+    case BISHOP:
+        promoCapFlag = BISHOP_PROMO_CAPTURE;
+        break;
+    case ROOK:
+        promoCapFlag = ROOK_PROMO_CAPTURE;
+        break;
+    case QUEEN:
+        promoCapFlag = QUEEN_PROMO_CAPTURE;
+        break;
+    default:
+        promoCapFlag = QUIET; // default to quiet if invalid pieceType
+        break;
+    }
+    return ((Move){from, to, promoCapFlag});
+}
+
+// make an en passant capture move
+static inline Move MAKE_EP_CAPTURE(Square from, Square to)
+{
+    return ((Move){from, to, EP_CAPTURE});
+}
 
 // // Move construction and extraction
 // #define MOVE(from, to, flags) ((Move)((from) | ((to) << 6) | ((flags) << 12)))

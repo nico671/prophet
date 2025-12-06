@@ -17,14 +17,14 @@
  ✔ Add setBit(Bitboard*, Square) convenience function @done(25-12-06 14:22)
 Phase 2: Complete Move Encoding System
 
-☐ 2.2 Create Move Construction Macros/Functions
- ☐ Write MAKE_MOVE(from, to) for quiet moves
- ☐ Write MAKE_CAPTURE(from, to) for captures
- ☐ Write MAKE_PROMOTION(from, to, piece) for promotions
- ☐ Write MAKE_PROMOTION_CAPTURE(from, to, piece) for promotion captures
- ☐ Write MAKE_EN_PASSANT(from, to) for en passant
- ☐ Write MAKE_CASTLING(from, to) for castling moves
- ☐ Write MAKE_DOUBLE_PAWN_PUSH(from, to) for double pawn pushes
+✔ 2.2 Create Move Construction Macros/Functions @done(25-12-06 14:33)
+ ✔ Write MAKE_MOVE(from, to) for quiet moves @done(25-12-06 14:33)
+ ✔ Write MAKE_CAPTURE(from, to) for captures @done(25-12-06 14:33)
+ ✔ Write MAKE_PROMOTION(from, to, piece) for promotions @done(25-12-06 14:33)
+ ✔ Write MAKE_PROMOTION_CAPTURE(from, to, piece) for promotion captures @done(25-12-06 14:33)
+ ✔ Write MAKE_EN_PASSANT(from, to) for en passant @done(25-12-06 14:33)
+ ✔ Write MAKE_CASTLING(from, to) for castling moves @done(25-12-06 14:33)
+ ✔ Write MAKE_DOUBLE_PAWN_PUSH(from, to) for double pawn pushes @done(25-12-06 14:33)
 2.3 Create Move Extraction Macros/Functions
  Write GET_FROM(move) to extract source square
  Write GET_TO(move) to extract destination square
