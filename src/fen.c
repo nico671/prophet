@@ -3,6 +3,7 @@
 CBoard fenToCBoard(char *fenString)
 {
     CBoard board = {0};
+    board.epSquare = NO_SQUARE; // default no en passant
     size_t len = strlen(fenString);
     int rank = 7;
     int file = 0;
@@ -85,7 +86,7 @@ CBoard fenToCBoard(char *fenString)
     ++p;
 
     // side to move
-    board.whiteToMove = (*p == 'w');
+    board.sideToMove = (*p == 'w') ? WHITE : BLACK;
     p = strchr(p, ' ');
     if (!p)
         return board;
@@ -134,6 +135,10 @@ CBoard fenToCBoard(char *fenString)
             int epFile = f - 'a';
             int epRank = r - '1';
             board.epSquare = epRank * 8 + epFile;
+        }
+        else
+        {
+            board.epSquare = NO_SQUARE; // invalid en passant square
         }
     }
     // advance to halfmove/fullmove fields
@@ -215,7 +220,7 @@ char *CBoardToFen(CBoard *board)
     *p++ = ' ';
 
     // side to move
-    *p++ = board->whiteToMove ? 'w' : 'b';
+    *p++ = board->sideToMove == WHITE ? 'w' : 'b';
     *p++ = ' ';
 
     // castling rights
@@ -245,7 +250,7 @@ char *CBoardToFen(CBoard *board)
     *p++ = ' ';
 
     // en passant
-    if (board->epSquare != 64)
+    if (board->epSquare != NO_SQUARE)
     {
         int epFile = board->epSquare % 8;
         int epRank = board->epSquare / 8;

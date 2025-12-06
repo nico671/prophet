@@ -53,7 +53,7 @@ void printBoard(CBoard *board)
         printf("\n"); // Add newline after each rank
     }
     printf("\n");
-    printf("White to move: %s\n", board->whiteToMove ? "Yes" : "No");
+    printf("White to move: %s\n", board->sideToMove == WHITE ? "Yes" : "No");
     printf("En passant square: %d\n", board->epSquare);
     printf("Halfmove clock: %d\n", board->halfmoveClock);
     printf("Fullmove number: %d\n", board->fullmoveNumber);

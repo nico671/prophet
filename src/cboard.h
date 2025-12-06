@@ -29,7 +29,7 @@ typedef struct CBoard
     Bitboard allPieces;   // all pieces
 
     // Game state info
-    bool whiteToMove;
+    Color sideToMove; // true for White, false for Black
     bool whiteCanCastleKingside;
     bool whiteCanCastleQueenside;
     bool blackCanCastleKingside;
