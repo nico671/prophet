@@ -35,34 +35,14 @@ Phase 2: Complete Move Encoding System
  ✔ Write IS_EN_PASSANT(move) predicate @done(25-12-07 00:06)
  ✔ Write IS_CASTLING(move) predicate @done(25-12-07 00:06)
  ✔ Write IS_DOUBLE_PUSH(move) predicate @done(25-12-07 00:06)
-Phase 3: Implement Pseudo-Legal Move Generation
-3.1 Pawn Move Generation
- Single pushes:
-Get all pawns for side to move
-Shift forward by 8 (white) or -8 (black)
-Mask with empty squares
-For each resulting square, create move
- Double pushes:
-Start with single pushes that land on rank 3 (white) or rank 6 (black)
-Shift forward again
-Mask with empty squares
-Create moves with double-push flag
- Captures left:
-Shift pawns diagonally left-forward
-Mask with opponent pieces
-Create capture moves for each hit
- Captures right:
-Shift pawns diagonally right-forward
-Mask with opponent pieces
-Create capture moves for each hit
- Promotions:
-Detect when pawn reaches rank 7 (white) or rank 2 (black)
-Generate 4 moves per promotion (N/B/R/Q)
-Handle both promotion pushes and promotion captures
- En passant:
-Check if epSquare is valid (not 64 or -1)
-Check if any pawn can attack the en passant square
-Generate en passant capture move with special flag
+☐ Phase 3: Implement Pseudo-Legal Move Generation
+☐ 3.1 Pawn Move Generation
+ ✔ Single pushes: Get all pawns for side to move. Shift forward by 8 (white) or -8 (black) Mask with empty squares For each resulting square, create move @done(25-12-07 12:57)
+ ✔ Double pushes:Start with single pushes that land on rank 2 (white) or rank 7 (black) Shift forward again Mask with empty squares Create moves with double-push flag @done(25-12-07 12:57)
+ ☐ Captures left: Shift pawns diagonally left-forward Mask with opponent pieces Create capture moves for each hit
+ ☐ Captures right: Shift pawns diagonally right-forward Mask with opponent pieces Create capture moves for each hit
+☐ Promotions: Detect when pawn reaches rank 7 (white) or rank 2 (black) Generate 4 moves per promotion (N/B/R/Q) Handle both promotion pushes and promotion captures
+ ☐ En passant: Check if epSquare is valid (not 64 or -1) Check if any pawn can attack the en passant square Generate en passant capture move with special flag
 3.2 Knight Move Generation
  Get all knights for side to move
  For each knight:

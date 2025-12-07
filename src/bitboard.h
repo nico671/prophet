@@ -60,7 +60,7 @@ static inline int bb_pop_lsb(Bitboard *b)
 }
 
 // build a bitboard with exactly that square set
-static inline Bitboard BB(int rank, int file)
+static inline Bitboard buildBitboardWithSquare(int rank, int file)
 {
     return (Bitboard)1 << (rank * 8 + file);
 }
