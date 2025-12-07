@@ -51,5 +51,15 @@ void recomputeOccupancies(CBoard *board);
 // bool validateBoard(CBoard *board);
 
 void printBoard(CBoard *board);
-
+typedef struct UndoInfo
+{
+    PieceType capturedPiece;        // What was captured (NO_PIECE if none)
+    uint8_t previousEpSquare;       // Previous en passant square
+    uint16_t previousHalfmoveClock; // Previous 50-move counter
+    bool prevWhiteCastleKingside;   // Previous castling rights
+    bool prevWhiteCastleQueenside;
+    bool prevBlackCastleKingside;
+    bool prevBlackCastleQueenside;
+    // uint64_t previousZobristKey;  // TODO: Add when implementing Zobrist
+} UndoInfo;
 #endif // BOARD_H

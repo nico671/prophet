@@ -21,7 +21,7 @@ static const uint64_t K2 = 0x3333333333333333ULL; /*  -1/5   */
 static const uint64_t K4 = 0x0f0f0f0f0f0f0f0fULL; /*  -1/17  */
 static const uint64_t KF = 0x0101010101010101ULL; /*  -1/255 */
 
-static inline int popCount(Bitboard bb)
+static inline int bb_popcount(Bitboard bb)
 {
     bb = bb - ((bb >> 1) & K1);        // put count of each 2 bits into those 2 bits
     bb = (bb & K2) + ((bb >> 2) & K2); // put count of each 4 bits into those 4 bits
@@ -31,14 +31,14 @@ static inline int popCount(Bitboard bb)
 
 // returns index (0-63) of least significant 1 bit
 // precondition: bb != 0
-static inline int bitboardLSBIndex(Bitboard bb)
+static inline int bb_lsb_idx(Bitboard bb)
 {
     return __builtin_ctzll(bb);
 }
 
 // returns index (0-63) of most significant 1 bit
 // precondition: bb != 0
-static inline int bitboardMSBIndex(Bitboard bb)
+static inline int bb_msb_idx(Bitboard bb)
 {
     bb |= (bb >> 1);
     bb |= (bb >> 2);
@@ -46,7 +46,7 @@ static inline int bitboardMSBIndex(Bitboard bb)
     bb |= (bb >> 8);
     bb |= (bb >> 16);
     bb |= (bb >> 32);
-    return popCount(bb >> 1);
+    return bb_popcount(bb >> 1);
 }
 
 // Pop & return index of the least‐significant 1-bit
@@ -60,7 +60,7 @@ static inline int bb_pop_lsb(Bitboard *b)
 }
 
 // build a bitboard with exactly that square set
-static inline Bitboard buildBitboardWithSquare(int rank, int file)
+static inline Bitboard build_bb_with_square_set(int rank, int file)
 {
     return (Bitboard)1 << (rank * 8 + file);
 }
@@ -83,7 +83,7 @@ static inline void bb_clear(Bitboard *b, int sq)
     *b &= ~((Bitboard)1 << sq);
 }
 
-static inline void printBBoard(Bitboard b)
+static inline void print_bb(Bitboard b)
 {
     for (int rank = 7; rank >= 0; rank--)
     {
@@ -99,7 +99,7 @@ static inline void printBBoard(Bitboard b)
 }
 
 // get square index of ith bit in bitboard b
-// precondition: i < popCount(b)
+// precondition: i < bb_popcount(b)
 static inline int bb_get_ith_square(Bitboard b, int i)
 {
     Bitboard temp = b;
@@ -107,7 +107,7 @@ static inline int bb_get_ith_square(Bitboard b, int i)
     {
         temp &= temp - 1; // clear least significant bit
     }
-    return bitboardLSBIndex(temp);
+    return bb_lsb_idx(temp);
 }
 
 /* file masks (A..H) and complements */
@@ -147,8 +147,16 @@ static inline Bitboard square_mask(int sq)
     return (Bitboard)1 << sq;
 }
 
+static inline int is_bit_set(Bitboard b, int sq)
+{
+    return (b >> sq) & 1;
+}
+
 /* Safe directional shifts (no wraps) */
-static inline Bitboard north(Bitboard b) { return b << 8; }
+static inline Bitboard north(Bitboard b)
+{
+    return b << 8;
+}
 static inline Bitboard south(Bitboard b) { return b >> 8; }
 static inline Bitboard east(Bitboard b) { return (b << 1) & NOT_FILE_A; } // file++ (mask out wraps into file a)
 static inline Bitboard west(Bitboard b) { return (b >> 1) & NOT_FILE_H; } // file-- (mask out wraps into file h)

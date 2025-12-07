@@ -36,73 +36,62 @@ Phase 2: Complete Move Encoding System
  ✔ Write IS_CASTLING(move) predicate @done(25-12-07 00:06)
  ✔ Write IS_DOUBLE_PUSH(move) predicate @done(25-12-07 00:06)
 ☐ Phase 3: Implement Pseudo-Legal Move Generation
-☐ 3.1 Pawn Move Generation
+✔ 3.1 Pawn Move Generation @done(25-12-07 14:23)
  ✔ Single pushes: Get all pawns for side to move. Shift forward by 8 (white) or -8 (black) Mask with empty squares For each resulting square, create move @done(25-12-07 12:57)
  ✔ Double pushes:Start with single pushes that land on rank 2 (white) or rank 7 (black) Shift forward again Mask with empty squares Create moves with double-push flag @done(25-12-07 12:57)
- ☐ Captures left: Shift pawns diagonally left-forward Mask with opponent pieces Create capture moves for each hit
- ☐ Captures right: Shift pawns diagonally right-forward Mask with opponent pieces Create capture moves for each hit
-☐ Promotions: Detect when pawn reaches rank 7 (white) or rank 2 (black) Generate 4 moves per promotion (N/B/R/Q) Handle both promotion pushes and promotion captures
- ☐ En passant: Check if epSquare is valid (not 64 or -1) Check if any pawn can attack the en passant square Generate en passant capture move with special flag
-3.2 Knight Move Generation
- Get all knights for side to move
- For each knight:
-Use precomputed getKnightAttacks(square) lookup
-Mask out friendly pieces
-For each set bit in resulting attack bitboard:
-Determine if it's a capture (intersects enemy pieces)
-Create appropriate move type
-Add to move list
-3.3 Bishop Move Generation
- Get all bishops for side to move
- For each bishop:
-Call getBishopAttacks(square, occupancy) with current board occupancy
-Mask out friendly pieces
-For each set bit in resulting attack bitboard:
-Determine if capture or quiet move
-Create move and add to list
-3.4 Rook Move Generation
- Get all rooks for side to move
- For each rook:
-Call getRookAttacks(square, occupancy) with current board occupancy
-Mask out friendly pieces
-For each set bit in resulting attack bitboard:
-Determine if capture or quiet move
-Create move and add to list
-3.5 Queen Move Generation
- Get all queens for side to move
- For each queen:
-Call getQueenAttacks(square, occupancy) (or combine bishop+rook attacks)
-Mask out friendly pieces
-For each set bit in resulting attack bitboard:
-Determine if capture or quiet move
-Create move and add to list
-3.6 King Move Generation (non-castling)
- Get king for side to move (should be exactly 1)
- Use precomputed getKingAttacks(square) lookup
- Mask out friendly pieces
- For each set bit in resulting attack bitboard:
-Determine if capture or quiet move
-Create move and add to list
- Note: Don't filter out squares under attack yet (that's legal move filtering)
-3.7 Castling Move Generation
- Kingside castling:
-Check if side has kingside castling rights
-Verify king is on starting square (e1 for white, e8 for black)
-Verify kingside rook is on starting square (h1/h8)
-Check f-file and g-file squares are empty
-Create castling move from king square to g1/g8
- Queenside castling:
-Check if side has queenside castling rights
-Verify king is on starting square
-Verify queenside rook is on starting square (a1/a8)
-Check b-file, c-file, d-file squares are empty
-Create castling move from king square to c1/c8
- Note: Don't check for attacks yet (that's legal move filtering)
-3.8 MoveList Management
- Implement initMoveList(MoveList*) to set count to 0
- Implement addMove(MoveList*, Move) to append move
- Ensure MoveList has sufficient capacity (218 is theoretical max, 256 is safe)
- Add bounds checking or assert on moveList->count
+ ✔ Captures left: Shift pawns diagonally left-forward Mask with opponent pieces Create capture moves for each hit @done(25-12-07 14:17) (implemented these together)
+ ✔ Captures right: Shift pawns diagonally right-forward Mask with opponent pieces Create capture moves for each hit @done(25-12-07 14:17)
+✔ Promotions: Detect when pawn reaches rank 7 (white) or rank 2 (black) Generate 4 moves per promotion (N/B/R/Q) Handle both promotion pushes and promotion captures @done(25-12-07 14:18)
+ ✔ En passant: Check if epSquare is valid (not 64 or -1) Check if any pawn can attack the en passant square Generate en passant capture move with special flag @done(25-12-07 14:23)
+✔ 3.2 Knight Move Generation @done(25-12-07 15:42)
+ ✔ Get all knights for side to move @done(25-12-07 15:42)
+ ✔ For each knight: @done(25-12-07 15:42)
+    ✔ Use precomputed getKnightAttacks(square) lookup, Mask out friendly pieces, For each set bit in resulting attack bitboard:, Determine if it's a capture (intersects enemy pieces), Create appropriate move type, Add to move list @done(25-12-07 15:42)
+✔ 3.3 Bishop Move Generation @done(25-12-07 16:09)
+ ✔ Get all bishops for side to move @done(25-12-07 16:09)
+ ✔ For each bishop: Call getBishopAttacks(square, occupancy) with current board occupancy Mask out friendly pieces For each set bit in resulting attack bitboard: Determine if capture or quiet move Create move and add to list @done(25-12-07 16:02)
+✔ 3.4 Rook Move Generation @done(25-12-07 16:09)
+ ✔ Get all rooks for side to move @done(25-12-07 16:09)
+ ✔ For each rook: @done(25-12-07 16:09)
+✔ Call getRookAttacks(square, occupancy) with current board occupancy @done(25-12-07 16:09)
+✔ Mask out friendly pieces @done(25-12-07 16:09)
+✔ For each set bit in resulting attack bitboard: @done(25-12-07 16:09)
+✔ Determine if capture or quiet move @done(25-12-07 16:09)
+✔ Create move and add to list @done(25-12-07 16:09)
+✔ 3.5 Queen Move Generation @done(25-12-07 16:09)
+ ✔ Get all queens for side to move @done(25-12-07 16:09)
+ ✔ For each queen: @done(25-12-07 16:09)
+✔ Call getQueenAttacks(square, occupancy) (or combine bishop+rook attacks) @done(25-12-07 16:09)
+✔ Mask out friendly pieces @done(25-12-07 16:09)
+✔ For each set bit in resulting attack bitboard: @done(25-12-07 16:09)
+✔ Determine if capture or quiet move @done(25-12-07 16:09)
+✔ Create move and add to list @done(25-12-07 16:09)
+✔ 3.6 King Move Generation (non-castling) @done(25-12-07 16:13)
+ ✔ Get king for side to move (should be exactly 1) @done(25-12-07 16:13)
+ ✔ Use precomputed getKingAttacks(square) lookup @done(25-12-07 16:13)
+ ✔ Mask out friendly pieces @done(25-12-07 16:13)
+ ✔ For each set bit in resulting attack bitboard: @done(25-12-07 16:13)
+✔ Determine if capture or quiet move @done(25-12-07 16:13)
+✔ Create move and add to list @done(25-12-07 16:13)
+ ✔ Note: Don't filter out squares under attack yet (that's legal move filtering) @done(25-12-07 16:13)
+✔ 3.7 Castling Move Generation @done(25-12-07 18:21)
+ ✔ Kingside castling: @done(25-12-07 18:21)
+✔ Check if side has kingside castling rights @done(25-12-07 18:21)
+✔ Verify king is on starting square (e1 for white, e8 for black) @done(25-12-07 18:21)
+✔ Verify kingside rook is on starting square (h1/h8) @done(25-12-07 18:21)
+✔ Check f-file and g-file squares are empty @done(25-12-07 18:21)
+✔ Create castling move from king square to g1/g8 @done(25-12-07 18:21)
+ ✔ Queenside castling: @done(25-12-07 18:21)
+✔ Check if side has queenside castling rights @done(25-12-07 18:21)
+✔ Verify king is on starting square @done(25-12-07 18:21)
+✔ Verify queenside rook is on starting square (a1/a8) @done(25-12-07 18:21)
+✔ Check b-file, c-file, d-file squares are empty @done(25-12-07 18:21)
+✔ Create castling move from king square to c1/c8 @done(25-12-07 18:21)
+✔ 3.8 MoveList Management @done(25-12-07 18:27)
+ ✔ Implement initMoveList(MoveList*) to set count to 0 @done(25-12-07 18:27)
+ ✔ Implement addMove(MoveList*, Move) to append move @done(25-12-07 18:27)
+ ✔ Ensure MoveList has sufficient capacity (218 is theoretical max, 256 is safe) @done(25-12-07 18:27)
+ ✔ Add bounds checking or assert on moveList->count @done(25-12-07 18:27)
 Phase 4: Implement Make/Unmake Move Functions
 4.1 Design Unmake Information Structure
  Create UndoInfo or BoardState struct to store:

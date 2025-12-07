@@ -4,7 +4,8 @@
 
 #include "bitboard.h"
 #include "cboard.h"
-
+#include "constant_attacks.h"
+#include "sliding_attacks.h"
 // Future Move representation plan:
 // Bits 0-5:   FROM square (6 bits = 0-63)
 // Bits 6-11:  TO square (6 bits = 0-63)
@@ -194,6 +195,9 @@ static inline int isDoublePush(Move move)
 {
     return (move.flag == DOUBLE_PAWN_PUSH);
 }
+
+void genAllMoves(CBoard *board, MoveList *moveList);
+void initMoveList(MoveList *moveList);
 
 // // Move construction and extraction
 // #define MOVE(from, to, flags) ((Move)((from) | ((to) << 6) | ((flags) << 12)))

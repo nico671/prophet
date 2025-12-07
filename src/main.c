@@ -15,7 +15,8 @@ int main()
     board = fenToCBoard((char *)fenString);
 
     printBoard(&board);
-    // CBoard board1 = gen_pawn_pushes(&board);
-    // printBoard(&board1);
+    MoveList test = {0};
+    genAllMoves(&board, &test);
+    printf("%d", test.count);
     return 0;
 }

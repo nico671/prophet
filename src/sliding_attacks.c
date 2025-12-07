@@ -265,7 +265,7 @@ void initSlidingAttacks(void)
             // Generate occupancy pattern from index
             while (temp_mask)
             {
-                int bit_pos = bitboardLSBIndex(temp_mask);
+                int bit_pos = bb_lsb_idx(temp_mask);
                 if (i & (1 << count))
                 {
                     occupancy |= (1ULL << bit_pos);
@@ -295,7 +295,7 @@ void initSlidingAttacks(void)
             // Generate occupancy pattern from index
             while (temp_mask)
             {
-                int bit_pos = bitboardLSBIndex(temp_mask);
+                int bit_pos = bb_lsb_idx(temp_mask);
                 if (i & (1 << count))
                 {
                     occupancy |= (1ULL << bit_pos);

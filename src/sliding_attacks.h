@@ -1,5 +1,6 @@
 #include "bitboard.h"
-
+#ifndef SLIDING_ATTACKS_H
+#define SLIDING_ATTACKS_H
 static const Bitboard rook_occupancy_maps[] = {
     0x000101010101017eULL,
     0x000202020202027cULL,
@@ -148,6 +149,8 @@ Bitboard getBishopAttacks(int square, Bitboard occupancy);
 Bitboard getQueenAttacks(int square, Bitboard occupancy);
 Bitboard generateBishopAttacks(int square, Bitboard blockers); // For testing
 Bitboard generateRookAttacks(int square, Bitboard blockers);   // For testing
+
+#endif
 
 // Bitboard random_Bitboard_fewbits()
 // {
