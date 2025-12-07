@@ -389,3 +389,184 @@ void initMoveList(MoveList *moveList)
 {
     moveList->count = 0;
 }
+
+UndoInfo makeQuietMove(CBoard *board, Move move)
+{
+    // extract from, to, flag
+    Square from = FROM_SQ(move);
+    Square to = TO_SQ(move);
+
+    // identify piece moving
+    if (board->sideToMove == WHITE)
+    {
+        if (is_bit_set(board->whitePawns, from))
+        {
+            // moving white pawn
+            bb_clear(&board->whitePawns, from);
+            bb_set(&board->whitePawns, to);
+        }
+        else if (is_bit_set(board->whiteKnights, from))
+        {
+            // moving white knight
+            bb_clear(&board->whiteKnights, from);
+            bb_set(&board->whiteKnights, to);
+        }
+        else if (is_bit_set(board->whiteBishops, from))
+        {
+            // moving white bishop
+            bb_clear(&board->whiteBishops, from);
+            bb_set(&board->whiteBishops, to);
+        }
+        else if (is_bit_set(board->whiteRooks, from))
+        {
+            // moving white rook
+            bb_clear(&board->whiteRooks, from);
+            bb_set(&board->whiteRooks, to);
+        }
+        else if (is_bit_set(board->whiteQueens, from))
+        {
+            // moving white queen
+            bb_clear(&board->whiteQueens, from);
+            bb_set(&board->whiteQueens, to);
+        }
+        else if (is_bit_set(board->whiteKing, from))
+        {
+            // moving white king
+            bb_clear(&board->whiteKing, from);
+            bb_set(&board->whiteKing, to);
+        }
+    }
+    else
+    {
+        // black to move
+        if (is_bit_set(board->blackPawns, from))
+        {
+            // moving black pawn
+            bb_clear(&board->blackPawns, from);
+            bb_set(&board->blackPawns, to);
+        }
+        else if (is_bit_set(board->blackKnights, from))
+        {
+            // moving black knight
+            bb_clear(&board->blackKnights, from);
+            bb_set(&board->blackKnights, to);
+        }
+        else if (is_bit_set(board->blackBishops, from))
+        {
+            // moving black bishop
+            bb_clear(&board->blackBishops, from);
+            bb_set(&board->blackBishops, to);
+        }
+        else if (is_bit_set(board->blackRooks, from))
+        {
+            // moving black rook
+            bb_clear(&board->blackRooks, from);
+            bb_set(&board->blackRooks, to);
+        }
+        else if (is_bit_set(board->blackQueens, from))
+        {
+            // moving black queen
+            bb_clear(&board->blackQueens, from);
+            bb_set(&board->blackQueens, to);
+        }
+        else if (is_bit_set(board->blackKing, from))
+        {
+            // moving black king
+            bb_clear(&board->blackKing, from);
+            bb_set(&board->blackKing, to);
+        }
+    }
+    // If king moved, lose all castling rights for that side
+    if (is_bit_set(board->whiteKing, to) && board->sideToMove == BLACK) // King just moved
+    {
+        board->whiteCanCastleKingside = false;
+        board->whiteCanCastleQueenside = false;
+    }
+    else if (is_bit_set(board->blackKing, to) && board->sideToMove == WHITE)
+    {
+        board->blackCanCastleKingside = false;
+        board->blackCanCastleQueenside = false;
+    }
+
+    // If rook moved from starting square, lose that side's castling
+    if (board->sideToMove == BLACK) // White just moved
+    {
+        if (from == H1)
+            board->whiteCanCastleKingside = false;
+        if (from == A1)
+            board->whiteCanCastleQueenside = false;
+    }
+    else // Black just moved
+    {
+        if (from == H8)
+            board->blackCanCastleKingside = false;
+        if (from == A8)
+            board->blackCanCastleQueenside = false;
+    }
+    // recompute occupancies
+    recomputeOccupancies(board);
+
+    // create and populate undo info
+    UndoInfo undoInfo = {0};
+    undoInfo.capturedPiece = NO_PIECE;
+    undoInfo.previousEpSquare = board->epSquare;
+    undoInfo.previousHalfmoveClock = board->halfmoveClock;
+    undoInfo.prevWhiteCastleKingside = board->whiteCanCastleKingside;
+    undoInfo.prevWhiteCastleQueenside = board->whiteCanCastleQueenside;
+    undoInfo.prevBlackCastleKingside = board->blackCanCastleKingside;
+    undoInfo.prevBlackCastleQueenside = board->blackCanCastleQueenside;
+
+    // update game state
+    // Update halfmove clock
+    if (is_bit_set(board->whitePawns, to) || is_bit_set(board->blackPawns, to))
+    {
+        board->halfmoveClock = 0; // Pawn move resets
+    }
+    else
+    {
+        board->halfmoveClock++; // Non-pawn quiet move increments
+    }
+    board->epSquare = NO_SQUARE;
+    // Switch sides
+    board->sideToMove = (board->sideToMove == WHITE) ? BLACK : WHITE;
+
+    // Increment fullmove after black moves (when white's turn starts)
+    if (board->sideToMove == WHITE)
+    {
+        board->fullmoveNumber++;
+    }
+
+    return undoInfo;
+}
+
+UndoInfo makeMove(CBoard *board, Move move)
+{
+    // extract flag
+    MoveFlag flag = MOVE_FLAG(move);
+
+    if (flag == QUIET)
+    {
+        UndoInfo undoInfo = makeQuietMove(board, move);
+        return undoInfo;
+    }
+    else if (flag == DOUBLE_PAWN_PUSH)
+    {
+        // handle double pawn push
+    }
+    else if (flag == KINGSIDE_CASTLE || flag == QUEENSIDE_CASTLE)
+    {
+        // handle castling
+    }
+    else if (flag == CAPTURE)
+    {
+        // handle capture
+    }
+    else if (flag == EP_CAPTURE)
+    {
+        // handle en passant capture
+    }
+    else if (flag >= KNIGHT_PROMO_QUIET && flag <= QUEEN_PROMO_CAPTURE)
+    {
+        // handle promotion
+    }
+}

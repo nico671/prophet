@@ -38,10 +38,6 @@ typedef struct CBoard
     uint16_t halfmoveClock;  // for fifty-move rule
     uint16_t fullmoveNumber; // starts at 1, incremented after Black's move
 
-    // king squares
-    uint8_t whiteKingSquare;
-    uint8_t blackKingSquare;
-
     // zobrist key
     uint64_t zobristKey;
 } CBoard;

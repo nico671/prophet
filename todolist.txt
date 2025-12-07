@@ -92,28 +92,28 @@ Phase 2: Complete Move Encoding System
  ✔ Implement addMove(MoveList*, Move) to append move @done(25-12-07 18:27)
  ✔ Ensure MoveList has sufficient capacity (218 is theoretical max, 256 is safe) @done(25-12-07 18:27)
  ✔ Add bounds checking or assert on moveList->count @done(25-12-07 18:27)
-Phase 4: Implement Make/Unmake Move Functions
-4.1 Design Unmake Information Structure
- Create UndoInfo or BoardState struct to store:
-Captured piece type (if any)
-Previous castling rights (4 bools or 4 bits)
-Previous en passant square
-Previous halfmove clock
-Previous position hash/key (if using Zobrist hashing later)
- Decide where to store undo info:
-Return from makeMove?
-Stack/array of undo info?
-Part of move history in Board structure?
-4.2 Implement makeMove() for Quiet Moves
- Extract from and to squares from move
- Identify which piece is moving (check all piece bitboards)
- Remove piece from source square
- Place piece on destination square
- Update appropriate bitboards (piece-specific and color occupancy)
- Recompute allPieces bitboard
- Increment halfmove clock
- Toggle side to move
- Clear en passant square (set to 64 or -1)
+✔ Phase 4: Implement Make/Unmake Move Functions @done(25-12-07 18:33)
+✔ 4.1 Design Unmake Information Structure @done(25-12-07 18:33)
+ ✔ Create UndoInfo or BoardState struct to store: @done(25-12-07 18:33)
+✔ Captured piece type (if any) @done(25-12-07 18:33)
+✔ Previous castling rights (4 bools or 4 bits) @done(25-12-07 18:33)
+✔ Previous en passant square @done(25-12-07 18:33)
+✔ Previous halfmove clock @done(25-12-07 18:33)
+✔ Previous position hash/key (if using Zobrist hashing later) @done(25-12-07 18:33)
+ ✔ Decide where to store undo info: @done(25-12-07 18:33)
+✔ Return from makeMove? @done(25-12-07 18:33)
+✔ Stack/array of undo info? @done(25-12-07 18:33)
+✔ Part of move history in Board structure? @done(25-12-07 18:33)
+☐ 4.2 Implement makeMove() for Quiet Moves
+ ✔ Extract from and to squares from move @done(25-12-07 18:36)
+ ☐ Identify which piece is moving (check all piece bitboards)
+ ☐ Remove piece from source square
+ ☐ Place piece on destination square
+ ☐ Update appropriate bitboards (piece-specific and color occupancy)
+ ☐ Recompute allPieces bitboard
+ ☐ Increment halfmove clock
+ ☐ Toggle side to move
+ ☐ Clear en passant square (set to 64 or -1)
 4.3 Implement makeMove() for Captures
  Identify captured piece type on destination square
  Store captured piece in undo info

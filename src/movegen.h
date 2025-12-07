@@ -199,6 +199,9 @@ static inline int isDoublePush(Move move)
 void genAllMoves(CBoard *board, MoveList *moveList);
 void initMoveList(MoveList *moveList);
 
+UndoInfo makeMove(CBoard *board, Move move);
+void unmakeMove(CBoard *board, Move move, UndoInfo undoInfo);
+
 // // Move construction and extraction
 // #define MOVE(from, to, flags) ((Move)((from) | ((to) << 6) | ((flags) << 12)))
 // #define FROM_SQ(move) ((move) & 0x3F)
