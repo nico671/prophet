@@ -140,6 +140,61 @@ static inline Move MAKE_EP_CAPTURE(Square from, Square to)
     return ((Move){from, to, EP_CAPTURE});
 }
 
+#define FROM_SQ(move) ((move).from)
+#define TO_SQ(move) ((move).to)
+#define MOVE_FLAG(move) ((move).flag)
+
+static inline int getPromotionPiece(Move move)
+{
+    switch (move.flag)
+    {
+    case KNIGHT_PROMO_QUIET:
+    case KNIGHT_PROMO_CAPTURE:
+        return KNIGHT;
+    case BISHOP_PROMO_QUIET:
+    case BISHOP_PROMO_CAPTURE:
+        return BISHOP;
+    case ROOK_PROMO_QUIET:
+    case ROOK_PROMO_CAPTURE:
+        return ROOK;
+    case QUEEN_PROMO_QUIET:
+    case QUEEN_PROMO_CAPTURE:
+        return QUEEN;
+    default:
+        return NO_PIECE; // Not a promotion move
+    }
+}
+
+static inline int isCapture(Move move)
+{
+    return (move.flag == CAPTURE || move.flag == EP_CAPTURE ||
+            move.flag == KNIGHT_PROMO_CAPTURE || move.flag == BISHOP_PROMO_CAPTURE ||
+            move.flag == ROOK_PROMO_CAPTURE || move.flag == QUEEN_PROMO_CAPTURE);
+}
+
+static inline int isPromotion(Move move)
+{
+    return (move.flag == KNIGHT_PROMO_QUIET || move.flag == BISHOP_PROMO_QUIET ||
+            move.flag == ROOK_PROMO_QUIET || move.flag == QUEEN_PROMO_QUIET ||
+            move.flag == KNIGHT_PROMO_CAPTURE || move.flag == BISHOP_PROMO_CAPTURE ||
+            move.flag == ROOK_PROMO_CAPTURE || move.flag == QUEEN_PROMO_CAPTURE);
+}
+
+static inline int isEnPassant(Move move)
+{
+    return (move.flag == EP_CAPTURE);
+}
+static inline int isCastling(Move move)
+{
+    return (move.flag == KINGSIDE_CASTLE || move.flag == QUEENSIDE_CASTLE);
+}
+// ☐ Write IS_DOUBLE_PUSH(move) predicate
+
+static inline int isDoublePush(Move move)
+{
+    return (move.flag == DOUBLE_PAWN_PUSH);
+}
+
 // // Move construction and extraction
 // #define MOVE(from, to, flags) ((Move)((from) | ((to) << 6) | ((flags) << 12)))
 // #define FROM_SQ(move) ((move) & 0x3F)
