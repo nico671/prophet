@@ -16,7 +16,7 @@ int main()
 
     printBoard(&board);
     MoveList test = {0};
-    genAllMoves(&board, &test);
+    genAllPseudoLegalMoves(&board, &test);
     printf("%d", test.count);
     return 0;
 }

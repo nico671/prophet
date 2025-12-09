@@ -104,26 +104,26 @@ Phase 2: Complete Move Encoding System
 ✔ Return from makeMove? @done(25-12-07 18:33)
 ✔ Stack/array of undo info? @done(25-12-07 18:33)
 ✔ Part of move history in Board structure? @done(25-12-07 18:33)
-☐ 4.2 Implement makeMove() for Quiet Moves
+✔ 4.2 Implement makeMove() for Quiet Moves
  ✔ Extract from and to squares from move @done(25-12-07 18:36)
- ☐ Identify which piece is moving (check all piece bitboards)
- ☐ Remove piece from source square
- ☐ Place piece on destination square
- ☐ Update appropriate bitboards (piece-specific and color occupancy)
- ☐ Recompute allPieces bitboard
- ☐ Increment halfmove clock
+ ✔ Identify which piece is moving (check all piece bitboards) @done(25-12-08 16:32)
+ ✔ Remove piece from source square @done(25-12-08 16:32)
+ ✔ Place piece on destination square @done(25-12-08 16:32)
+ ✔ Update appropriate bitboards (piece-specific and color occupancy) @done(25-12-08 16:32)
+ ✔ Recompute allPieces bitboard @done(25-12-08 16:32)
+ ✔ Increment halfmove clock @done(25-12-08 16:32)
+ ✔ Toggle side to move @done(25-12-08 16:32)
+ ✔ Clear en passant square (set to 64 or -1) @done(25-12-08 16:32)
+☐ 4.3 Implement makeMove() for Captures
+ ☐ Identify captured piece type on destination square
+ ☐ Store captured piece in undo info
+ ☐ Remove captured piece from opponent's bitboards
+ ☐ Remove moving piece from source
+ ☐ Place moving piece on destination
+ ☐ Update all relevant bitboards
+ ☐ Reset halfmove clock to 0 (capture resets 50-move rule)
  ☐ Toggle side to move
- ☐ Clear en passant square (set to 64 or -1)
-4.3 Implement makeMove() for Captures
- Identify captured piece type on destination square
- Store captured piece in undo info
- Remove captured piece from opponent's bitboards
- Remove moving piece from source
- Place moving piece on destination
- Update all relevant bitboards
- Reset halfmove clock to 0 (capture resets 50-move rule)
- Toggle side to move
- Clear en passant square
+ ☐ Clear en passant square
 4.4 Implement makeMove() for Pawn Double Push
  Move pawn from source to destination (2 squares forward)
  Calculate en passant target square (square "behind" the pawn)

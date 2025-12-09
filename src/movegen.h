@@ -196,7 +196,7 @@ static inline int isDoublePush(Move move)
     return (move.flag == DOUBLE_PAWN_PUSH);
 }
 
-void genAllMoves(CBoard *board, MoveList *moveList);
+void genAllPseudoLegalMoves(CBoard *board, MoveList *moveList);
 void initMoveList(MoveList *moveList);
 
 UndoInfo makeMove(CBoard *board, Move move);
