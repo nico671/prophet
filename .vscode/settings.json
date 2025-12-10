@@ -5,5 +5,4 @@
         "bitboard.h": "c",
         "constant_attacks.h": "c"
     },
-    "C_Cpp.errorSquiggles": "disabled"
 }

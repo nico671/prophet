@@ -645,6 +645,29 @@ UndoInfo makeCaptureMove(CBoard *board, Move move)
     return undoInfo;
 }
 
+UndoInfo makeDoublePawnPushMove(CBoard *board, Move move)
+{
+    Square from = FROM_SQ(move);
+    Square to = TO_SQ(move);
+
+    // Save undo info before making any changes
+    UndoInfo undoInfo = saveUndoInfo(board, NO_PIECE);
+
+    // Move the pawn
+    movePieceOnBoard(board, from, to, board->sideToMove);
+
+    // Update board state
+    updateCastlingRights(board, from, to);
+    recomputeOccupancies(board);
+    updateGameState(board, to, false);
+
+    // Set en passant square (after updateGameState which clears it)
+    // Note: sideToMove has been switched by updateGameState, so we use the opposite logic
+    board->epSquare = (board->sideToMove == BLACK) ? to - 8 : to + 8;
+
+    return undoInfo;
+}
+
 UndoInfo makeMove(CBoard *board, Move move)
 {
     // extract flag

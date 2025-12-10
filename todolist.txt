@@ -114,22 +114,22 @@ Phase 2: Complete Move Encoding System
  ✔ Increment halfmove clock @done(25-12-08 16:32)
  ✔ Toggle side to move @done(25-12-08 16:32)
  ✔ Clear en passant square (set to 64 or -1) @done(25-12-08 16:32)
-☐ 4.3 Implement makeMove() for Captures
- ☐ Identify captured piece type on destination square
- ☐ Store captured piece in undo info
- ☐ Remove captured piece from opponent's bitboards
- ☐ Remove moving piece from source
- ☐ Place moving piece on destination
- ☐ Update all relevant bitboards
- ☐ Reset halfmove clock to 0 (capture resets 50-move rule)
- ☐ Toggle side to move
- ☐ Clear en passant square
-4.4 Implement makeMove() for Pawn Double Push
- Move pawn from source to destination (2 squares forward)
- Calculate en passant target square (square "behind" the pawn)
- Set board's epSquare to the target square
- Reset halfmove clock (pawn move resets 50-move rule)
- Toggle side to move
+✔ 4.3 Implement makeMove() for Captures @done(25-12-09 19:14)
+ ✔ Identify captured piece type on destination square @done(25-12-09 19:14)
+ ✔ Store captured piece in undo info @done(25-12-09 19:14)
+ ✔ Remove captured piece from opponent's bitboards @done(25-12-09 19:14)
+ ✔ Remove moving piece from source @done(25-12-09 19:14)
+ ✔ Place moving piece on destination @done(25-12-09 19:14)
+ ✔ Update all relevant bitboards @done(25-12-09 19:14)
+ ✔ Reset halfmove clock to 0 (capture resets 50-move rule) @done(25-12-09 19:14)
+ ✔ Toggle side to move @done(25-12-09 19:14)
+ ✔ Clear en passant square @done(25-12-09 19:14)
+✔ 4.4 Implement makeMove() for Pawn Double Push @done(25-12-09 19:16)
+ ✔ Move pawn from source to destination (2 squares forward) @done(25-12-09 19:16)
+ ✔ Calculate en passant target square (square "behind" the pawn) @done(25-12-09 19:16)
+ ✔ Set board's epSquare to the target square @done(25-12-09 19:16)
+ ✔ Reset halfmove clock (pawn move resets 50-move rule) @done(25-12-09 19:16)
+ ✔ Toggle side to move @done(25-12-09 19:16)
 4.5 Implement makeMove() for En Passant
  Move pawn from source to en passant square
  Calculate captured pawn's square (same rank as source, same file as destination)
