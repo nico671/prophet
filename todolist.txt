@@ -130,54 +130,54 @@ Phase 2: Complete Move Encoding System
  ✔ Set board's epSquare to the target square @done(25-12-09 19:16)
  ✔ Reset halfmove clock (pawn move resets 50-move rule) @done(25-12-09 19:16)
  ✔ Toggle side to move @done(25-12-09 19:16)
-4.5 Implement makeMove() for En Passant
- Move pawn from source to en passant square
- Calculate captured pawn's square (same rank as source, same file as destination)
- Remove captured pawn from that square
- Update all relevant bitboards
- Reset halfmove clock
- Clear en passant square
- Toggle side to move
-4.6 Implement makeMove() for Promotions
- Remove pawn from source square
- Place promoted piece (N/B/R/Q) on destination square
- If promotion capture, remove captured piece first
- Update appropriate bitboards
- Reset halfmove clock
- Clear en passant square
- Toggle side to move
-4.7 Implement makeMove() for Castling
- Kingside:
-Move king from e-file to g-file
-Move rook from h-file to f-file
-Update king and rook bitboards
- Queenside:
-Move king from e-file to c-file
-Move rook from a-file to d-file
-Update king and rook bitboards
- Remove both kingside and queenside castling rights for this color
- Increment halfmove clock
- Clear en passant square
- Toggle side to move
-4.8 Implement Castling Rights Updates
- If white king moves, clear both white castling rights
- If black king moves, clear both black castling rights
- If white rook on h1 moves or is captured, clear white kingside castling
- If white rook on a1 moves or is captured, clear white queenside castling
- If black rook on h8 moves or is captured, clear black kingside castling
- If black rook on a8 moves or is captured, clear black queenside castling
-4.9 Implement Fullmove Number Updates
- Increment fullmove number after black moves
- Keep fullmove number same after white moves
-4.10 Implement unmakeMove()
- Reverse all changes made by makeMove
- Move piece back from destination to source
- Restore captured piece (if any) from undo info
- Restore castling rights from undo info
- Restore en passant square from undo info
- Restore halfmove clock from undo info
- Decrement fullmove number if unmaking black's move
- Toggle side to move back
+✔ 4.5 Implement makeMove() for En Passant @done(25-12-11 18:20)
+ ✔ Move pawn from source to en passant square @done(25-12-11 18:20)
+ ✔ Calculate captured pawn's square (same rank as source, same file as destination) @done(25-12-11 18:20)
+ ✔ Remove captured pawn from that square @done(25-12-11 18:20)
+ ✔ Update all relevant bitboards @done(25-12-11 18:20)
+ ✔ Reset halfmove clock @done(25-12-11 18:20)
+ ✔ Clear en passant square @done(25-12-11 18:20)
+ ✔ Toggle side to move @done(25-12-11 18:20)
+✔ 4.6 Implement makeMove() for Promotions @done(25-12-11 18:26)
+ ✔ Remove pawn from source square @done(25-12-11 18:26)
+ ✔ Place promoted piece (N/B/R/Q) on destination square @done(25-12-11 18:26)
+ ✔ If promotion capture, remove captured piece first @done(25-12-11 18:26)
+ ✔ Update appropriate bitboards @done(25-12-11 18:26)
+ ✔ Reset halfmove clock @done(25-12-11 18:26)
+ ✔ Clear en passant square @done(25-12-11 18:26)
+ ✔ Toggle side to move @done(25-12-11 18:26)
+✔ 4.7 Implement makeMove() for Castling @done(25-12-11 18:26)
+ ✔ Kingside: @done(25-12-11 18:26)
+✔ Move king from e-file to g-file @done(25-12-11 18:26)
+✔ Move rook from h-file to f-file @done(25-12-11 18:26)
+✔ Update king and rook bitboards @done(25-12-11 18:26)
+ ✔ Queenside: @done(25-12-11 18:26)
+✔ Move king from e-file to c-file @done(25-12-11 18:26)
+✔ Move rook from a-file to d-file @done(25-12-11 18:26)
+✔ Update king and rook bitboards @done(25-12-11 18:26)
+ ✔ Remove both kingside and queenside castling rights for this color @done(25-12-11 18:26)
+ ✔ Increment halfmove clock @done(25-12-11 18:26)
+ ✔ Clear en passant square @done(25-12-11 18:26)
+ ✔ Toggle side to move @done(25-12-11 18:26)
+✔ 4.8 Implement Castling Rights Updates @done(25-12-11 18:26)
+ ✔ If white king moves, clear both white castling rights @done(25-12-11 18:26)
+ ✔ If black king moves, clear both black castling rights @done(25-12-11 18:26)
+ ✔ If white rook on h1 moves or is captured, clear white kingside castling @done(25-12-11 18:26)
+ ✔ If white rook on a1 moves or is captured, clear white queenside castling @done(25-12-11 18:26)
+ ✔ If black rook on h8 moves or is captured, clear black kingside castling @done(25-12-11 18:26)
+ ✔ If black rook on a8 moves or is captured, clear black queenside castling @done(25-12-11 18:26)
+✔ 4.9 Implement Fullmove Number Updates @done(25-12-11 18:26)
+ ✔ Increment fullmove number after black moves @done(25-12-11 18:26)
+ ✔ Keep fullmove number same after white moves @done(25-12-11 18:26)
+✔ 4.10 Implement unmakeMove() @done(25-12-11 18:26)
+ ✔ Reverse all changes made by makeMove @done(25-12-11 18:26)
+ ✔ Move piece back from destination to source @done(25-12-11 18:26)
+ ✔ Restore captured piece (if any) from undo info @done(25-12-11 18:26)
+ ✔ Restore castling rights from undo info @done(25-12-11 18:26)
+ ✔ Restore en passant square from undo info @done(25-12-11 18:26)
+ ✔ Restore halfmove clock from undo info @done(25-12-11 18:26)
+ ✔ Decrement fullmove number if unmaking black's move @done(25-12-11 18:26)
+ ✔ Toggle side to move back @done(25-12-11 18:26)
 Phase 5: Implement Attack Detection & Legal Move Filtering
 5.1 Implement isSquareAttacked() Function
  Input: board, square, attacking color
