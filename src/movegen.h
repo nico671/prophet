@@ -86,22 +86,23 @@ typedef struct
 #define MAKE_CASTLE_QUEEN(from, to) ((Move){from, to, QUEENSIDE_CASTLE})
 
 // make a promotion move
-static inline Move MAKE_PROMOTION(Square from, Square to, PieceType pieceType)
+static inline Move MAKE_PROMOTION(Square from, Square to, PieceType pieceType, bool isCapture)
 {
     MoveFlag promoFlag;
+    int offset = isCapture ? 4 : 0;
     switch (pieceType)
     {
     case KNIGHT:
-        promoFlag = KNIGHT_PROMO_QUIET;
+        promoFlag = (MoveFlag)(KNIGHT_PROMO_QUIET + offset);
         break;
     case BISHOP:
-        promoFlag = BISHOP_PROMO_QUIET;
+        promoFlag = (MoveFlag)(BISHOP_PROMO_QUIET + offset);
         break;
     case ROOK:
-        promoFlag = ROOK_PROMO_QUIET;
+        promoFlag = (MoveFlag)(ROOK_PROMO_QUIET + offset);
         break;
     case QUEEN:
-        promoFlag = QUEEN_PROMO_QUIET;
+        promoFlag = (MoveFlag)(QUEEN_PROMO_QUIET + offset);
         break;
     default:
         promoFlag = QUIET; // default to quiet if invalid pieceType
@@ -202,34 +203,10 @@ void initMoveList(MoveList *moveList);
 UndoInfo makeMove(CBoard *board, Move move);
 void unmakeMove(CBoard *board, Move move, UndoInfo undoInfo);
 
-// // Move construction and extraction
-// #define MOVE(from, to, flags) ((Move)((from) | ((to) << 6) | ((flags) << 12)))
-// #define FROM_SQ(move) ((move) & 0x3F)
-// #define TO_SQ(move) (((move) >> 6) & 0x3F)
-// #define MOVE_FLAGS(move) ((move) >> 12)
-// #define IS_CAPTURE(move) (MOVE_FLAGS(move) & CAPTURE)
-// #define IS_PROMOTION(move) (MOVE_FLAGS(move) & PROMOTION)
+bool isSquareAttacked(CBoard *board, Square square, Color attackerColor);
 
-// // Move generation functions
-// void generateAllMoves(const CBoard *board, MoveList *moveList);
-// void generateCaptures(const CBoard *board, MoveList *moveList);
-// int isSquareAttacked(const CBoard *board, int square, Color attackingColor);
-// int isInCheck(const CBoard *board, Color color);
+bool isKingInCheck(CBoard *board, Color side);
 
-// // Helper functions for move generation
-// void generatePawnMoves(const CBoard *board, MoveList *moveList);
-// void generateKnightMoves(const CBoard *board, MoveList *moveList);
-// void generateBishopMoves(const CBoard *board, MoveList *moveList);
-// void generateRookMoves(const CBoard *board, MoveList *moveList);
-// void generateQueenMoves(const CBoard *board, MoveList *moveList);
-// void generateKingMoves(const CBoard *board, MoveList *moveList);
-// void generateCastlingMoves(const CBoard *board, MoveList *moveList);
-
-// // Move validation
-// int isMoveLegal(const CBoard *board, Move move);
-
-// // Utility functions
-// void printMove(Move move);
-// void printMoveList(const MoveList *moveList);
+MoveList generateLegalMoves(CBoard *board);
 
 #endif // MOVEGEN_H
