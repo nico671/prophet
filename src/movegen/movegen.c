@@ -190,7 +190,7 @@ void genAllPseudoLegalKnightMoves(CBoard *board, MoveList *moveList)
         }
 
         // Generate quiet moves
-        Bitboard quietMoves = attacks & ~ownPieces & ~opponentPieces;
+        Bitboard quietMoves = attacks & ~board->allPieces;
         while (quietMoves)
         {
             Square to = bb_pop_lsb(&quietMoves);
@@ -219,7 +219,7 @@ void genAllPseudoLegalBishopMoves(CBoard *board, MoveList *moveList)
             moveList->moves[moveList->count++] = move;
         }
 
-        Bitboard quietMoves = attacks & ~ownPieces & ~opponentPieces;
+        Bitboard quietMoves = attacks & ~board->allPieces;
         while (quietMoves)
         {
             Square to = bb_pop_lsb(&quietMoves);
@@ -248,7 +248,7 @@ void genAllPseudoLegalRookMoves(CBoard *board, MoveList *moveList)
             moveList->moves[moveList->count++] = move;
         }
 
-        Bitboard quietMoves = attacks & ~ownPieces & ~opponentPieces;
+        Bitboard quietMoves = attacks & ~board->allPieces;
         while (quietMoves)
         {
             Square to = bb_pop_lsb(&quietMoves);
@@ -277,7 +277,7 @@ void genAllPseudoLegalQueenMoves(CBoard *board, MoveList *moveList)
             moveList->moves[moveList->count++] = move;
         }
 
-        Bitboard quietMoves = attacks & ~ownPieces & ~opponentPieces;
+        Bitboard quietMoves = attacks & ~board->allPieces;
         while (quietMoves)
         {
             Square to = bb_pop_lsb(&quietMoves);
@@ -306,7 +306,7 @@ void genAllPseudoLegalKingNonCastlingMoves(CBoard *board, MoveList *moveList)
             moveList->moves[moveList->count++] = move;
         }
 
-        Bitboard quietMoves = attacks & ~ownPieces & ~opponentPieces;
+        Bitboard quietMoves = attacks & ~board->allPieces;
         while (quietMoves)
         {
             Square to = bb_pop_lsb(&quietMoves);
