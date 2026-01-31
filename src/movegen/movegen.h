@@ -2,10 +2,10 @@
 #ifndef MOVEGEN_H
 #define MOVEGEN_H
 
-#include "bitboard.h"
-#include "cboard.h"
-#include "constant_attacks.h"
-#include "sliding_attacks.h"
+#include "core/bitboard.h"
+#include "board/cboard.h"
+#include "attacks/constant_attacks.h"
+#include "attacks/sliding_attacks.h"
 // Future Move representation plan:
 // Bits 0-5:   FROM square (6 bits = 0-63)
 // Bits 6-11:  TO square (6 bits = 0-63)

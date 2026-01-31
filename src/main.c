@@ -1,11 +1,11 @@
 
 #include <stdio.h>
-#include "cboard.h"
-#include "fen.h"
-#include "constant_attacks.h"
-#include "bitboard.h"
-#include "sliding_attacks.h"
-#include "movegen.h"
+#include "board/cboard.h"
+#include "board/fen.h"
+#include "attacks/constant_attacks.h"
+#include "core/bitboard.h"
+#include "attacks/sliding_attacks.h"
+#include "movegen/movegen.h"
 int main()
 {
     initSlidingAttacks();

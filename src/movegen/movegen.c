@@ -1,8 +1,9 @@
-#include "cboard.h"
-#include "movegen.h"
-#include "constant_attacks.h"
-#include "bitboard.h"
+#include "board/cboard.h"
+#include "movegen/movegen.h"
+#include "attacks/constant_attacks.h"
+#include "core/bitboard.h"
 #include <stdbool.h>
+
 void genSinglePawnPushes(CBoard *board, MoveList *moveList)
 {
     Color sideToMove = board->sideToMove;
@@ -139,11 +140,12 @@ void genEnPassantPawnMoves(CBoard *board, MoveList *moveList)
     Bitboard pawns = (sideToMove == WHITE) ? board->whitePawns : board->blackPawns;
 
     // Get squares that can attack the EP square
-    // If white to move, use white pawn attacks (find which squares white pawns attack FROM)
-    // If black to move, use black pawn attacks (find which squares black pawns attack FROM)
+    // We need to find which squares our pawns attack FROM to reach epSquare
+    // If white to move, we need squares that BLACK pawns would attack from (diagonal down)
+    // If black to move, we need squares that WHITE pawns would attack from (diagonal up)
     Bitboard attackers = (sideToMove == WHITE)
-                             ? getWhitePawnAttacks(board->epSquare)
-                             : getBlackPawnAttacks(board->epSquare);
+                             ? getBlackPawnAttacks(board->epSquare)
+                             : getWhitePawnAttacks(board->epSquare);
 
     Bitboard pawnsThatCanCaptureEP = pawns & attackers;
 
@@ -665,17 +667,20 @@ UndoInfo makeDoublePawnPushMove(CBoard *board, Move move)
     // Save undo info before making any changes
     UndoInfo undoInfo = saveUndoInfo(board, NO_PIECE);
 
+    // Calculate en passant square BEFORE switching sides
+    // EP square is the square the pawn skipped over
+    Square epSquare = (board->sideToMove == WHITE) ? to - 8 : to + 8;
+
     // Move the pawn
     movePieceOnBoard(board, from, to, board->sideToMove);
 
     // Update board state
     updateCastlingRights(board, from, to);
     recomputeOccupancies(board);
-    updateGameState(board, to, false);
+    updateGameState(board, to, false); // This switches sideToMove and clears epSquare
 
-    // Set en passant square (after updateGameState which clears it)
-    // Note: sideToMove has been switched by updateGameState, so we use the opposite logic
-    board->epSquare = (board->sideToMove == BLACK) ? to - 8 : to + 8;
+    // Set en passant square AFTER updateGameState (which clears it)
+    board->epSquare = epSquare;
 
     return undoInfo;
 }
@@ -1163,9 +1168,12 @@ void unmakeMove(CBoard *board, Move move, UndoInfo undoInfo)
 bool isSquareAttacked(CBoard *board, Square square, Color attackerColor)
 {
     // Check for pawn attacks
+    // We need to check if pawns of attackerColor can attack this square
+    // If white pawns attack diagonally upward, we need to check squares diagonally downward
+    // So we use the OPPOSITE color's attack pattern (FLIPPED, like in genEnPassantPawnMoves)
     Bitboard pawnAttacks = (attackerColor == WHITE)
-                               ? getWhitePawnAttacks(square)
-                               : getBlackPawnAttacks(square);
+                               ? getBlackPawnAttacks(square)  // FLIPPED
+                               : getWhitePawnAttacks(square); // FLIPPED
     Bitboard attackerPawns = (attackerColor == WHITE) ? board->whitePawns : board->blackPawns;
     if (pawnAttacks & attackerPawns)
         return true;

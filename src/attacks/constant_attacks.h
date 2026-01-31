@@ -1,4 +1,4 @@
-#include "bitboard.h"
+#include "core/bitboard.h"
 #include <stdio.h>
 
 #ifndef CONSTANT_ATTACKS_H

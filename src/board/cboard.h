@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include "bitboard.h"
+#include "core/bitboard.h"
 #ifndef BOARD_H
 #define BOARD_H
 

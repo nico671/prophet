@@ -1,4 +1,4 @@
-#include "bitboard.h"
+#include "core/bitboard.h"
 #ifndef SLIDING_ATTACKS_H
 #define SLIDING_ATTACKS_H
 static const Bitboard rook_occupancy_maps[] = {

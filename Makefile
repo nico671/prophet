@@ -4,28 +4,29 @@ CFLAGS := -std=c17 -Wall -Wextra -I src
 SRCDIR := src
 BUILDDIR := build
 
-# Main program sources (exclude magic_gen.c and perft_test.c)
-MAIN_SOURCES := $(filter-out $(SRCDIR)/magic_gen.c $(SRCDIR)/perft_test.c,$(wildcard $(SRCDIR)/*.c))
+# Recursively find all .c files except magic_gen.c and perft tests
+MAIN_SOURCES := $(shell find $(SRCDIR) -name '*.c' ! -name 'magic_gen.c' ! -name 'perft_test.c')
 MAIN_OBJECTS := $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.o,$(MAIN_SOURCES))
 
 TARGET := chess
 MAGIC_TARGET := magic_gen
 PERFT_TARGET := perft
 
-.PHONY: all run clean dirs magic
+.PHONY: all run clean dirs magic perft_test
 
 all: dirs $(TARGET)
 
 $(TARGET): $(MAIN_OBJECTS)
 	$(CC) $(CFLAGS) $^ -o $@
 
-$(MAGIC_TARGET): $(BUILDDIR)/magic_gen.o $(BUILDDIR)/sliding_attacks.o
+$(MAGIC_TARGET): $(BUILDDIR)/attacks/magic_gen.o $(BUILDDIR)/attacks/sliding_attacks.o
 	$(CC) $(CFLAGS) $^ -o $@
 
-$(PERFT_TARGET): $(BUILDDIR)/perft_test.o $(BUILDDIR)/movegen.o $(BUILDDIR)/fen.o $(BUILDDIR)/cboard.o $(BUILDDIR)/constant_attacks.o $(BUILDDIR)/sliding_attacks.o
+# Updated perft target with correct paths
+$(PERFT_TARGET): $(BUILDDIR)/tests/perft_test.o $(BUILDDIR)/movegen/movegen.o $(BUILDDIR)/board/fen.o $(BUILDDIR)/board/cboard.o $(BUILDDIR)/attacks/constant_attacks.o $(BUILDDIR)/attacks/sliding_attacks.o
 	$(CC) $(CFLAGS) $^ -o $@
 
-# Compile src/%.c -> build/%.o
+# Compile src/%.c -> build/%.o (this already works correctly)
 $(BUILDDIR)/%.o: $(SRCDIR)/%.c
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -41,3 +42,6 @@ perft_test: $(PERFT_TARGET)
 
 clean:
 	rm -rf $(BUILDDIR) $(TARGET) $(MAGIC_TARGET) $(PERFT_TARGET)
+
+dirs:
+	@mkdir -p $(BUILDDIR)
