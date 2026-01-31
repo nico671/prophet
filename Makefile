@@ -22,8 +22,7 @@ $(TARGET): $(MAIN_OBJECTS)
 $(MAGIC_TARGET): $(BUILDDIR)/attacks/magic_gen.o $(BUILDDIR)/attacks/sliding_attacks.o
 	$(CC) $(CFLAGS) $^ -o $@
 
-# Updated perft target with correct paths
-$(PERFT_TARGET): $(BUILDDIR)/tests/perft_test.o $(BUILDDIR)/movegen/movegen.o $(BUILDDIR)/board/fen.o $(BUILDDIR)/board/cboard.o $(BUILDDIR)/attacks/constant_attacks.o $(BUILDDIR)/attacks/sliding_attacks.o
+$(PERFT_TARGET): $(BUILDDIR)/tests/perft_test.o $(BUILDDIR)/tests/testing_utils.o $(BUILDDIR)/movegen/movegen.o $(BUILDDIR)/board/fen.o $(BUILDDIR)/board/cboard.o $(BUILDDIR)/attacks/constant_attacks.o $(BUILDDIR)/attacks/sliding_attacks.o
 	$(CC) $(CFLAGS) $^ -o $@
 
 # Compile src/%.c -> build/%.o (this already works correctly)

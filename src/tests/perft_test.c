@@ -73,17 +73,6 @@ uint64_t perft(CBoard *board, int depth)
     return nodes;
 }
 
-char *squareToString(Square sq)
-{
-    static char str[3];
-    char files[] = "abcdefgh";
-    char ranks[] = "12345678";
-    str[0] = files[sq % 8];
-    str[1] = ranks[sq / 8];
-    str[2] = '\0';
-    return str;
-}
-
 uint64_t divide(CBoard *board, int depth)
 {
     MoveList moveList;
@@ -104,9 +93,8 @@ uint64_t divide(CBoard *board, int depth)
         totalNodes += nodes;
 
         // Print the move and its node count
-        char *fromStr = squareToString(move.from);
-        char *toStr = squareToString(move.to);
-        printf("Move: %s%s, Nodes: %llu\n", fromStr, toStr, nodes);
+        char *moveStr = moveToStringCoordinate(move);
+        printf("Move: %s, Nodes: %llu\n", moveStr, nodes);
         // No need to free fromStr and toStr since they point to static memory
         //
         // printf("Move: from %d to %d, Nodes: %llu\n", move.from, move.to, nodes);
