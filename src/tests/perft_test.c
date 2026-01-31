@@ -1,5 +1,6 @@
 #include "perft_test.h"
 #include <string.h>
+#include <time.h>
 
 typedef struct
 {
@@ -31,6 +32,25 @@ uint64_t expected_nodes_kiwipete_position[] = {
     193690690ULL,
     8031647685ULL,
 };
+
+uint64_t expected_nodes_position_3[] = {
+    1ULL,
+    14ULL,
+    191ULL,
+    2812ULL,
+    43238ULL,
+    674624ULL,
+    11030083ULL,
+};
+
+uint64_t expected_nodes_position_5[] = {
+    1ULL,
+    44ULL,
+    1486ULL,
+    62379ULL,
+    2103487ULL,
+    89941194ULL,
+};
 PerftTest test_suite[] = {
     {
         .name = "Initial Position",
@@ -42,6 +62,18 @@ PerftTest test_suite[] = {
         .name = "Kiwipete Position",
         .fen = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -",
         .expected_nodes = expected_nodes_kiwipete_position,
+        .max_depth = 5,
+    },
+    {
+        .name = "Position 3",
+        .fen = "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1",
+        .expected_nodes = expected_nodes_position_3,
+        .max_depth = 5,
+    },
+    {
+        .name = "Position 5",
+        .fen = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8",
+        .expected_nodes = expected_nodes_position_5,
         .max_depth = 5,
     }};
 uint64_t perft(CBoard *board, int depth)
@@ -93,7 +125,7 @@ uint64_t divide(CBoard *board, int depth)
 
         // Print the move and its node count
         char *moveStr = moveToStringCoordinate(move);
-        printf("Move: %s, Nodes: %llu\n", moveStr, nodes);
+        printf("%s: %llu\n", moveStr, nodes);
 
         // Unmake the move
         unmakeMove(board, move, undoInfo);
@@ -102,12 +134,6 @@ uint64_t divide(CBoard *board, int depth)
     printf("Total nodes: %llu\n", totalNodes);
     return totalNodes;
 }
-
-#include "perft_test.h"
-#include <string.h>
-#include <time.h>
-
-// ...existing code...
 
 int main()
 {
@@ -147,7 +173,7 @@ int main()
             else
             {
                 printf(" FAIL (expected %llu)\n", expected);
-                total_failed++;
+                total_failed += test.max_depth - depth + 1;
                 suite_passed = false;
 
                 printf("\nRunning divide for depth %d:\n", depth);

@@ -84,6 +84,40 @@ MoveList generateLegalMoves(CBoard *board)
     for (int i = 0; i < pseudoLegalMoves.count; i++)
     {
         Move move = pseudoLegalMoves.moves[i];
+
+        // Special handling for castling
+        if (isCastling(move))
+        {
+            Color side = board->sideToMove;
+            Color opponent = (side == WHITE) ? BLACK : WHITE;
+            Square kingFrom = FROM_SQ(move);
+
+            // Cannot castle if in check
+            if (isKingInCheck(board, side))
+            {
+                continue;
+            }
+
+            // Check squares the king moves through
+            if (MOVE_FLAG(move) == KINGSIDE_CASTLE)
+            {
+                Square throughSquare = (side == WHITE) ? F1 : F8;
+                if (isSquareAttacked(board, throughSquare, opponent))
+                {
+                    continue;
+                }
+            }
+            else // QUEENSIDE_CASTLE
+            {
+                Square throughSquare = (side == WHITE) ? D1 : D8;
+                if (isSquareAttacked(board, throughSquare, opponent))
+                {
+                    continue;
+                }
+            }
+        }
+
+        // Normal legality check for all moves (including castling destination)
         UndoInfo undoInfo = makeMove(board, move);
         if (!isKingInCheck(board, (board->sideToMove == WHITE) ? BLACK : WHITE))
         {

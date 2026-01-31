@@ -139,6 +139,10 @@ CBoard fenToCBoard(char *fenString)
             board.epSquare = NO_SQUARE; // invalid en passant square
         }
     }
+    else
+    {
+        board.epSquare = NO_SQUARE; // no en passant
+    }
     // advance to halfmove/fullmove fields
     p = strchr(p, ' ');
     if (p)

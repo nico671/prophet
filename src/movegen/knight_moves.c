@@ -4,30 +4,34 @@
 
 void genAllPseudoLegalKnightMoves(CBoard *board, MoveList *moveList)
 {
-    Color sideToMove = board->sideToMove;
-    Bitboard knights = (sideToMove == WHITE) ? board->whiteKnights : board->blackKnights;
-    Bitboard opponentPieces = (sideToMove == WHITE) ? board->blackPieces : board->whitePieces;
+    Bitboard knights = (board->sideToMove == WHITE) ? board->whiteKnights : board->blackKnights;
+    Bitboard friendlyPieces = (board->sideToMove == WHITE) ? board->whitePieces : board->blackPieces;
+    Bitboard enemyPieces = (board->sideToMove == WHITE) ? board->blackPieces : board->whitePieces;
 
     while (knights)
     {
         Square from = bb_pop_lsb(&knights);
         Bitboard attacks = getKnightAttacks(from);
 
-        // Generate captures
-        Bitboard captures = attacks & opponentPieces;
-        while (captures)
-        {
-            Square to = bb_pop_lsb(&captures);
-            Move move = MAKE_CAPTURE(from, to);
-            moveList->moves[moveList->count++] = move;
-        }
+        attacks &= ~friendlyPieces;
+
+        // Separate quiet moves and captures
+        Bitboard quietMoves = attacks & ~board->allPieces;
+        Bitboard captures = attacks & enemyPieces;
 
         // Generate quiet moves
-        Bitboard quietMoves = attacks & ~board->allPieces;
         while (quietMoves)
         {
             Square to = bb_pop_lsb(&quietMoves);
             Move move = MAKE_MOVE(from, to);
+            moveList->moves[moveList->count++] = move;
+        }
+
+        // Generate captures
+        while (captures)
+        {
+            Square to = bb_pop_lsb(&captures);
+            Move move = MAKE_CAPTURE(from, to);
             moveList->moves[moveList->count++] = move;
         }
     }
