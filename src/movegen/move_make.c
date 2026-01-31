@@ -148,6 +148,72 @@ static PieceType removeCapturedPiece(CBoard *board, Square square, Color capturi
     return NO_PIECE;
 }
 
+// The recomputeOccupancies() function is still available in cboard.c for full recomputation, but testing seems to hold with incremental updates.
+
+// Incremental occupancy update helpers
+// Update occupancies when moving a piece from one square to another
+static inline void updateOccupanciesForMove(CBoard *board, Square from, Square to, Color color)
+{
+    if (color == WHITE)
+    {
+        bb_clear(&board->whitePieces, from);
+        bb_set(&board->whitePieces, to);
+    }
+    else
+    {
+        bb_clear(&board->blackPieces, from);
+        bb_set(&board->blackPieces, to);
+    }
+    bb_clear(&board->allPieces, from);
+    bb_set(&board->allPieces, to);
+}
+
+// Update occupancies when capturing a piece
+static inline void updateOccupanciesForCapture(CBoard *board, Square square, Color capturedColor)
+{
+    if (capturedColor == WHITE)
+    {
+        bb_clear(&board->whitePieces, square);
+    }
+    else
+    {
+        bb_clear(&board->blackPieces, square);
+    }
+    bb_clear(&board->allPieces, square);
+}
+
+// Update occupancies for promotion (pawn removed from 'from', promoted piece added to 'to')
+static inline void updateOccupanciesForPromotion(CBoard *board, Square from, Square to, Color color)
+{
+    // Same as a regular move - color occupancy changes from 'from' to 'to'
+    // Piece type changes but color stays the same
+    updateOccupanciesForMove(board, from, to, color);
+}
+
+// Update occupancies for castling (king and rook both move)
+static inline void updateOccupanciesForCastling(CBoard *board, Square kingFrom, Square kingTo,
+                                                Square rookFrom, Square rookTo, Color color)
+{
+    if (color == WHITE)
+    {
+        bb_clear(&board->whitePieces, kingFrom);
+        bb_clear(&board->whitePieces, rookFrom);
+        bb_set(&board->whitePieces, kingTo);
+        bb_set(&board->whitePieces, rookTo);
+    }
+    else
+    {
+        bb_clear(&board->blackPieces, kingFrom);
+        bb_clear(&board->blackPieces, rookFrom);
+        bb_set(&board->blackPieces, kingTo);
+        bb_set(&board->blackPieces, rookTo);
+    }
+    bb_clear(&board->allPieces, kingFrom);
+    bb_clear(&board->allPieces, rookFrom);
+    bb_set(&board->allPieces, kingTo);
+    bb_set(&board->allPieces, rookTo);
+}
+
 // Helper to update castling rights
 static void updateCastlingRights(CBoard *board, Square from, Square to)
 {
@@ -238,7 +304,7 @@ UndoInfo makeQuietMove(CBoard *board, Move move)
 
     // Update board state
     updateCastlingRights(board, from, to);
-    recomputeOccupancies(board);
+    updateOccupanciesForMove(board, from, to, board->sideToMove);
     updateGameState(board, to, false);
 
     return undoInfo;
@@ -255,12 +321,16 @@ UndoInfo makeCaptureMove(CBoard *board, Move move)
     // Save undo info
     UndoInfo undoInfo = saveUndoInfo(board, captured);
 
+    // Update occupancies for capture (remove captured piece)
+    Color capturedColor = (board->sideToMove == WHITE) ? BLACK : WHITE;
+    updateOccupanciesForCapture(board, to, capturedColor);
+
     // Move the capturing piece
     movePieceOnBoard(board, from, to, board->sideToMove);
 
     // Update board state
     updateCastlingRights(board, from, to);
-    recomputeOccupancies(board);
+    updateOccupanciesForMove(board, from, to, board->sideToMove);
     updateGameState(board, to, true);
 
     return undoInfo;
@@ -283,7 +353,7 @@ UndoInfo makeDoublePawnPushMove(CBoard *board, Move move)
 
     // Update board state
     updateCastlingRights(board, from, to);
-    recomputeOccupancies(board);
+    updateOccupanciesForMove(board, from, to, board->sideToMove);
     updateGameState(board, to, false); // This switches sideToMove and clears epSquare
 
     // Set en passant square AFTER updateGameState (which clears it)
@@ -305,12 +375,16 @@ UndoInfo makeEnPassantMove(CBoard *board, Move move)
     // Remove the captured pawn
     removeCapturedPiece(board, capturedPawnSquare, board->sideToMove);
 
+    // Update occupancies for capture (remove captured pawn)
+    Color capturedColor = (board->sideToMove == WHITE) ? BLACK : WHITE;
+    updateOccupanciesForCapture(board, capturedPawnSquare, capturedColor);
+
     // Move the capturing pawn
     movePieceOnBoard(board, from, to, board->sideToMove);
 
     // Update board state
     updateCastlingRights(board, from, to);
-    recomputeOccupancies(board);
+    updateOccupanciesForMove(board, from, to, board->sideToMove);
     updateGameState(board, to, true);
 
     return undoInfo;
@@ -330,6 +404,9 @@ UndoInfo makePromotionMove(CBoard *board, Move move)
     if (isPromotionCapture)
     {
         captured = removeCapturedPiece(board, to, board->sideToMove);
+        // Update occupancies for capture
+        Color capturedColor = (board->sideToMove == WHITE) ? BLACK : WHITE;
+        updateOccupanciesForCapture(board, to, capturedColor);
     }
 
     // Save undo info before making changes
@@ -392,7 +469,7 @@ UndoInfo makePromotionMove(CBoard *board, Move move)
 
     // Update board state
     updateCastlingRights(board, from, to);
-    recomputeOccupancies(board);
+    updateOccupanciesForPromotion(board, from, to, board->sideToMove);
     updateGameState(board, to, isPromotionCapture);
 
     return undoInfo;
@@ -416,6 +493,8 @@ UndoInfo makeCastlingMove(CBoard *board, Move move)
             // Move rook from h1 to f1
             bb_clear(&board->whiteRooks, H1);
             bb_set(&board->whiteRooks, F1);
+            // Update occupancies incrementally
+            updateOccupanciesForCastling(board, E1, G1, H1, F1, WHITE);
         }
         else
         {
@@ -425,6 +504,8 @@ UndoInfo makeCastlingMove(CBoard *board, Move move)
             // Move rook from h8 to f8
             bb_clear(&board->blackRooks, H8);
             bb_set(&board->blackRooks, F8);
+            // Update occupancies incrementally
+            updateOccupanciesForCastling(board, E8, G8, H8, F8, BLACK);
         }
     }
     else // QUEENSIDE_CASTLE
@@ -437,6 +518,8 @@ UndoInfo makeCastlingMove(CBoard *board, Move move)
             // Move rook from a1 to d1
             bb_clear(&board->whiteRooks, A1);
             bb_set(&board->whiteRooks, D1);
+            // Update occupancies incrementally
+            updateOccupanciesForCastling(board, E1, C1, A1, D1, WHITE);
         }
         else
         {
@@ -446,6 +529,8 @@ UndoInfo makeCastlingMove(CBoard *board, Move move)
             // Move rook from a8 to d8
             bb_clear(&board->blackRooks, A8);
             bb_set(&board->blackRooks, D8);
+            // Update occupancies incrementally
+            updateOccupanciesForCastling(board, E8, C8, A8, D8, BLACK);
         }
     }
 
@@ -461,8 +546,7 @@ UndoInfo makeCastlingMove(CBoard *board, Move move)
         board->blackCanCastleQueenside = false;
     }
 
-    // Update board state
-    recomputeOccupancies(board);
+    // Update board state (occupancies already updated above)
     updateGameState(board, to, false);
 
     return undoInfo;

@@ -38,13 +38,12 @@ PerftTest test_suite[] = {
         .expected_nodes = expected_nodes_initial_position,
         .max_depth = 5, // 5 for speed, 6 is reasonable, 7+ takes too long
     },
-    // {
-    //     .name = "Kiwipete Position",
-    //     .fen = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -",
-    //     .expected_nodes = expected_nodes_kiwipete_position,
-    //     .max_depth = 5,
-    // }
-};
+    {
+        .name = "Kiwipete Position",
+        .fen = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -",
+        .expected_nodes = expected_nodes_kiwipete_position,
+        .max_depth = 5,
+    }};
 uint64_t perft(CBoard *board, int depth)
 {
     if (depth == 0)
@@ -95,9 +94,6 @@ uint64_t divide(CBoard *board, int depth)
         // Print the move and its node count
         char *moveStr = moveToStringCoordinate(move);
         printf("Move: %s, Nodes: %llu\n", moveStr, nodes);
-        // No need to free fromStr and toStr since they point to static memory
-        //
-        // printf("Move: from %d to %d, Nodes: %llu\n", move.from, move.to, nodes);
 
         // Unmake the move
         unmakeMove(board, move, undoInfo);
