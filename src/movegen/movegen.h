@@ -6,37 +6,8 @@
 #include "board/cboard.h"
 #include "attacks/constant_attacks.h"
 #include "attacks/sliding_attacks.h"
-// Future Move representation plan:
-// Bits 0-5:   FROM square (6 bits = 0-63)
-// Bits 6-11:  TO square (6 bits = 0-63)
-// Bits 12-15: FLAGS (4 bits = 16 possible types)
-// Flag bits 12-15:
 
-// 0000 (0)  = Quiet move
-// 0001 (1)  = Double pawn push
-// 0010 (2)  = Kingside castle
-// 0011 (3)  = Queenside castle
-// 0100 (4)  = Capture
-// 0101 (5)  = EP capture
-
-// 1000 (8)  = Knight promotion (quiet)
-// 1001 (9)  = Bishop promotion (quiet)
-// 1010 (10) = Rook promotion (quiet)
-// 1011 (11) = Queen promotion (quiet)
-
-// 1100 (12) = Knight promotion capture
-// 1101 (13) = Bishop promotion capture
-// 1110 (14) = Rook promotion capture
-// 1111 (15) = Queen promotion capture
-// typedef uint16_t Move;
-
-// move flag macros
-// #define IS_CAPTURE(m) (((m) >> 12) & 0x4)   // bit 2 set
-// #define IS_PROMOTION(m) (((m) >> 12) & 0x8) // bit 3 set
-// #define IS_CASTLE(m) ((((m) >> 12) & 0xE) == 0x2)
-// #define IS_EP(m) (((m) >> 12) == 5)
-
-// move flag
+// Move flag encoding
 typedef enum
 {
     QUIET = 0,
@@ -200,13 +171,8 @@ static inline int isDoublePush(Move move)
 void genAllPseudoLegalMoves(CBoard *board, MoveList *moveList);
 void initMoveList(MoveList *moveList);
 
-UndoInfo makeMove(CBoard *board, Move move);
-void unmakeMove(CBoard *board, Move move, UndoInfo undoInfo);
-
 bool isSquareAttacked(CBoard *board, Square square, Color attackerColor);
-
 bool isKingInCheck(CBoard *board, Color side);
-
 MoveList generateLegalMoves(CBoard *board);
 
 #endif // MOVEGEN_H

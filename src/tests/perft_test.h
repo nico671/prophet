@@ -3,6 +3,7 @@
 #define PERFT_H
 
 #include "movegen/movegen.h"
+#include "movegen/move_make.h"
 #include "board/fen.h"
 #include "attacks/sliding_attacks.h"
 #include "tests/testing_utils.h"

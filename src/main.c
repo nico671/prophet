@@ -6,6 +6,7 @@
 #include "core/bitboard.h"
 #include "attacks/sliding_attacks.h"
 #include "movegen/movegen.h"
+
 int main()
 {
     initSlidingAttacks();
