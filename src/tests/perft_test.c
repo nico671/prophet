@@ -42,6 +42,14 @@ uint64_t expected_nodes_position_3[] = {
     674624ULL,
     11030083ULL,
 };
+uint64_t expected_nodes_position_4[] = {
+    1ULL,
+    6ULL,
+    264ULL,
+    9467ULL,
+    422333ULL,
+    15833292ULL,
+};
 
 uint64_t expected_nodes_position_5[] = {
     1ULL,
@@ -68,6 +76,12 @@ PerftTest test_suite[] = {
         .name = "Position 3",
         .fen = "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1",
         .expected_nodes = expected_nodes_position_3,
+        .max_depth = 5,
+    },
+    {
+        .name = "Position 4",
+        .fen = "r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1",
+        .expected_nodes = expected_nodes_position_4,
         .max_depth = 5,
     },
     {

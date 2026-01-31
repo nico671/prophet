@@ -56,6 +56,6 @@ typedef struct UndoInfo
     bool prevWhiteCastleQueenside;
     bool prevBlackCastleKingside;
     bool prevBlackCastleQueenside;
-    // uint64_t previousZobristKey;  // TODO: Add when implementing Zobrist
+    uint64_t previousZobristKey; // TODO: Add when implementing Zobrist
 } UndoInfo;
 #endif // BOARD_H
