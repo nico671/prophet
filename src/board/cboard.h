@@ -1,10 +1,12 @@
+
+#ifndef BOARD_H
+#define BOARD_H
 #include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include "core/bitboard.h"
-#ifndef BOARD_H
-#define BOARD_H
-
+#include <stdlib.h>
+#include <string.h>
 typedef struct CBoard
 {
     // White Piece bitboards
@@ -47,6 +49,8 @@ void recomputeOccupancies(CBoard *board);
 // bool validateBoard(CBoard *board);
 
 void printBoard(CBoard *board);
+CBoard fenToCBoard(char *fenString);
+char *CBoardToFen(CBoard *board);
 typedef struct UndoInfo
 {
     PieceType capturedPiece;        // What was captured (NO_PIECE if none)

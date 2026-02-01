@@ -1,7 +1,6 @@
 
 #include <stdio.h>
 #include "board/cboard.h"
-#include "board/fen.h"
 #include "attacks/constant_attacks.h"
 #include "core/bitboard.h"
 #include "attacks/sliding_attacks.h"
