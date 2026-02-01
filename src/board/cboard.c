@@ -163,16 +163,16 @@ CBoard fenToCBoard(char *fenString)
             switch (*p)
             {
             case 'K':
-                board.whiteCanCastleKingside = true;
+                SET_BIT(board.castlingRights, 3);
                 break;
             case 'Q':
-                board.whiteCanCastleQueenside = true;
+                SET_BIT(board.castlingRights, 2);
                 break;
             case 'k':
-                board.blackCanCastleKingside = true;
+                SET_BIT(board.castlingRights, 1);
                 break;
             case 'q':
-                board.blackCanCastleQueenside = true;
+                SET_BIT(board.castlingRights, 0);
                 break;
             default:
                 break;
@@ -287,22 +287,22 @@ char *CBoardToFen(CBoard *board)
 
     // castling rights
     bool any = false;
-    if (board->whiteCanCastleKingside)
+    if (CHECK_BIT(board->castlingRights, 3))
     {
         *p++ = 'K';
         any = true;
     }
-    if (board->whiteCanCastleQueenside)
+    if (CHECK_BIT(board->castlingRights, 2))
     {
         *p++ = 'Q';
         any = true;
     }
-    if (board->blackCanCastleKingside)
+    if (CHECK_BIT(board->castlingRights, 1))
     {
         *p++ = 'k';
         any = true;
     }
-    if (board->blackCanCastleQueenside)
+    if (CHECK_BIT(board->castlingRights, 0))
     {
         *p++ = 'q';
         any = true;

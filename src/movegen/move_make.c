@@ -220,34 +220,37 @@ static void updateCastlingRights(CBoard *board, Square from, Square to)
     // If king moved, lose all castling
     if (is_bit_set(board->whiteKing, to))
     {
-        board->whiteCanCastleKingside = false;
-        board->whiteCanCastleQueenside = false;
+        CLEAR_BIT(board->castlingRights, 3);
+        CLEAR_BIT(board->castlingRights, 2);
+        // board->whiteCanCastleQueenside = false;
     }
     else if (is_bit_set(board->blackKing, to))
     {
-        board->blackCanCastleKingside = false;
-        board->blackCanCastleQueenside = false;
+        CLEAR_BIT(board->castlingRights, 1);
+        CLEAR_BIT(board->castlingRights, 0);
+        // board->blackCanCastleKingside = false;
+        // board->blackCanCastleQueenside = false;
     }
 
     // If rook moved from corner, lose that side's castling
     if (from == H1)
-        board->whiteCanCastleKingside = false;
+        CLEAR_BIT(board->castlingRights, 3);
     if (from == A1)
-        board->whiteCanCastleQueenside = false;
+        CLEAR_BIT(board->castlingRights, 2);
     if (from == H8)
-        board->blackCanCastleKingside = false;
+        CLEAR_BIT(board->castlingRights, 1);
     if (from == A8)
-        board->blackCanCastleQueenside = false;
+        CLEAR_BIT(board->castlingRights, 0);
 
     // If rook was captured on corner square, lose that side's castling
     if (to == H1)
-        board->whiteCanCastleKingside = false;
+        CLEAR_BIT(board->castlingRights, 3);
     if (to == A1)
-        board->whiteCanCastleQueenside = false;
+        CLEAR_BIT(board->castlingRights, 2);
     if (to == H8)
-        board->blackCanCastleKingside = false;
+        CLEAR_BIT(board->castlingRights, 1);
     if (to == A8)
-        board->blackCanCastleQueenside = false;
+        CLEAR_BIT(board->castlingRights, 0);
 }
 
 // Helper to save undo info
@@ -257,10 +260,7 @@ static UndoInfo saveUndoInfo(CBoard *board, PieceType captured)
     undoInfo.capturedPiece = captured;
     undoInfo.previousEpSquare = board->epSquare;
     undoInfo.previousHalfmoveClock = board->halfmoveClock;
-    undoInfo.prevWhiteCastleKingside = board->whiteCanCastleKingside;
-    undoInfo.prevWhiteCastleQueenside = board->whiteCanCastleQueenside;
-    undoInfo.prevBlackCastleKingside = board->blackCanCastleKingside;
-    undoInfo.prevBlackCastleQueenside = board->blackCanCastleQueenside;
+    undoInfo.previousCastlingRights = board->castlingRights;
     return undoInfo;
 }
 
@@ -537,13 +537,13 @@ UndoInfo makeCastlingMove(CBoard *board, Move move)
     // Update castling rights (castling removes all rights for this color)
     if (board->sideToMove == WHITE)
     {
-        board->whiteCanCastleKingside = false;
-        board->whiteCanCastleQueenside = false;
+        CLEAR_BIT(board->castlingRights, 3);
+        CLEAR_BIT(board->castlingRights, 2);
     }
     else
     {
-        board->blackCanCastleKingside = false;
-        board->blackCanCastleQueenside = false;
+        CLEAR_BIT(board->castlingRights, 1);
+        CLEAR_BIT(board->castlingRights, 0);
     }
 
     // Update board state (occupancies already updated above)
@@ -601,10 +601,7 @@ void unmakeMove(CBoard *board, Move move, UndoInfo undoInfo)
     // Restore game state
     board->epSquare = undoInfo.previousEpSquare;
     board->halfmoveClock = undoInfo.previousHalfmoveClock;
-    board->whiteCanCastleKingside = undoInfo.prevWhiteCastleKingside;
-    board->whiteCanCastleQueenside = undoInfo.prevWhiteCastleQueenside;
-    board->blackCanCastleKingside = undoInfo.prevBlackCastleKingside;
-    board->blackCanCastleQueenside = undoInfo.prevBlackCastleQueenside;
+    board->castlingRights = undoInfo.previousCastlingRights;
 
     // Decrement fullmove number if unmaking black's move
     if (board->sideToMove == BLACK)

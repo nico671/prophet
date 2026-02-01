@@ -1,15 +1,4 @@
-#include <stdint.h>
-// adapted from https://www.chessprogramming.org/Bob_Jenkins#RKISS
-typedef struct
-{
-    uint64_t a;
-    uint64_t b;
-    uint64_t c;
-    uint64_t d;
-} ranctx;
-
-// Rotation macro for 64-bit bits
-#define rot(x, k) (((x) << (k)) | ((x) >> (64 - (k))))
+#include "prng.h"
 
 /**
  * Generates the next pseudo-random 64-bit number.

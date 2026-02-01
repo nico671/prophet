@@ -36,7 +36,7 @@ void genAllPseudoLegalKingMoves(CBoard *board, MoveList *moveList)
     // handle white castling
     if (board->sideToMove == WHITE)
     {
-        if (board->whiteCanCastleKingside)
+        if (CHECK_BIT(board->castlingRights, 3))
         {
             if ((bb_lsb_idx(board->whiteKing) == E1) &&
                 (is_bit_set(board->whiteRooks, H1)) &&
@@ -48,7 +48,7 @@ void genAllPseudoLegalKingMoves(CBoard *board, MoveList *moveList)
                 moveList->moves[moveList->count++] = move;
             }
         }
-        if (board->whiteCanCastleQueenside)
+        if (CHECK_BIT(board->castlingRights, 2))
         {
             if ((bb_lsb_idx(board->whiteKing) == E1) &&
                 (is_bit_set(board->whiteRooks, A1)) &&
@@ -65,7 +65,7 @@ void genAllPseudoLegalKingMoves(CBoard *board, MoveList *moveList)
     // handle black castling
     else
     {
-        if (board->blackCanCastleKingside)
+        if (CHECK_BIT(board->castlingRights, 1))
         {
             if ((bb_lsb_idx(board->blackKing) == E8) &&
                 (is_bit_set(board->blackRooks, H8)) &&
@@ -77,7 +77,7 @@ void genAllPseudoLegalKingMoves(CBoard *board, MoveList *moveList)
                 moveList->moves[moveList->count++] = move;
             }
         }
-        if (board->blackCanCastleQueenside)
+        if (CHECK_BIT(board->castlingRights, 0))
         {
             if ((bb_lsb_idx(board->blackKing) == E8) &&
                 (is_bit_set(board->blackRooks, A8)) &&
