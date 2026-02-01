@@ -298,6 +298,31 @@ UndoInfo makeQuietMove(CBoard *board, Move move)
 
     // Save undo info before making changes
     UndoInfo undoInfo = saveUndoInfo(board, NO_PIECE);
+    undoInfo.previousZobristKey = board->zobristKey;
+
+    // Determine the piece type being moved
+    PieceType movingPiece = NO_PIECE;
+    if (is_bit_set(board->whitePawns, from) || is_bit_set(board->blackPawns, from))
+        movingPiece = PAWN;
+    else if (is_bit_set(board->whiteKnights, from) || is_bit_set(board->blackKnights, from))
+        movingPiece = KNIGHT;
+    else if (is_bit_set(board->whiteBishops, from) || is_bit_set(board->blackBishops, from))
+        movingPiece = BISHOP;
+    else if (is_bit_set(board->whiteRooks, from) || is_bit_set(board->blackRooks, from))
+        movingPiece = ROOK;
+    else if (is_bit_set(board->whiteQueens, from) || is_bit_set(board->blackQueens, from))
+        movingPiece = QUEEN;
+    else if (is_bit_set(board->whiteKing, from) || is_bit_set(board->blackKing, from))
+        movingPiece = KING;
+
+    // Update zobrist: remove piece from 'from' square
+    zobristTogglePiece(&board->zobristKey, movingPiece, board->sideToMove, from);
+
+    // Remove old EP square from hash if any
+    zobristToggleEnPassant(&board->zobristKey, board->epSquare);
+
+    // Save old castling rights
+    uint8_t oldCastlingRights = board->castlingRights;
 
     // Move the piece
     movePieceOnBoard(board, from, to, board->sideToMove);
@@ -305,7 +330,17 @@ UndoInfo makeQuietMove(CBoard *board, Move move)
     // Update board state
     updateCastlingRights(board, from, to);
     updateOccupanciesForMove(board, from, to, board->sideToMove);
+
+    // Update zobrist: add piece to 'to' square
+    zobristTogglePiece(&board->zobristKey, movingPiece, board->sideToMove, to);
+
+    // Update zobrist for castling rights change
+    zobristToggleCastling(&board->zobristKey, oldCastlingRights, board->castlingRights);
+
     updateGameState(board, to, false);
+
+    // Toggle side to move in zobrist (done after updateGameState which switches side)
+    zobristToggleSide(&board->zobristKey);
 
     return undoInfo;
 }
@@ -315,14 +350,42 @@ UndoInfo makeCaptureMove(CBoard *board, Move move)
     Square from = FROM_SQ(move);
     Square to = TO_SQ(move);
 
+    // Determine the piece type being moved
+    PieceType movingPiece = NO_PIECE;
+    if (is_bit_set(board->whitePawns, from) || is_bit_set(board->blackPawns, from))
+        movingPiece = PAWN;
+    else if (is_bit_set(board->whiteKnights, from) || is_bit_set(board->blackKnights, from))
+        movingPiece = KNIGHT;
+    else if (is_bit_set(board->whiteBishops, from) || is_bit_set(board->blackBishops, from))
+        movingPiece = BISHOP;
+    else if (is_bit_set(board->whiteRooks, from) || is_bit_set(board->blackRooks, from))
+        movingPiece = ROOK;
+    else if (is_bit_set(board->whiteQueens, from) || is_bit_set(board->blackQueens, from))
+        movingPiece = QUEEN;
+    else if (is_bit_set(board->whiteKing, from) || is_bit_set(board->blackKing, from))
+        movingPiece = KING;
+
     // Remove captured piece first
     PieceType captured = removeCapturedPiece(board, to, board->sideToMove);
 
     // Save undo info
     UndoInfo undoInfo = saveUndoInfo(board, captured);
+    undoInfo.previousZobristKey = board->zobristKey;
+
+    // Update zobrist: remove moving piece from 'from' square
+    zobristTogglePiece(&board->zobristKey, movingPiece, board->sideToMove, from);
+
+    // Update zobrist: remove captured piece from 'to' square
+    Color capturedColor = (board->sideToMove == WHITE) ? BLACK : WHITE;
+    zobristTogglePiece(&board->zobristKey, captured, capturedColor, to);
+
+    // Remove old EP square from hash if any
+    zobristToggleEnPassant(&board->zobristKey, board->epSquare);
+
+    // Save old castling rights
+    uint8_t oldCastlingRights = board->castlingRights;
 
     // Update occupancies for capture (remove captured piece)
-    Color capturedColor = (board->sideToMove == WHITE) ? BLACK : WHITE;
     updateOccupanciesForCapture(board, to, capturedColor);
 
     // Move the capturing piece
@@ -331,7 +394,17 @@ UndoInfo makeCaptureMove(CBoard *board, Move move)
     // Update board state
     updateCastlingRights(board, from, to);
     updateOccupanciesForMove(board, from, to, board->sideToMove);
+
+    // Update zobrist: add moving piece to 'to' square
+    zobristTogglePiece(&board->zobristKey, movingPiece, board->sideToMove, to);
+
+    // Update zobrist for castling rights change
+    zobristToggleCastling(&board->zobristKey, oldCastlingRights, board->castlingRights);
+
     updateGameState(board, to, true);
+
+    // Toggle side to move in zobrist
+    zobristToggleSide(&board->zobristKey);
 
     return undoInfo;
 }
@@ -343,10 +416,20 @@ UndoInfo makeDoublePawnPushMove(CBoard *board, Move move)
 
     // Save undo info before making any changes
     UndoInfo undoInfo = saveUndoInfo(board, NO_PIECE);
+    undoInfo.previousZobristKey = board->zobristKey;
 
     // Calculate en passant square BEFORE switching sides
     // EP square is the square the pawn skipped over
     Square epSquare = (board->sideToMove == WHITE) ? to - 8 : to + 8;
+
+    // Update zobrist: remove pawn from 'from' square
+    zobristTogglePiece(&board->zobristKey, PAWN, board->sideToMove, from);
+
+    // Remove old EP square from hash if any
+    zobristToggleEnPassant(&board->zobristKey, board->epSquare);
+
+    // Save old castling rights
+    uint8_t oldCastlingRights = board->castlingRights;
 
     // Move the pawn
     movePieceOnBoard(board, from, to, board->sideToMove);
@@ -354,10 +437,23 @@ UndoInfo makeDoublePawnPushMove(CBoard *board, Move move)
     // Update board state
     updateCastlingRights(board, from, to);
     updateOccupanciesForMove(board, from, to, board->sideToMove);
+
+    // Update zobrist: add pawn to 'to' square
+    zobristTogglePiece(&board->zobristKey, PAWN, board->sideToMove, to);
+
+    // Update zobrist for castling rights change
+    zobristToggleCastling(&board->zobristKey, oldCastlingRights, board->castlingRights);
+
     updateGameState(board, to, false); // This switches sideToMove and clears epSquare
 
     // Set en passant square AFTER updateGameState (which clears it)
     board->epSquare = epSquare;
+
+    // Add new EP square to hash
+    zobristToggleEnPassant(&board->zobristKey, epSquare);
+
+    // Toggle side to move in zobrist
+    zobristToggleSide(&board->zobristKey);
 
     return undoInfo;
 }
@@ -371,12 +467,25 @@ UndoInfo makeEnPassantMove(CBoard *board, Move move)
     Square capturedPawnSquare = (board->sideToMove == WHITE) ? to - 8 : to + 8;
 
     UndoInfo undoInfo = saveUndoInfo(board, PAWN);
+    undoInfo.previousZobristKey = board->zobristKey;
+
+    // Update zobrist: remove capturing pawn from 'from' square
+    zobristTogglePiece(&board->zobristKey, PAWN, board->sideToMove, from);
+
+    // Update zobrist: remove captured pawn from its square
+    Color capturedColor = (board->sideToMove == WHITE) ? BLACK : WHITE;
+    zobristTogglePiece(&board->zobristKey, PAWN, capturedColor, capturedPawnSquare);
+
+    // Remove old EP square from hash
+    zobristToggleEnPassant(&board->zobristKey, board->epSquare);
+
+    // Save old castling rights
+    uint8_t oldCastlingRights = board->castlingRights;
 
     // Remove the captured pawn
     removeCapturedPiece(board, capturedPawnSquare, board->sideToMove);
 
     // Update occupancies for capture (remove captured pawn)
-    Color capturedColor = (board->sideToMove == WHITE) ? BLACK : WHITE;
     updateOccupanciesForCapture(board, capturedPawnSquare, capturedColor);
 
     // Move the capturing pawn
@@ -385,7 +494,17 @@ UndoInfo makeEnPassantMove(CBoard *board, Move move)
     // Update board state
     updateCastlingRights(board, from, to);
     updateOccupanciesForMove(board, from, to, board->sideToMove);
+
+    // Update zobrist: add capturing pawn to 'to' square
+    zobristTogglePiece(&board->zobristKey, PAWN, board->sideToMove, to);
+
+    // Update zobrist for castling rights change
+    zobristToggleCastling(&board->zobristKey, oldCastlingRights, board->castlingRights);
+
     updateGameState(board, to, true);
+
+    // Toggle side to move in zobrist
+    zobristToggleSide(&board->zobristKey);
 
     return undoInfo;
 }
@@ -411,6 +530,26 @@ UndoInfo makePromotionMove(CBoard *board, Move move)
 
     // Save undo info before making changes
     UndoInfo undoInfo = saveUndoInfo(board, captured);
+    undoInfo.previousZobristKey = board->zobristKey;
+
+    // Get the promotion piece type
+    PieceType promotionPiece = getPromotionPiece(move);
+
+    // Update zobrist: remove pawn from 'from' square
+    zobristTogglePiece(&board->zobristKey, PAWN, board->sideToMove, from);
+
+    // Update zobrist: if capture, remove captured piece from 'to' square
+    if (isPromotionCapture && captured != NO_PIECE)
+    {
+        Color capturedColor = (board->sideToMove == WHITE) ? BLACK : WHITE;
+        zobristTogglePiece(&board->zobristKey, captured, capturedColor, to);
+    }
+
+    // Remove old EP square from hash
+    zobristToggleEnPassant(&board->zobristKey, board->epSquare);
+
+    // Save old castling rights
+    uint8_t oldCastlingRights = board->castlingRights;
 
     // Remove pawn from source square
     if (board->sideToMove == WHITE)
@@ -421,9 +560,6 @@ UndoInfo makePromotionMove(CBoard *board, Move move)
     {
         bb_clear(&board->blackPawns, from);
     }
-
-    // Get the promotion piece type
-    PieceType promotionPiece = getPromotionPiece(move);
 
     // Place promoted piece on destination square
     if (board->sideToMove == WHITE)
@@ -467,10 +603,20 @@ UndoInfo makePromotionMove(CBoard *board, Move move)
         }
     }
 
+    // Update zobrist: add promoted piece to 'to' square
+    zobristTogglePiece(&board->zobristKey, promotionPiece, board->sideToMove, to);
+
     // Update board state
     updateCastlingRights(board, from, to);
     updateOccupanciesForPromotion(board, from, to, board->sideToMove);
+
+    // Update zobrist for castling rights change
+    zobristToggleCastling(&board->zobristKey, oldCastlingRights, board->castlingRights);
+
     updateGameState(board, to, isPromotionCapture);
+
+    // Toggle side to move in zobrist
+    zobristToggleSide(&board->zobristKey);
 
     return undoInfo;
 }
@@ -482,11 +628,22 @@ UndoInfo makeCastlingMove(CBoard *board, Move move)
 
     // Save undo info before making changes
     UndoInfo undoInfo = saveUndoInfo(board, NO_PIECE);
+    undoInfo.previousZobristKey = board->zobristKey;
+
+    // Remove old EP square from hash
+    zobristToggleEnPassant(&board->zobristKey, board->epSquare);
+
+    // Save old castling rights
+    uint8_t oldCastlingRights = board->castlingRights;
 
     if (flag == KINGSIDE_CASTLE)
     {
         if (board->sideToMove == WHITE)
         {
+            // Update zobrist: remove pieces from original squares
+            zobristTogglePiece(&board->zobristKey, KING, WHITE, E1);
+            zobristTogglePiece(&board->zobristKey, ROOK, WHITE, H1);
+
             // Move king from e1 to g1
             bb_clear(&board->whiteKing, E1);
             bb_set(&board->whiteKing, G1);
@@ -495,9 +652,17 @@ UndoInfo makeCastlingMove(CBoard *board, Move move)
             bb_set(&board->whiteRooks, F1);
             // Update occupancies incrementally
             updateOccupanciesForCastling(board, E1, G1, H1, F1, WHITE);
+
+            // Update zobrist: add pieces to new squares
+            zobristTogglePiece(&board->zobristKey, KING, WHITE, G1);
+            zobristTogglePiece(&board->zobristKey, ROOK, WHITE, F1);
         }
         else
         {
+            // Update zobrist: remove pieces from original squares
+            zobristTogglePiece(&board->zobristKey, KING, BLACK, E8);
+            zobristTogglePiece(&board->zobristKey, ROOK, BLACK, H8);
+
             // Move king from e8 to g8
             bb_clear(&board->blackKing, E8);
             bb_set(&board->blackKing, G8);
@@ -506,12 +671,20 @@ UndoInfo makeCastlingMove(CBoard *board, Move move)
             bb_set(&board->blackRooks, F8);
             // Update occupancies incrementally
             updateOccupanciesForCastling(board, E8, G8, H8, F8, BLACK);
+
+            // Update zobrist: add pieces to new squares
+            zobristTogglePiece(&board->zobristKey, KING, BLACK, G8);
+            zobristTogglePiece(&board->zobristKey, ROOK, BLACK, F8);
         }
     }
     else // QUEENSIDE_CASTLE
     {
         if (board->sideToMove == WHITE)
         {
+            // Update zobrist: remove pieces from original squares
+            zobristTogglePiece(&board->zobristKey, KING, WHITE, E1);
+            zobristTogglePiece(&board->zobristKey, ROOK, WHITE, A1);
+
             // Move king from e1 to c1
             bb_clear(&board->whiteKing, E1);
             bb_set(&board->whiteKing, C1);
@@ -520,9 +693,17 @@ UndoInfo makeCastlingMove(CBoard *board, Move move)
             bb_set(&board->whiteRooks, D1);
             // Update occupancies incrementally
             updateOccupanciesForCastling(board, E1, C1, A1, D1, WHITE);
+
+            // Update zobrist: add pieces to new squares
+            zobristTogglePiece(&board->zobristKey, KING, WHITE, C1);
+            zobristTogglePiece(&board->zobristKey, ROOK, WHITE, D1);
         }
         else
         {
+            // Update zobrist: remove pieces from original squares
+            zobristTogglePiece(&board->zobristKey, KING, BLACK, E8);
+            zobristTogglePiece(&board->zobristKey, ROOK, BLACK, A8);
+
             // Move king from e8 to c8
             bb_clear(&board->blackKing, E8);
             bb_set(&board->blackKing, C8);
@@ -531,6 +712,10 @@ UndoInfo makeCastlingMove(CBoard *board, Move move)
             bb_set(&board->blackRooks, D8);
             // Update occupancies incrementally
             updateOccupanciesForCastling(board, E8, C8, A8, D8, BLACK);
+
+            // Update zobrist: add pieces to new squares
+            zobristTogglePiece(&board->zobristKey, KING, BLACK, C8);
+            zobristTogglePiece(&board->zobristKey, ROOK, BLACK, D8);
         }
     }
 
@@ -546,8 +731,14 @@ UndoInfo makeCastlingMove(CBoard *board, Move move)
         CLEAR_BIT(board->castlingRights, 0);
     }
 
+    // Update zobrist for castling rights change
+    zobristToggleCastling(&board->zobristKey, oldCastlingRights, board->castlingRights);
+
     // Update board state (occupancies already updated above)
     updateGameState(board, to, false);
+
+    // Toggle side to move in zobrist
+    zobristToggleSide(&board->zobristKey);
 
     return undoInfo;
 }
@@ -602,6 +793,7 @@ void unmakeMove(CBoard *board, Move move, UndoInfo undoInfo)
     board->epSquare = undoInfo.previousEpSquare;
     board->halfmoveClock = undoInfo.previousHalfmoveClock;
     board->castlingRights = undoInfo.previousCastlingRights;
+    board->zobristKey = undoInfo.previousZobristKey;
 
     // Decrement fullmove number if unmaking black's move
     if (board->sideToMove == BLACK)

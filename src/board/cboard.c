@@ -57,11 +57,18 @@ void printBoard(CBoard *board)
     printf("En passant square: %d\n", board->epSquare);
     printf("Halfmove clock: %d\n", board->halfmoveClock);
     printf("Fullmove number: %d\n", board->fullmoveNumber);
+    printf("Castling rights: %s%s%s%s\n",
+           CHECK_BIT(board->castlingRights, 3) ? "K" : "",
+           CHECK_BIT(board->castlingRights, 2) ? "Q" : "",
+           CHECK_BIT(board->castlingRights, 1) ? "k" : "",
+           CHECK_BIT(board->castlingRights, 0) ? "q" : "");
+    printf("Zobrist Key: %llu\n", board->zobristKey);
 }
 
 // cboard from fen function
 CBoard fenToCBoard(char *fenString)
 {
+    initZobristKeys(); // ensure zobrist is initialized
     CBoard board = {0};
     board.epSquare = NO_SQUARE; // default no en passant
     size_t len = strlen(fenString);
@@ -216,7 +223,7 @@ CBoard fenToCBoard(char *fenString)
             board.fullmoveNumber = (uint16_t)atoi(p);
         }
     }
-
+    computeZobristKey(&board);
     return board;
 }
 char *CBoardToFen(CBoard *board)

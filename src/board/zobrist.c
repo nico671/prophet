@@ -1,4 +1,5 @@
 #include "zobrist.h"
+#include "cboard.h"
 
 void initZobristKeys()
 {
@@ -30,42 +31,34 @@ void initZobristKeys()
     }
 }
 
-uint64_t computeZobristKey(CBoard *board)
+void computeZobristKey(CBoard *board)
 {
     uint64_t key = 0ULL;
 
-    // 1. Pieces
-    for (int sq = 0; sq < 64; sq++)
+    // Map your bitboards to an array of pointers to avoid struct layout issues
+    uint64_t *pieceBBs[12] = {
+        &board->whitePawns, &board->whiteKnights, &board->whiteBishops,
+        &board->whiteRooks, &board->whiteQueens, &board->whiteKing,
+        &board->blackPawns, &board->blackKnights, &board->blackBishops,
+        &board->blackRooks, &board->blackQueens, &board->blackKing};
+
+    for (int pieceType = 0; pieceType < 12; pieceType++)
     {
-        Bitboard squareMask = (Bitboard)1 << sq;
+        // Copy the bitboard value into a local variable 'bb'
+        // Changes to 'bb' do NOT affect board->whitePawns, etc.
+        uint64_t bb = *pieceBBs[pieceType];
 
-        // White pieces
-        if (board->whitePawns & squareMask)
-            key ^= piece_keys[0][sq];
-        if (board->whiteKnights & squareMask)
-            key ^= piece_keys[1][sq];
-        if (board->whiteBishops & squareMask)
-            key ^= piece_keys[2][sq];
-        if (board->whiteRooks & squareMask)
-            key ^= piece_keys[3][sq];
-        if (board->whiteQueens & squareMask)
-            key ^= piece_keys[4][sq];
-        if (board->whiteKing & squareMask)
-            key ^= piece_keys[5][sq];
+        while (bb)
+        {
+            // Find the index of the least significant bit (0-63)
+            int sq = __builtin_ctzll(bb);
 
-        // Black pieces
-        if (board->blackPawns & squareMask)
-            key ^= piece_keys[6][sq];
-        if (board->blackKnights & squareMask)
-            key ^= piece_keys[7][sq];
-        if (board->blackBishops & squareMask)
-            key ^= piece_keys[8][sq];
-        if (board->blackRooks & squareMask)
-            key ^= piece_keys[9][sq];
-        if (board->blackQueens & squareMask)
-            key ^= piece_keys[10][sq];
-        if (board->blackKing & squareMask)
-            key ^= piece_keys[11][sq];
+            // XOR the random key for this piece/square combo
+            key ^= piece_keys[pieceType][sq];
+
+            // Mathematically clear the bit we just processed in the LOCAL copy
+            bb &= (bb - 1);
+        }
     }
 
     // 2. Side to move
@@ -75,17 +68,8 @@ uint64_t computeZobristKey(CBoard *board)
     }
 
     // 3. Castling rights
-    int castleIndex = 0;
-    if (CHECK_BIT(board->castlingRights, 3))
-        castleIndex |= 1;
-    if (CHECK_BIT(board->castlingRights, 2))
-        castleIndex |= 2;
-    if (CHECK_BIT(board->castlingRights, 1))
-        castleIndex |= 4;
-    if (CHECK_BIT(board->castlingRights, 0))
-        castleIndex |= 8;
-
-    key ^= castle_keys[castleIndex];
+    // Ensure castlingRights is always 0-15
+    key ^= castle_keys[board->castlingRights];
 
     // 4. En Passant
     if (board->epSquare != NO_SQUARE)
@@ -93,5 +77,6 @@ uint64_t computeZobristKey(CBoard *board)
         int file = board->epSquare % 8;
         key ^= en_passant_keys[file];
     }
-    return key;
+
+    board->zobristKey = key;
 }

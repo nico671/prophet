@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "utils/bit_manipulation.h"
+#include "zobrist.h"
 typedef struct CBoard
 {
     // White Piece bitboards
