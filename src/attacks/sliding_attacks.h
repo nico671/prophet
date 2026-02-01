@@ -1,6 +1,8 @@
-#include "core/bitboard.h"
+
 #ifndef SLIDING_ATTACKS_H
 #define SLIDING_ATTACKS_H
+#include "core/bitboard.h"
+#include "utils/bit_manipulation.h"
 static const Bitboard rook_occupancy_maps[] = {
     0x000101010101017eULL,
     0x000202020202027cULL,

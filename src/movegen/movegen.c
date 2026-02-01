@@ -90,7 +90,7 @@ MoveList generateLegalMoves(CBoard *board)
         {
             Color side = board->sideToMove;
             Color opponent = (side == WHITE) ? BLACK : WHITE;
-            Square kingFrom = FROM_SQ(move);
+            // Square kingFrom = FROM_SQ(move);
 
             // Cannot castle if in check
             if (isKingInCheck(board, side))

@@ -169,8 +169,8 @@ Bitboard generateRookAttacks(int square, Bitboard blockers)
     // north direction check
     for (int r = rank + 1; r <= 7; r++)
     {
-        attacks |= (1ULL << (file + r * 8));
-        if (blockers & (1ULL << (file + r * 8)))
+        SET_BIT(attacks, file + r * 8);
+        if (CHECK_BIT(blockers, file + r * 8))
         {
             break;
         }
@@ -179,8 +179,8 @@ Bitboard generateRookAttacks(int square, Bitboard blockers)
     // south direction check
     for (int r = rank - 1; r >= 0; r--)
     {
-        attacks |= (1ULL << (file + r * 8));
-        if (blockers & (1ULL << (file + r * 8)))
+        SET_BIT(attacks, file + r * 8);
+        if (CHECK_BIT(blockers, file + r * 8))
         {
             break;
         }
@@ -189,8 +189,8 @@ Bitboard generateRookAttacks(int square, Bitboard blockers)
     // east direction check
     for (int f = file + 1; f <= 7; f++)
     {
-        attacks |= (1ULL << (f + rank * 8));
-        if (blockers & (1ULL << (f + rank * 8)))
+        SET_BIT(attacks, f + rank * 8);
+        if (CHECK_BIT(blockers, f + rank * 8))
         {
             break;
         }
@@ -198,8 +198,8 @@ Bitboard generateRookAttacks(int square, Bitboard blockers)
     // west direction check
     for (int f = file - 1; f >= 0; f--)
     {
-        attacks |= (1ULL << (f + rank * 8));
-        if (blockers & (1ULL << (f + rank * 8)))
+        SET_BIT(attacks, f + rank * 8);
+        if (CHECK_BIT(blockers, f + rank * 8))
         {
             break;
         }
@@ -217,29 +217,29 @@ Bitboard generateBishopAttacks(int square, Bitboard blockers)
     // NE
     for (int r = rank + 1, f = file + 1; r <= 7 && f <= 7; r++, f++)
     {
-        attacks |= (1ULL << (r * 8 + f));
-        if (blockers & (1ULL << (r * 8 + f)))
+        SET_BIT(attacks, r * 8 + f);
+        if (CHECK_BIT(blockers, r * 8 + f))
             break;
     }
     // NW
     for (int r = rank + 1, f = file - 1; r <= 7 && f >= 0; r++, f--)
     {
-        attacks |= (1ULL << (r * 8 + f));
-        if (blockers & (1ULL << (r * 8 + f)))
+        SET_BIT(attacks, r * 8 + f);
+        if (CHECK_BIT(blockers, r * 8 + f))
             break;
     }
     // SE
     for (int r = rank - 1, f = file + 1; r >= 0 && f <= 7; r--, f++)
     {
-        attacks |= (1ULL << (r * 8 + f));
-        if (blockers & (1ULL << (r * 8 + f)))
+        SET_BIT(attacks, r * 8 + f);
+        if (CHECK_BIT(blockers, r * 8 + f))
             break;
     }
     // SW
     for (int r = rank - 1, f = file - 1; r >= 0 && f >= 0; r--, f--)
     {
-        attacks |= (1ULL << (r * 8 + f));
-        if (blockers & (1ULL << (r * 8 + f)))
+        SET_BIT(attacks, r * 8 + f);
+        if (CHECK_BIT(blockers, r * 8 + f))
             break;
     }
 
@@ -268,7 +268,7 @@ void initSlidingAttacks(void)
                 int bit_pos = bb_lsb_idx(temp_mask);
                 if (i & (1 << count))
                 {
-                    occupancy |= (1ULL << bit_pos);
+                    SET_BIT(occupancy, bit_pos);
                 }
                 temp_mask &= temp_mask - 1;
                 count++;
@@ -298,7 +298,7 @@ void initSlidingAttacks(void)
                 int bit_pos = bb_lsb_idx(temp_mask);
                 if (i & (1 << count))
                 {
-                    occupancy |= (1ULL << bit_pos);
+                    SET_BIT(occupancy, bit_pos);
                 }
                 temp_mask &= temp_mask - 1;
                 count++;

@@ -49,7 +49,7 @@ static Bitboard findMagic(int square, int bits, int isBishop)
             int bit_pos = __builtin_ctzll(temp_mask);
             if (i & (1 << count))
             {
-                occupancy |= (1ULL << bit_pos);
+                SET_BIT(occupancy, bit_pos);
             }
             temp_mask &= temp_mask - 1;
             count++;

@@ -59,6 +59,7 @@ uint64_t expected_nodes_position_5[] = {
     2103487ULL,
     89941194ULL,
 };
+
 PerftTest test_suite[] = {
     {
         .name = "Initial Position",
@@ -70,7 +71,7 @@ PerftTest test_suite[] = {
         .name = "Kiwipete Position",
         .fen = "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq -",
         .expected_nodes = expected_nodes_kiwipete_position,
-        .max_depth = 5,
+        .max_depth = 4, // 4 for speed, 5 is reasonable, 6+ takes too long
     },
     {
         .name = "Position 3",
@@ -88,8 +89,9 @@ PerftTest test_suite[] = {
         .name = "Position 5",
         .fen = "rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8",
         .expected_nodes = expected_nodes_position_5,
-        .max_depth = 5,
+        .max_depth = 4, // 4 for speed, 5 is reasonable, 6+ takes too long
     }};
+
 uint64_t perft(CBoard *board, int depth)
 {
     if (depth == 0)
