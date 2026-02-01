@@ -18,7 +18,5 @@ int evaluateBoard(CBoard *board)
     score -= bb_popcount(board->blackRooks) * ROOK_VALUE;
     score -= bb_popcount(board->blackQueens) * QUEEN_VALUE;
 
-    // Return score from the perspective of the side to move
-    // (If it's Black's turn and the score is -300, Black is actually +300)
-    return (board->sideToMove == WHITE) ? score : -score;
+    return score; // no perspective for negamax, color param will decide it later
 }
