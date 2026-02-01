@@ -8,6 +8,7 @@
 #include "attacks/sliding_attacks.h"
 
 // Move flag encoding
+// TODO: move away from enum definition, use an int with each bit having a different meaning
 typedef enum
 {
     QUIET = 0,

@@ -17,6 +17,12 @@ int evaluateBoard(CBoard *board)
     score -= bb_popcount(board->blackBishops) * BISHOP_VALUE;
     score -= bb_popcount(board->blackRooks) * ROOK_VALUE;
     score -= bb_popcount(board->blackQueens) * QUEEN_VALUE;
-
-    return score; // no perspective for negamax, color param will decide it later
+    if (board->sideToMove == WHITE)
+    {
+        return score;
+    }
+    else
+    {
+        return -score;
+    }
 }

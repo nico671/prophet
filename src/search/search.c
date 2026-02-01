@@ -7,12 +7,20 @@ int negamax(CBoard *node, int depth, int alpha, int beta, Color color)
     {
         return evaluateBoard(node);
     }
-    // TODO: implement game over detection (checkmate, stalemate)
 
     MoveList moveList = generateLegalMoves(node);
 
+    // check for checkmate or stalemate
+    if (isKingInCheck(node, color) && moveList.count == 0)
+    {
+        return -200000000; // Large negative value for checkmate
+    }
+    if (!isKingInCheck(node, color) && moveList.count == 0)
+    {
+        return 0; // Draw score for stalemate
+    }
     // TODO: implement move ordering for better alpha-beta pruning
-    int maxEval = -1000000;
+    int maxEval = -200000000;
     for (int i = 0; i < moveList.count; i++)
     {
         Move move = moveList.moves[i];
