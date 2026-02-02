@@ -9,6 +9,9 @@ typedef struct CBoard CBoard;
 #define QUEEN_VALUE 900
 #define KING_VALUE 10000 // High value so the engine knows to protect it
 
+// Initializes evaluation tables (safe to call multiple times).
+void hceval_init(void);
+
 int evaluateBoard(const CBoard *board);
 
 #endif // HCEVAL_H
