@@ -5,9 +5,11 @@
 #include "movegen/movegen.h"
 #include "movegen/move_make.h"
 
+// TODO: implement iterative deepening search + time management
 int negamax(CBoard *node, int depth, int alpha, int beta, Color color)
 {
     // check if depth is 0 or game over
+    // TODO: implement quiescence search
     if (depth == 0)
     {
         return evaluateBoard(node);
@@ -18,7 +20,7 @@ int negamax(CBoard *node, int depth, int alpha, int beta, Color color)
     // check for checkmate or stalemate
     if (isKingInCheck(node, color) && moveList.count == 0)
     {
-        return -200000000; // Large negative value for checkmate
+        return -200000000 + depth; // Large negative value for checkmate
     }
     if (!isKingInCheck(node, color) && moveList.count == 0)
     {

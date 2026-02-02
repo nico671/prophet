@@ -535,7 +535,7 @@ UndoInfo makePromotionMove(CBoard *board, Move move)
     undoInfo.previousZobristKey = board->zobristKey;
 
     // Get the promotion piece type
-    PieceType promotionPiece = move_promotion_piece(move);
+    PieceType promotionPiece = getPromotionPieceType(move);
 
     // Update zobrist: remove pawn from 'from' square
     zobristTogglePiece(&board->zobristKey, PAWN, board->sideToMove, from);
@@ -853,7 +853,7 @@ void unmakeMove(CBoard *board, Move move, UndoInfo undoInfo)
     else if (flag >= KNIGHT_PROMO_QUIET && flag <= QUEEN_PROMO_CAPTURE)
     {
         // Unmake promotion
-        PieceType promotionPiece = move_promotion_piece(move);
+        PieceType promotionPiece = getPromotionPieceType(move);
         bool isPromotionCapture = (flag >= KNIGHT_PROMO_CAPTURE && flag <= QUEEN_PROMO_CAPTURE);
 
         // Remove promoted piece from destination

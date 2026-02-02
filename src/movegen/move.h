@@ -82,7 +82,7 @@ static inline Move make_promotion_move(Square from, Square to, PieceType pieceTy
 #define TO_SQ(move) ((move).to)
 #define MOVE_FLAG(move) ((move).flag)
 
-static inline PieceType move_promotion_piece(Move move)
+static inline PieceType getPromotionPieceType(Move move)
 {
     switch (move.flag)
     {

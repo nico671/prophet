@@ -27,3 +27,5 @@ int evaluateBoard(const CBoard *board)
         return -score;
     }
 }
+
+// TODO: implement piece-square tables
