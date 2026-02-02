@@ -1,6 +1,7 @@
 #include "movegen/king_moves.h"
 #include "attacks/constant_attacks.h"
 #include "core/bitboard.h"
+#include "board/cboard.h"
 
 void genAllPseudoLegalKingNonCastlingMoves(CBoard *board, MoveList *moveList)
 {

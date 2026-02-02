@@ -1,6 +1,7 @@
 #include "hceval.h"
+#include "board/cboard.h"
 
-int evaluateBoard(CBoard *board)
+int evaluateBoard(const CBoard *board)
 {
     int score = 0;
 

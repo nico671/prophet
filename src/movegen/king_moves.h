@@ -1,8 +1,9 @@
 #ifndef KING_MOVES_H
 #define KING_MOVES_H
 
-#include "board/cboard.h"
-#include "movegen/movegen.h"
+#include "movegen/move.h"
+
+typedef struct CBoard CBoard;
 
 void genAllPseudoLegalKingNonCastlingMoves(CBoard *board, MoveList *moveList);
 void genAllPseudoLegalKingMoves(CBoard *board, MoveList *moveList);

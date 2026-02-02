@@ -1,5 +1,12 @@
 
-#include "cboard.h"
+#include "board/cboard.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "core/bitboard.h"
+#include "board/zobrist.h"
 
 // Recompute occupancy bitboards based on individual piece bitboards
 void recomputeOccupancies(CBoard *board)
@@ -23,7 +30,7 @@ void printBoard(CBoard *board)
         {
             int squareIndex = rank * 8 + file; // Fixed calculation
             char pieceChar = '.';
-            Bitboard squareMask = (Bitboard)1 << squareIndex;
+            Bitboard squareMask = bb_square(squareIndex);
             if (board->whitePawns & squareMask)
                 pieceChar = 'P';
             else if (board->whiteKnights & squareMask)
@@ -66,9 +73,8 @@ void printBoard(CBoard *board)
 }
 
 // cboard from fen function
-CBoard fenToCBoard(char *fenString)
+CBoard fenToCBoard(const char *fenString)
 {
-    initZobristKeys(); // ensure zobrist is initialized
     CBoard board = {0};
     board.epSquare = NO_SQUARE; // default no en passant
     size_t len = strlen(fenString);
@@ -94,7 +100,7 @@ CBoard fenToCBoard(char *fenString)
             continue;
         }
         int squareIndex = rank * 8 + file;
-        Bitboard squareMask = (Bitboard)1 << squareIndex;
+        Bitboard squareMask = bb_square(squareIndex);
         switch (ch)
         {
         case 'P':
@@ -134,7 +140,9 @@ CBoard fenToCBoard(char *fenString)
             board.blackKing |= squareMask;
             break;
         default:
-            fprintf(stderr, "Unexpected character in FEN: %c\n", ch);
+            fputs("Unexpected character in FEN: ", stderr);
+            fputc(ch, stderr);
+            fputc('\n', stderr);
             break;
         }
 
@@ -237,7 +245,7 @@ char *CBoardToFen(CBoard *board)
         for (int file = 0; file < 8; ++file)
         {
             int squareIndex = rank * 8 + file;
-            Bitboard squareMask = (Bitboard)1 << squareIndex;
+            Bitboard squareMask = bb_square(squareIndex);
             char pieceChar = '\0';
             if (board->whitePawns & squareMask)
                 pieceChar = 'P';

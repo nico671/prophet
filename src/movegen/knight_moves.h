@@ -1,8 +1,9 @@
 #ifndef KNIGHT_MOVES_H
 #define KNIGHT_MOVES_H
 
-#include "board/cboard.h"
-#include "movegen/movegen.h"
+#include "movegen/move.h"
+
+typedef struct CBoard CBoard;
 
 void genAllPseudoLegalKnightMoves(CBoard *board, MoveList *moveList);
 

@@ -1,6 +1,7 @@
 #include "movegen/sliding_moves.h"
 #include "attacks/sliding_attacks.h"
 #include "core/bitboard.h"
+#include "board/cboard.h"
 
 void genAllPseudoLegalBishopMoves(CBoard *board, MoveList *moveList)
 {

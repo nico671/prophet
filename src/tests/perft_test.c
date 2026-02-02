@@ -1,6 +1,9 @@
 #include "perft_test.h"
+#include <stdio.h>
 #include <string.h>
 #include <time.h>
+
+#include "engine/engine.h"
 
 typedef struct
 {
@@ -153,7 +156,7 @@ uint64_t divide(CBoard *board, int depth)
 
 int main()
 {
-    initSlidingAttacks();
+    engine_init();
 
     int num_tests = sizeof(test_suite) / sizeof(PerftTest);
     int total_passed = 0;

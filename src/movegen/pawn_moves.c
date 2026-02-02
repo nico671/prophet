@@ -1,6 +1,7 @@
 #include "movegen/pawn_moves.h"
 #include "attacks/constant_attacks.h"
 #include "core/bitboard.h"
+#include "board/cboard.h"
 
 void genSinglePawnPushes(CBoard *board, MoveList *moveList)
 {

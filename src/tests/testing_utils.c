@@ -1,6 +1,8 @@
 // printMove(Move) - print move in coordinate notation (e2e4)
 #include "testing_utils.h"
 
+#include <stdio.h>
+
 char *moveToStringCoordinate(Move move)
 {
     static char str[5];

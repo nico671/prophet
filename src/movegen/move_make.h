@@ -1,8 +1,10 @@
 #ifndef MOVE_MAKE_H
 #define MOVE_MAKE_H
 
-#include "board/cboard.h"
-#include "movegen/movegen.h"
+#include "board/undo.h"
+#include "movegen/move.h"
+
+typedef struct CBoard CBoard;
 
 // Main move making and unmaking functions
 UndoInfo makeMove(CBoard *board, Move move);

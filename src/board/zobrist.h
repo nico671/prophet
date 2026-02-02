@@ -5,22 +5,16 @@
 #include "utils/prng.h"
 #include "core/bitboard.h"
 #include "core/chess_types.h"
-#include "board/cboard.h"
 
-// Forward declaration
+// Forward declaration (avoid circular includes)
 typedef struct CBoard CBoard;
 
 // 0-5: White Pawn, Knight, Bishop, Rook, Queen, King
 // 6-11: Black Pawn, Knight, Bishop, Rook, Queen, King
-uint64_t piece_keys[12][64];
-
-uint64_t side_key;
-
-//
-uint64_t castle_keys[16];
-
-// 8 possible files for En Passant (or 1 for "None")
-uint64_t en_passant_keys[8];
+extern uint64_t piece_keys[12][64];
+extern uint64_t side_key;
+extern uint64_t castle_keys[16];
+extern uint64_t en_passant_keys[8];
 
 // Initialize zobrist keys
 void initZobristKeys();
@@ -36,7 +30,13 @@ static inline int getPieceIndex(PieceType piece, Color color)
 
 static inline void zobristTogglePiece(uint64_t *key, PieceType piece, Color color, Square square)
 {
-    *key ^= piece_keys[getPieceIndex(piece, color)][square];
+    // Defensive guard: NO_SQUARE should never be toggled.
+    if ((unsigned)square < 64U)
+    {
+        int idx = getPieceIndex(piece, color);
+        if ((unsigned)idx < 12U)
+            *key ^= piece_keys[idx][square];
+    }
 }
 
 static inline void zobristToggleSide(uint64_t *key)

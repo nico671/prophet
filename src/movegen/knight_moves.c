@@ -1,6 +1,7 @@
 #include "movegen/knight_moves.h"
 #include "attacks/constant_attacks.h"
 #include "core/bitboard.h"
+#include "board/cboard.h"
 
 void genAllPseudoLegalKnightMoves(CBoard *board, MoveList *moveList)
 {

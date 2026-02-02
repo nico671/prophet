@@ -1,5 +1,7 @@
 #include "movegen/move_make.h"
 #include "core/bitboard.h"
+#include "board/cboard.h"
+#include "board/zobrist.h"
 #include <stdbool.h>
 
 // Helper function to move a piece from one square to another
@@ -533,7 +535,7 @@ UndoInfo makePromotionMove(CBoard *board, Move move)
     undoInfo.previousZobristKey = board->zobristKey;
 
     // Get the promotion piece type
-    PieceType promotionPiece = getPromotionPiece(move);
+    PieceType promotionPiece = move_promotion_piece(move);
 
     // Update zobrist: remove pawn from 'from' square
     zobristTogglePiece(&board->zobristKey, PAWN, board->sideToMove, from);
@@ -851,7 +853,7 @@ void unmakeMove(CBoard *board, Move move, UndoInfo undoInfo)
     else if (flag >= KNIGHT_PROMO_QUIET && flag <= QUEEN_PROMO_CAPTURE)
     {
         // Unmake promotion
-        PieceType promotionPiece = getPromotionPiece(move);
+        PieceType promotionPiece = move_promotion_piece(move);
         bool isPromotionCapture = (flag >= KNIGHT_PROMO_CAPTURE && flag <= QUEEN_PROMO_CAPTURE);
 
         // Remove promoted piece from destination

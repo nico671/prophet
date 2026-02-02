@@ -7,6 +7,7 @@
 #include "attacks/constant_attacks.h"
 #include "attacks/sliding_attacks.h"
 #include "core/bitboard.h"
+#include "board/cboard.h"
 #include <stdbool.h>
 
 void genAllPseudoLegalMoves(CBoard *board, MoveList *moveList)
@@ -86,7 +87,7 @@ MoveList generateLegalMoves(CBoard *board)
         Move move = pseudoLegalMoves.moves[i];
 
         // Special handling for castling
-        if (isCastling(move))
+        if (move_is_castling(move))
         {
             Color side = board->sideToMove;
             Color opponent = (side == WHITE) ? BLACK : WHITE;

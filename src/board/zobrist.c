@@ -1,8 +1,20 @@
 #include "zobrist.h"
-#include "cboard.h"
+#include "board/cboard.h"
+
+#include <stdbool.h>
+
+uint64_t piece_keys[12][64];
+uint64_t side_key;
+uint64_t castle_keys[16];
+uint64_t en_passant_keys[8];
 
 void initZobristKeys()
 {
+    static bool initialized = false;
+    if (initialized)
+        return;
+    initialized = true;
+
     ranctx ctx;
     raninit(&ctx, 107035250ULL); // Use a fixed seed for reproducible debug sessions
 

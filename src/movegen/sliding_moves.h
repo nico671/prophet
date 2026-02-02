@@ -1,8 +1,9 @@
 #ifndef SLIDING_MOVES_H
 #define SLIDING_MOVES_H
 
-#include "board/cboard.h"
-#include "movegen/movegen.h"
+#include "movegen/move.h"
+
+typedef struct CBoard CBoard;
 void genAllPseudoLegalBishopMoves(CBoard *board, MoveList *moveList);
 void genAllPseudoLegalRookMoves(CBoard *board, MoveList *moveList);
 void genAllPseudoLegalQueenMoves(CBoard *board, MoveList *moveList);

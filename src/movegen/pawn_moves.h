@@ -1,8 +1,9 @@
 #ifndef PAWN_MOVES_H
 #define PAWN_MOVES_H
 
-#include "board/cboard.h"
-#include "movegen/movegen.h"
+#include "movegen/move.h"
+
+typedef struct CBoard CBoard;
 
 void genSinglePawnPushes(CBoard *board, MoveList *moveList);
 void genDoublePawnPushes(CBoard *board, MoveList *moveList);

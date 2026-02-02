@@ -1,14 +1,11 @@
 
-#ifndef BOARD_H
-#define BOARD_H
+#ifndef CBOARD_H
+#define CBOARD_H
+
 #include <stdint.h>
-#include <stdio.h>
-#include <stdbool.h>
+
 #include "core/bitboard.h"
-#include <stdlib.h>
-#include <string.h>
-#include "utils/bit_manipulation.h"
-#include "zobrist.h"
+#include "core/chess_types.h"
 
 typedef struct CBoard
 {
@@ -49,15 +46,7 @@ void recomputeOccupancies(CBoard *board);
 // bool validateBoard(CBoard *board);
 
 void printBoard(CBoard *board);
-CBoard fenToCBoard(char *fenString);
+CBoard fenToCBoard(const char *fenString);
 char *CBoardToFen(CBoard *board);
-typedef struct UndoInfo
-{
-    PieceType capturedPiece;        // What was captured (NO_PIECE if none)
-    uint8_t previousEpSquare;       // Previous en passant square
-    uint16_t previousHalfmoveClock; // Previous 50-move counter
-    uint8_t previousCastlingRights; // bit meanings: 0 = blackqueenside, 1 = blackkingside, 2 = whitequeenside, 3 = whitekingside
-    uint64_t previousZobristKey;
-} UndoInfo;
 
-#endif // BOARD_H
+#endif // CBOARD_H

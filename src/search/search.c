@@ -1,4 +1,9 @@
-#include "search.h"
+#include "search/search.h"
+
+#include "board/cboard.h"
+#include "hcevaluation/hceval.h"
+#include "movegen/movegen.h"
+#include "movegen/move_make.h"
 
 int negamax(CBoard *node, int depth, int alpha, int beta, Color color)
 {
