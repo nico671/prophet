@@ -889,8 +889,6 @@ static inline void accumulate_piece(Bitboard bb, int pc, int mg[2], int eg[2], i
 
 int evaluateBoard(const CBoard *board)
 {
-    hceval_init();
-
     int mg[2] = {0, 0};
     int eg[2] = {0, 0};
     int gamePhase = 0;

@@ -782,6 +782,56 @@ UndoInfo makeMove(CBoard *board, Move move)
     }
 }
 
+void unmakeCastlingMove(CBoard *board, MoveFlag flag)
+{
+    // Unmake castling
+    if (flag == KINGSIDE_CASTLE)
+    {
+        if (board->sideToMove == WHITE)
+        {
+            // Move king back from g1 to e1
+            bb_clear(&board->whiteKing, G1);
+            bb_set(&board->whiteKing, E1);
+            // Move rook back from f1 to h1
+            bb_clear(&board->whiteRooks, F1);
+            bb_set(&board->whiteRooks, H1);
+            updateOccupanciesForCastling(board, G1, E1, F1, H1, WHITE);
+        }
+        else
+        {
+            // Move king back from g8 to e8
+            bb_clear(&board->blackKing, G8);
+            bb_set(&board->blackKing, E8);
+            // Move rook back from f8 to h8
+            bb_clear(&board->blackRooks, F8);
+            bb_set(&board->blackRooks, H8);
+            updateOccupanciesForCastling(board, G8, E8, F8, H8, BLACK);
+        }
+    }
+    else // QUEENSIDE_CASTLE
+    {
+        if (board->sideToMove == WHITE)
+        {
+            // Move king back from c1 to e1
+            bb_clear(&board->whiteKing, C1);
+            bb_set(&board->whiteKing, E1);
+            // Move rook back from d1 to a1
+            bb_clear(&board->whiteRooks, D1);
+            bb_set(&board->whiteRooks, A1);
+            updateOccupanciesForCastling(board, C1, E1, D1, A1, WHITE);
+        }
+        else
+        {
+            // Move king back from c8 to e8
+            bb_clear(&board->blackKing, C8);
+            bb_set(&board->blackKing, E8);
+            // Move rook back from d8 to a8
+            bb_clear(&board->blackRooks, D8);
+            bb_set(&board->blackRooks, A8);
+            updateOccupanciesForCastling(board, C8, E8, D8, A8, BLACK);
+        }
+    }
+}
 void unmakeMove(CBoard *board, Move move, UndoInfo undoInfo)
 {
     Square from = FROM_SQ(move);
@@ -806,56 +856,14 @@ void unmakeMove(CBoard *board, Move move, UndoInfo undoInfo)
     // Handle different move types
     if (flag == KINGSIDE_CASTLE || flag == QUEENSIDE_CASTLE)
     {
-        // Unmake castling
-        if (flag == KINGSIDE_CASTLE)
-        {
-            if (board->sideToMove == WHITE)
-            {
-                // Move king back from g1 to e1
-                bb_clear(&board->whiteKing, G1);
-                bb_set(&board->whiteKing, E1);
-                // Move rook back from f1 to h1
-                bb_clear(&board->whiteRooks, F1);
-                bb_set(&board->whiteRooks, H1);
-            }
-            else
-            {
-                // Move king back from g8 to e8
-                bb_clear(&board->blackKing, G8);
-                bb_set(&board->blackKing, E8);
-                // Move rook back from f8 to h8
-                bb_clear(&board->blackRooks, F8);
-                bb_set(&board->blackRooks, H8);
-            }
-        }
-        else // QUEENSIDE_CASTLE
-        {
-            if (board->sideToMove == WHITE)
-            {
-                // Move king back from c1 to e1
-                bb_clear(&board->whiteKing, C1);
-                bb_set(&board->whiteKing, E1);
-                // Move rook back from d1 to a1
-                bb_clear(&board->whiteRooks, D1);
-                bb_set(&board->whiteRooks, A1);
-            }
-            else
-            {
-                // Move king back from c8 to e8
-                bb_clear(&board->blackKing, C8);
-                bb_set(&board->blackKing, E8);
-                // Move rook back from d8 to a8
-                bb_clear(&board->blackRooks, D8);
-                bb_set(&board->blackRooks, A8);
-            }
-        }
+        unmakeCastlingMove(board, flag);
     }
     else if (flag >= KNIGHT_PROMO_QUIET && flag <= QUEEN_PROMO_CAPTURE)
     {
         // Unmake promotion
         PieceType promotionPiece = getPromotionPieceType(move);
         bool isPromotionCapture = (flag >= KNIGHT_PROMO_CAPTURE && flag <= QUEEN_PROMO_CAPTURE);
-
+        updateOccupanciesForMove(board, to, from, board->sideToMove);
         // Remove promoted piece from destination
         if (board->sideToMove == WHITE)
         {
@@ -876,6 +884,7 @@ void unmakeMove(CBoard *board, Move move, UndoInfo undoInfo)
             default:
                 break;
             }
+            bb_clear(&board->whitePieces, to);
         }
         else
         {
@@ -896,18 +905,22 @@ void unmakeMove(CBoard *board, Move move, UndoInfo undoInfo)
             default:
                 break;
             }
+            bb_clear(&board->blackPieces, to);
         }
+        bb_clear(&board->allPieces, to);
 
         // Restore pawn to source square
         if (board->sideToMove == WHITE)
         {
             bb_set(&board->whitePawns, from);
+            bb_set(&board->whitePieces, from);
         }
         else
         {
             bb_set(&board->blackPawns, from);
+            bb_set(&board->blackPieces, from);
         }
-
+        bb_set(&board->allPieces, from);
         // If promotion capture, restore captured piece
         if (isPromotionCapture && undoInfo.capturedPiece != NO_PIECE)
         {
@@ -934,6 +947,7 @@ void unmakeMove(CBoard *board, Move move, UndoInfo undoInfo)
                 default:
                     break;
                 }
+                bb_set(&board->blackPieces, to);
             }
             else
             {
@@ -957,7 +971,9 @@ void unmakeMove(CBoard *board, Move move, UndoInfo undoInfo)
                 default:
                     break;
                 }
+                bb_set(&board->whitePieces, to);
             }
+            bb_set(&board->allPieces, to);
         }
     }
     else if (flag == EP_CAPTURE)
@@ -965,24 +981,28 @@ void unmakeMove(CBoard *board, Move move, UndoInfo undoInfo)
         // Unmake en passant
         // Move pawn back from destination to source
         movePieceOnBoard(board, to, from, board->sideToMove);
-
+        updateOccupanciesForMove(board, to, from, board->sideToMove);
         // Restore captured pawn
         Square capturedPawnSquare = (board->sideToMove == WHITE) ? to - 8 : to + 8;
         Color opponentColor = (board->sideToMove == WHITE) ? BLACK : WHITE;
         if (opponentColor == BLACK)
         {
             bb_set(&board->blackPawns, capturedPawnSquare);
+            bb_set(&board->blackPieces, capturedPawnSquare);
         }
         else
         {
             bb_set(&board->whitePawns, capturedPawnSquare);
+            bb_set(&board->whitePieces, capturedPawnSquare);
         }
+        bb_set(&board->allPieces, capturedPawnSquare);
     }
     else
     {
         // Unmake regular move (quiet, capture, double pawn push)
         // Move piece back from destination to source
         movePieceOnBoard(board, to, from, board->sideToMove);
+        updateOccupanciesForMove(board, to, from, board->sideToMove);
 
         // If it was a capture, restore the captured piece
         if (flag == CAPTURE && undoInfo.capturedPiece != NO_PIECE)
@@ -1013,6 +1033,7 @@ void unmakeMove(CBoard *board, Move move, UndoInfo undoInfo)
                 default:
                     break;
                 }
+                bb_set(&board->blackPieces, to);
             }
             else
             {
@@ -1039,10 +1060,9 @@ void unmakeMove(CBoard *board, Move move, UndoInfo undoInfo)
                 default:
                     break;
                 }
+                bb_set(&board->whitePieces, to);
             }
+            bb_set(&board->allPieces, to);
         }
     }
-
-    // Recompute occupancy bitboards
-    recomputeOccupancies(board);
 }
