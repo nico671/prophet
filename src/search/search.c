@@ -1,9 +1,129 @@
 #include "search/search.h"
-
+#include "hcevaluation/hceval.h"
 #include "board/cboard.h"
 #include "hcevaluation/hceval.h"
 #include "movegen/movegen.h"
 #include "movegen/move_make.h"
+
+void scoreMoves(CBoard *board, MoveList *moveList, int *scores)
+{
+    for (int i = 0; i < moveList->count; i++)
+    {
+        Move currMove = moveList->moves[i];
+        if (move_is_capture(currMove))
+        {
+            int capturedPieceValue = 0;
+            PieceType capturedPiece = NO_PIECE;
+
+            if (is_bit_set(board->whitePawns, TO_SQ(currMove)) | is_bit_set(board->blackPawns, TO_SQ(currMove)))
+            {
+                capturedPiece = PAWN;
+            }
+            else if (is_bit_set(board->whiteKnights, TO_SQ(currMove)) || is_bit_set(board->blackKnights, TO_SQ(currMove)))
+            {
+                capturedPiece = KNIGHT;
+            }
+            else if (is_bit_set(board->whiteBishops, TO_SQ(currMove)) || is_bit_set(board->blackBishops, TO_SQ(currMove)))
+            {
+                capturedPiece = BISHOP;
+            }
+            else if (is_bit_set(board->whiteRooks, TO_SQ(currMove)) || is_bit_set(board->blackRooks, TO_SQ(currMove)))
+            {
+                capturedPiece = ROOK;
+            }
+            else if (is_bit_set(board->whiteQueens, TO_SQ(currMove)) || is_bit_set(board->blackQueens, TO_SQ(currMove)))
+            {
+                capturedPiece = QUEEN;
+            }
+            else if (is_bit_set(board->whiteKing, TO_SQ(currMove)) || is_bit_set(board->blackKing, TO_SQ(currMove)))
+            {
+                capturedPiece = KING;
+            }
+            switch (capturedPiece)
+            {
+            case PAWN:
+                capturedPieceValue = PAWN_VALUE;
+                break;
+            case KNIGHT:
+                capturedPieceValue = KNIGHT_VALUE;
+                break;
+            case BISHOP:
+                capturedPieceValue = BISHOP_VALUE;
+                break;
+            case ROOK:
+                capturedPieceValue = ROOK_VALUE;
+                break;
+            case QUEEN:
+                capturedPieceValue = QUEEN_VALUE;
+                break;
+            case KING:
+                capturedPieceValue = KING_VALUE;
+                break;
+            default:
+                capturedPieceValue = 0;
+                break;
+            }
+
+            int attackerPieceValue = 0;
+            PieceType attackerPiece = NO_PIECE;
+            if (is_bit_set(board->whitePawns, FROM_SQ(currMove)) || is_bit_set(board->blackPawns, FROM_SQ(currMove)))
+            {
+                attackerPiece = PAWN;
+            }
+            else if (is_bit_set(board->whiteKnights, FROM_SQ(currMove)) || is_bit_set(board->blackKnights, FROM_SQ(currMove)))
+            {
+                attackerPiece = KNIGHT;
+            }
+            else if (is_bit_set(board->whiteBishops, FROM_SQ(currMove)) || is_bit_set(board->blackBishops, FROM_SQ(currMove)))
+            {
+                attackerPiece = BISHOP;
+            }
+            else if (is_bit_set(board->whiteRooks, FROM_SQ(currMove)) || is_bit_set(board->blackRooks, FROM_SQ(currMove)))
+            {
+                attackerPiece = ROOK;
+            }
+            else if (is_bit_set(board->whiteQueens, FROM_SQ(currMove)) || is_bit_set(board->blackQueens, FROM_SQ(currMove)))
+            {
+                attackerPiece = QUEEN;
+            }
+            else if (is_bit_set(board->whiteKing, FROM_SQ(currMove)) || is_bit_set(board->blackKing, FROM_SQ(currMove)))
+            {
+                attackerPiece = KING;
+            }
+
+            switch (attackerPiece)
+            {
+            case PAWN:
+                attackerPieceValue = PAWN_VALUE;
+                break;
+            case KNIGHT:
+                attackerPieceValue = KNIGHT_VALUE;
+                break;
+            case BISHOP:
+                attackerPieceValue = BISHOP_VALUE;
+                break;
+            case ROOK:
+                attackerPieceValue = ROOK_VALUE;
+                break;
+            case QUEEN:
+                attackerPieceValue = QUEEN_VALUE;
+                break;
+            case KING:
+                attackerPieceValue = KING_VALUE;
+                break;
+            default:
+                attackerPieceValue = 0;
+                break;
+            }
+
+            scores[i] = 1000000 + capturedPieceValue - attackerPieceValue;
+        }
+        else
+        {
+            scores[i] = 0; // Non-captures get a base score of 0
+        }
+    }
+}
 
 // TODO: implement iterative deepening search + time management
 int negamax(CBoard *node, int depth, int alpha, int beta, Color color)
@@ -12,10 +132,13 @@ int negamax(CBoard *node, int depth, int alpha, int beta, Color color)
     // TODO: implement quiescence search
     if (depth == 0)
     {
+
         return evaluateBoard(node);
     }
 
     MoveList moveList = generateLegalMoves(node);
+    int scores[moveList.count];
+    scoreMoves(node, &moveList, scores);
 
     // check for checkmate or stalemate
     if (isKingInCheck(node, color) && moveList.count == 0)
@@ -26,7 +149,7 @@ int negamax(CBoard *node, int depth, int alpha, int beta, Color color)
     {
         return 0; // Draw score for stalemate
     }
-    // TODO: implement move ordering for better alpha-beta pruning
+
     int maxEval = -200000000;
     for (int i = 0; i < moveList.count; i++)
     {
@@ -56,4 +179,18 @@ int negamax(CBoard *node, int depth, int alpha, int beta, Color color)
     }
 
     return maxEval;
+}
+
+int iterativeDeepeningSearchEval(CBoard *board, int maxDepth)
+{
+    int bestEval = -200000000;
+    for (int depth = 1; depth <= maxDepth; depth++)
+    {
+        int eval = negamax(board, depth, -200000000, 200000000, board->sideToMove);
+        if (eval > bestEval)
+        {
+            bestEval = eval;
+        }
+    }
+    return bestEval;
 }

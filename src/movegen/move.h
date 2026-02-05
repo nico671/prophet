@@ -42,7 +42,6 @@ typedef struct
 } MoveList;
 
 // --- Move construction helpers ---
-
 #define MAKE_MOVE(from, to) ((Move){(from), (to), QUIET})
 #define MAKE_CAPTURE(from, to) ((Move){(from), (to), CAPTURE})
 #define MAKE_EP(from, to) ((Move){(from), (to), EP_CAPTURE})
