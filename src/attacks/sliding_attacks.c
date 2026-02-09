@@ -294,11 +294,6 @@ const int BBits[64] = {
     5, 5, 7, 7, 7, 7, 5, 5,
     5, 5, 5, 5, 5, 5, 5, 5,
     6, 5, 5, 5, 5, 5, 5, 6};
-// Transform occupancy to index using magic
-static inline int transform(Bitboard occupancy, Bitboard magic, int bits)
-{
-    return (int)((occupancy * magic) >> (64 - bits));
-}
 
 // generate rook attacks for a given square and blockers at initialization
 Bitboard generateRookAttacks(int square, Bitboard blockers)
@@ -454,26 +449,4 @@ void initSlidingAttacks(void)
             bishop_attacks[square][magic_index] = generateBishopAttacks(square, occupancy);
         }
     }
-}
-
-// Lookup rook attacks
-Bitboard getRookAttacks(int square, Bitboard occupancy)
-{
-    occupancy &= rook_occupancy_maps[square];
-    int index = transform(occupancy, RMagic[square], RBits[square]);
-    return rook_attacks[square][index];
-}
-
-// Lookup bishop attacks
-Bitboard getBishopAttacks(int square, Bitboard occupancy)
-{
-    occupancy &= bishop_occupancy_maps[square];
-    int index = transform(occupancy, BMagic[square], BBits[square]);
-    return bishop_attacks[square][index];
-}
-
-// Queen attacks (combination of rook and bishop)
-Bitboard getQueenAttacks(int square, Bitboard occupancy)
-{
-    return getRookAttacks(square, occupancy) | getBishopAttacks(square, occupancy);
 }

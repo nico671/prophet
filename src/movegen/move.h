@@ -6,7 +6,6 @@
 #include "core/chess_types.h"
 
 // Move flag encoding.
-// Note: These values are baked into make/unmake logic; change with care.
 typedef enum
 {
     QUIET = 0,

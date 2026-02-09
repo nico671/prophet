@@ -16,9 +16,34 @@ extern Bitboard bishop_attacks[64][512];
 
 // Function declarations
 void initSlidingAttacks(void);
-Bitboard getRookAttacks(int square, Bitboard occupancy);
-Bitboard getBishopAttacks(int square, Bitboard occupancy);
-Bitboard getQueenAttacks(int square, Bitboard occupancy);
+
+// Transform occupancy to index using magic.
+// Kept in the header so the attack getters can be fully inlined.
+static inline int transform(Bitboard occupancy, Bitboard magic, int bits)
+{
+	return (int)((occupancy * magic) >> (64 - bits));
+}
+
+// Fast lookup helpers (inlined for speed in move generation).
+static inline Bitboard getRookAttacks(int square, Bitboard occupancy)
+{
+	occupancy &= rook_occupancy_maps[square];
+	int index = transform(occupancy, RMagic[square], RBits[square]);
+	return rook_attacks[square][index];
+}
+
+static inline Bitboard getBishopAttacks(int square, Bitboard occupancy)
+{
+	occupancy &= bishop_occupancy_maps[square];
+	int index = transform(occupancy, BMagic[square], BBits[square]);
+	return bishop_attacks[square][index];
+}
+
+static inline Bitboard getQueenAttacks(int square, Bitboard occupancy)
+{
+	return getRookAttacks(square, occupancy) | getBishopAttacks(square, occupancy);
+}
+
 Bitboard generateBishopAttacks(int square, Bitboard blockers); // For testing
 Bitboard generateRookAttacks(int square, Bitboard blockers);   // For testing
 
