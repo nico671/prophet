@@ -163,11 +163,9 @@ prophet/
 ```
 
 ## Credits
-
+All from [The Chess Programming Wiki](https://www.chessprogramming.org/Main_Page)
 - **PeSTO evaluation**: piece-square tables adapted from the PeSTO-style tapered evaluation approach.
 - **Magic bitboards**: standard magic bitboard techniques for sliding attacks.
 - **PRNG**: Bob Jenkins’ RKISS-style PRNG for generating Zobrist keys.
 
-## License
 
-This project is open source.
