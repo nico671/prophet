@@ -8,14 +8,6 @@
 #include "core/bitboard.h"
 #include "board/zobrist.h"
 
-// Recompute occupancy bitboards based on individual piece bitboards
-void recomputeOccupancies(CBoard *board)
-{
-    board->whitePieces = board->whiteBishops | board->whiteKing | board->whiteKnights | board->whitePawns | board->whiteQueens | board->whiteRooks; // white pieces are the OR of all white piece bitboards
-    board->blackPieces = board->blackBishops | board->blackKing | board->blackKnights | board->blackPawns | board->blackQueens | board->blackRooks; // black pieces are the OR of all black piece bitboards
-    board->allPieces = board->whitePieces | board->blackPieces;                                                                                     // all pieces are the OR of white and black pieces
-}
-
 void printBoard(CBoard *board)
 {
     if (!board)
@@ -72,7 +64,6 @@ void printBoard(CBoard *board)
     printf("Zobrist Key: %llu\n", board->zobristKey);
 }
 
-// cboard from fen function
 CBoard fenToCBoard(const char *fenString)
 {
     CBoard board = {0};
@@ -105,39 +96,51 @@ CBoard fenToCBoard(const char *fenString)
         {
         case 'P':
             board.whitePawns |= squareMask;
+            board.whitePieces |= squareMask;
             break;
         case 'N':
             board.whiteKnights |= squareMask;
+            board.whitePieces |= squareMask;
             break;
         case 'B':
             board.whiteBishops |= squareMask;
+            board.whitePieces |= squareMask;
             break;
         case 'R':
             board.whiteRooks |= squareMask;
+            board.whitePieces |= squareMask;
             break;
         case 'Q':
             board.whiteQueens |= squareMask;
+            board.whitePieces |= squareMask;
             break;
         case 'K':
             board.whiteKing |= squareMask;
+            board.whitePieces |= squareMask;
             break;
         case 'p':
             board.blackPawns |= squareMask;
+            board.blackPieces |= squareMask;
             break;
         case 'n':
             board.blackKnights |= squareMask;
+            board.blackPieces |= squareMask;
             break;
         case 'b':
             board.blackBishops |= squareMask;
+            board.blackPieces |= squareMask;
             break;
         case 'r':
             board.blackRooks |= squareMask;
+            board.blackPieces |= squareMask;
             break;
         case 'q':
             board.blackQueens |= squareMask;
+            board.blackPieces |= squareMask;
             break;
         case 'k':
             board.blackKing |= squareMask;
+            board.blackPieces |= squareMask;
             break;
         default:
             fputs("Unexpected character in FEN: ", stderr);
@@ -149,8 +152,7 @@ CBoard fenToCBoard(const char *fenString)
         file++;
     }
 
-    // build derived occupancies once
-    recomputeOccupancies(&board);
+    board.allPieces = board.whitePieces | board.blackPieces;
 
     // now parse remaining fields safely using strtok-like navigation
     const char *p = strchr(fenString, ' ');
@@ -234,6 +236,7 @@ CBoard fenToCBoard(const char *fenString)
     computeZobristKey(&board);
     return board;
 }
+
 char *CBoardToFen(CBoard *board)
 {
     char *fenString = (char *)malloc(128); // enough space

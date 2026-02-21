@@ -6,7 +6,6 @@
 #include "core/bitboard.h"
 #include "core/chess_types.h"
 
-// Forward declaration (avoid circular includes)
 typedef struct CBoard CBoard;
 
 // 0-5: White Pawn, Knight, Bishop, Rook, Queen, King
@@ -28,6 +27,11 @@ static inline int getPieceIndex(PieceType piece, Color color)
     return piece + (color == BLACK ? 6 : 0);
 }
 
+/**
+ * Toggles (XOR) a Zobrist hash key for a specific piece of a given type, color, and square, using precomputed random keys from the piece_keys table.
+ *
+ * It includes defensive bounds checks to ensure the square is valid (less than 64) and the computed piece index is within the valid range (less than 12) before modifying the key.
+ */
 static inline void zobristTogglePiece(uint64_t *key, PieceType piece, Color color, Square square)
 {
     // Defensive guard: NO_SQUARE should never be toggled.
@@ -39,24 +43,26 @@ static inline void zobristTogglePiece(uint64_t *key, PieceType piece, Color colo
     }
 }
 
+/**
+ * Toggles the side-to-move component of a Zobrist hash key by XORing it with the precomputed side_key value.
+ * Used to incrementally update the position's hash key when switching between white's and black's turn.
+ */
 static inline void zobristToggleSide(uint64_t *key)
 {
     *key ^= side_key;
 }
 
+/**
+ * Updates a Zobrist hash key to reflect a change in castling rights by XOR-ing out the old castling rights and XOR-ing in the new castling rights, using precomputed random keys indexed by the lower 4 bits of each rights value.
+ */
 static inline void zobristToggleCastling(uint64_t *key, uint8_t oldRights, uint8_t newRights)
 {
-    *key ^= castle_keys[oldRights];
-    *key ^= castle_keys[newRights];
+    *key ^= castle_keys[oldRights & 0x0F];
+    *key ^= castle_keys[newRights & 0x0F];
 }
 
-static inline void zobristToggleEnPassant(uint64_t *key, Square epSquare)
-{
-    if (epSquare != NO_SQUARE)
-    {
-        int file = epSquare % 8;
-        *key ^= en_passant_keys[file];
-    }
-}
+// Toggle en-passant hash only when the ep square is capturable by side-to-move.
+// This keeps position hashing aligned with repetition semantics.
+void zobristToggleEnPassant(uint64_t *key, const CBoard *board, Square epSquare);
 
 #endif // ZOBRIST_H

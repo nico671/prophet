@@ -32,8 +32,8 @@ bool isSquareAttacked(CBoard *board, Square square, Color attackerColor)
     // If white pawns attack diagonally upward, we need to check squares diagonally downward
     // So we use the OPPOSITE color's attack pattern (FLIPPED, like in genEnPassantPawnMoves)
     Bitboard pawnAttacks = (attackerColor == WHITE)
-                               ? getBlackPawnAttacks(square)  // FLIPPED
-                               : getWhitePawnAttacks(square); // FLIPPED
+                               ? getPawnAttacks(square, BLACK)  // FLIPPED
+                               : getPawnAttacks(square, WHITE); // FLIPPED
     Bitboard attackerPawns = (attackerColor == WHITE) ? board->whitePawns : board->blackPawns;
     if (pawnAttacks & attackerPawns)
         return true;

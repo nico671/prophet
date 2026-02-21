@@ -69,9 +69,7 @@ void genPawnCaptures(CBoard *board, MoveList *moveList)
     while (pawns)
     {
         Square from = bb_pop_lsb(&pawns);
-        Bitboard captureTargets = (sideToMove == WHITE)
-                                      ? getWhitePawnAttacks(from) & opponentPieces
-                                      : getBlackPawnAttacks(from) & opponentPieces;
+        Bitboard captureTargets = getPawnAttacks(from, sideToMove) & opponentPieces;
 
         while (captureTargets)
         {
@@ -113,9 +111,7 @@ void genPawnPromotions(CBoard *board, MoveList *moveList)
     while (pawns)
     {
         Square from = bb_pop_lsb(&pawns);
-        Bitboard captureTargets = (sideToMove == WHITE)
-                                      ? getWhitePawnAttacks(from) & opponentPieces
-                                      : getBlackPawnAttacks(from) & opponentPieces;
+        Bitboard captureTargets = getPawnAttacks(from, sideToMove) & opponentPieces;
 
         while (captureTargets)
         {
@@ -143,8 +139,8 @@ void genEnPassantPawnMoves(CBoard *board, MoveList *moveList)
     // If white to move, we need squares that BLACK pawns would attack from (diagonal down)
     // If black to move, we need squares that WHITE pawns would attack from (diagonal up)
     Bitboard attackers = (sideToMove == WHITE)
-                             ? getBlackPawnAttacks(board->epSquare)
-                             : getWhitePawnAttacks(board->epSquare);
+                             ? getPawnAttacks(board->epSquare, BLACK)
+                             : getPawnAttacks(board->epSquare, WHITE);
 
     Bitboard pawnsThatCanCaptureEP = pawns & attackers;
 

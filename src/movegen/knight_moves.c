@@ -3,6 +3,8 @@
 #include "core/bitboard.h"
 #include "board/cboard.h"
 
+// Generates all pseudo-legal knight moves (both quiet moves and captures) for the side to move on the given board.
+// This function does NOT check for king safety, so it may generate moves that leave the king in check. It is the caller's responsibility to filter those out if necessary.
 void genAllPseudoLegalKnightMoves(CBoard *board, MoveList *moveList)
 {
     Bitboard knights = (board->sideToMove == WHITE) ? board->whiteKnights : board->blackKnights;

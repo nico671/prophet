@@ -7,13 +7,13 @@ uint64_t piece_keys[12][64];
 uint64_t side_key;
 uint64_t castle_keys[16];
 uint64_t en_passant_keys[8];
+static bool zobristKeysInitialized = false;
 
 void initZobristKeys()
 {
-    static bool initialized = false;
-    if (initialized)
+    if (zobristKeysInitialized)
         return;
-    initialized = true;
+    zobristKeysInitialized = true;
 
     ranctx ctx;
     raninit(&ctx, 107035250ULL); // Use a fixed seed for reproducible debug sessions
@@ -43,8 +43,53 @@ void initZobristKeys()
     }
 }
 
+static bool shouldHashEnPassant(const CBoard *board, Square epSquare)
+{
+    if (!board || epSquare == NO_SQUARE)
+        return false;
+
+    if ((unsigned)epSquare >= 64U)
+        return false;
+
+    int epFile = epSquare % 8;
+
+    // EP target must be on rank 6 for white to capture, rank 3 for black to capture.
+    if (board->sideToMove == WHITE)
+    {
+        if (epSquare < A6 || epSquare > H6)
+            return false;
+
+        if (epFile > 0 && is_bit_set(board->whitePawns, epSquare - 9))
+            return true;
+        if (epFile < 7 && is_bit_set(board->whitePawns, epSquare - 7))
+            return true;
+        return false;
+    }
+
+    if (epSquare < A3 || epSquare > H3)
+        return false;
+
+    if (epFile > 0 && is_bit_set(board->blackPawns, epSquare + 7))
+        return true;
+    if (epFile < 7 && is_bit_set(board->blackPawns, epSquare + 9))
+        return true;
+    return false;
+}
+
+void zobristToggleEnPassant(uint64_t *key, const CBoard *board, Square epSquare)
+{
+    if (shouldHashEnPassant(board, epSquare))
+    {
+        int file = epSquare % 8;
+        *key ^= en_passant_keys[file];
+    }
+}
+
 void computeZobristKey(CBoard *board)
 {
+    // Safety: make initialization impossible to forget.
+    initZobristKeys();
+
     uint64_t key = 0ULL;
 
     // Map your bitboards to an array of pointers to avoid struct layout issues
@@ -80,15 +125,10 @@ void computeZobristKey(CBoard *board)
     }
 
     // 3. Castling rights
-    // Ensure castlingRights is always 0-15
-    key ^= castle_keys[board->castlingRights];
+    key ^= castle_keys[board->castlingRights & 0x0F];
 
     // 4. En Passant
-    if (board->epSquare != NO_SQUARE)
-    {
-        int file = board->epSquare % 8;
-        key ^= en_passant_keys[file];
-    }
+    zobristToggleEnPassant(&key, board, board->epSquare);
 
     board->zobristKey = key;
 }

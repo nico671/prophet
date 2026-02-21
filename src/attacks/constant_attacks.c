@@ -1,7 +1,6 @@
 #include "constant_attacks.h"
 
-// precomputed knight attack bitboards for each square, indexing same as Square enum
-const Bitboard knight_attacks[64] = {
+const Bitboard knightAttacksTable[64] = {
     0x0000000000020400ULL,
     0x0000000000050800ULL,
     0x00000000000a1100ULL,
@@ -68,13 +67,12 @@ const Bitboard knight_attacks[64] = {
     0x0020400000000000ULL,
 };
 
-// this function returns the attack bitboard for a knight on the given square, which is the squares it can move to (in an L shape)
 Bitboard getKnightAttacks(Square square)
 {
-    return knight_attacks[square];
+    return knightAttacksTable[square];
 }
 
-const Bitboard king_attacks[64] = {
+const Bitboard kingAttacksTable[64] = {
     0x0000000000000302ULL,
     0x0000000000000705ULL,
     0x0000000000000e0aULL,
@@ -141,14 +139,13 @@ const Bitboard king_attacks[64] = {
     0x40c0000000000000ULL,
 };
 
-// this function returns the attack bitboard for a king on the given square, which is the squares it can move to (one square in any direction)
 Bitboard getKingAttacks(Square square)
 {
-    return king_attacks[square];
+    return kingAttacksTable[square];
 }
 
 // can probably remove the first rank and last rank entries as they are all 0
-const Bitboard white_pawn_attacks[64] = {
+const Bitboard whitePawnAttacksTable[64] = {
     0x0000000000000200ULL,
     0x0000000000000500ULL,
     0x0000000000000a00ULL,
@@ -215,14 +212,8 @@ const Bitboard white_pawn_attacks[64] = {
     0x0000000000000000ULL,
 };
 
-// this function returns the attack bitboard for a white pawn on the given square, which is the squares it can capture on (diagonally forward left and right)
-Bitboard getWhitePawnAttacks(Square square)
-{
-    return white_pawn_attacks[square];
-}
-
 // can probably remove the first rank and last rank entries as they are all 0
-const Bitboard black_pawn_attacks[64] = {
+const Bitboard blackPawnAttacksTable[64] = {
     0x0000000000000000ULL,
     0x0000000000000000ULL,
     0x0000000000000000ULL,
@@ -289,12 +280,13 @@ const Bitboard black_pawn_attacks[64] = {
     0x0040000000000000ULL,
 };
 
-// this function returns the attack bitboard for a black pawn on the given square, which is the squares it can capture on (diagonally forward left and right)
-Bitboard getBlackPawnAttacks(Square square)
+Bitboard getPawnAttacks(Square square, Color color)
 {
-    return black_pawn_attacks[square];
+    if (color == WHITE)
+        return whitePawnAttacksTable[square];
+    else
+        return blackPawnAttacksTable[square];
 }
-
 // FUNCTIONS USED TO GENERATE THE ABOVE ATTACK TABLES, KEPT FOR REFERENCE
 // void initKnightAttacks()
 // {

@@ -321,7 +321,7 @@ UndoInfo makeQuietMove(CBoard *board, Move move)
     zobristTogglePiece(&board->zobristKey, movingPiece, board->sideToMove, from);
 
     // Remove old EP square from hash if any
-    zobristToggleEnPassant(&board->zobristKey, board->epSquare);
+    zobristToggleEnPassant(&board->zobristKey, board, board->epSquare);
 
     // Save old castling rights
     uint8_t oldCastlingRights = board->castlingRights;
@@ -382,7 +382,7 @@ UndoInfo makeCaptureMove(CBoard *board, Move move)
     zobristTogglePiece(&board->zobristKey, captured, capturedColor, to);
 
     // Remove old EP square from hash if any
-    zobristToggleEnPassant(&board->zobristKey, board->epSquare);
+    zobristToggleEnPassant(&board->zobristKey, board, board->epSquare);
 
     // Save old castling rights
     uint8_t oldCastlingRights = board->castlingRights;
@@ -428,7 +428,7 @@ UndoInfo makeDoublePawnPushMove(CBoard *board, Move move)
     zobristTogglePiece(&board->zobristKey, PAWN, board->sideToMove, from);
 
     // Remove old EP square from hash if any
-    zobristToggleEnPassant(&board->zobristKey, board->epSquare);
+    zobristToggleEnPassant(&board->zobristKey, board, board->epSquare);
 
     // Save old castling rights
     uint8_t oldCastlingRights = board->castlingRights;
@@ -452,7 +452,7 @@ UndoInfo makeDoublePawnPushMove(CBoard *board, Move move)
     board->epSquare = epSquare;
 
     // Add new EP square to hash
-    zobristToggleEnPassant(&board->zobristKey, epSquare);
+    zobristToggleEnPassant(&board->zobristKey, board, epSquare);
 
     // Toggle side to move in zobrist
     zobristToggleSide(&board->zobristKey);
@@ -479,7 +479,7 @@ UndoInfo makeEnPassantMove(CBoard *board, Move move)
     zobristTogglePiece(&board->zobristKey, PAWN, capturedColor, capturedPawnSquare);
 
     // Remove old EP square from hash
-    zobristToggleEnPassant(&board->zobristKey, board->epSquare);
+    zobristToggleEnPassant(&board->zobristKey, board, board->epSquare);
 
     // Save old castling rights
     uint8_t oldCastlingRights = board->castlingRights;
@@ -548,7 +548,7 @@ UndoInfo makePromotionMove(CBoard *board, Move move)
     }
 
     // Remove old EP square from hash
-    zobristToggleEnPassant(&board->zobristKey, board->epSquare);
+    zobristToggleEnPassant(&board->zobristKey, board, board->epSquare);
 
     // Save old castling rights
     uint8_t oldCastlingRights = board->castlingRights;
@@ -633,7 +633,7 @@ UndoInfo makeCastlingMove(CBoard *board, Move move)
     undoInfo.previousZobristKey = board->zobristKey;
 
     // Remove old EP square from hash
-    zobristToggleEnPassant(&board->zobristKey, board->epSquare);
+    zobristToggleEnPassant(&board->zobristKey, board, board->epSquare);
 
     // Save old castling rights
     uint8_t oldCastlingRights = board->castlingRights;
