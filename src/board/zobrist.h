@@ -5,8 +5,7 @@
 #include "utils/prng.h"
 #include "core/bitboard.h"
 #include "core/chess_types.h"
-
-typedef struct CBoard CBoard;
+#include "board/cboard.h"
 
 // 0-5: White Pawn, Knight, Bishop, Rook, Queen, King
 // 6-11: Black Pawn, Knight, Bishop, Rook, Queen, King

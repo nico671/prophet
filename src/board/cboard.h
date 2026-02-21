@@ -8,51 +8,61 @@
 #include "core/chess_types.h"
 
 /**
- * CBoard struct represents the state of a chess board using bitboards for piece placements and additional fields for game state information such as side to move, castling rights, en passant square, halfmove clock, fullmove number, and a Zobrist hash key for efficient position hashing.
- * FIELD DESCRIPTIONS:
- * - whitePawns, whiteKnights, whiteBishops, whiteRooks, whiteQueens, whiteKing: Bitboards representing the positions of each type of white piece.
- * - blackPawns, blackKnights, blackBishops, blackRooks, blackQueens, blackKing: Bitboards representing the positions of each type of black piece.
- * - whitePieces: Bitboard representing the positions of all white pieces (derived from individual piece bitboards).
- * - blackPieces: Bitboard representing the positions of all black pieces (derived from individual piece bitboards).
- * - allPieces: Bitboard representing the positions of all pieces on the board (derived from whitePieces and blackPieces).
- * - sideToMove: Indicates which player's turn it is (WHITE or BLACK).
- * - castlingRights: A bitfield representing the castling rights for both sides (bits 0-3 correspond to black queenside, black kingside, white queenside, white kingside).
- * - epSquare: The square index (0-63) of the en passant target square if available, or NO_SQUARE if no en passant capture is possible.
- * - halfmoveClock: A counter for the fifty-move rule, incremented after each move and reset to zero after a pawn move or capture.
- * - fullmoveNumber: A counter for the number of full moves in the game, starting at 1 and incremented after Black's move.
+ * @struct CBoard
+ * @brief Complete chess position state used by movegen/search/eval.
+ *
+ * Stores per-piece bitboards, cached occupancies, side-to-move and rule metadata,
+ * plus an incremental Zobrist hash.
+ *
+ * Field groups:
+ *
+ * - White piece bitboards: whitePawns, whiteKnights, whiteBishops, whiteRooks, whiteQueens, whiteKing
+ *
+ * - Black piece bitboards: blackPawns, blackKnights, blackBishops, blackRooks, blackQueens, blackKing
+ *
+ * - Occupancies: whitePieces, blackPieces, allPieces
+ *
+ * - State metadata: sideToMove, castlingRights, epSquare, halfmoveClock, fullmoveNumber
+ *
+ * - Hash: zobristKey
  */
 typedef struct CBoard
 {
-    // White Piece bitboards
-    Bitboard whitePawns;
-    Bitboard whiteKnights;
-    Bitboard whiteBishops;
-    Bitboard whiteRooks;
-    Bitboard whiteQueens;
-    Bitboard whiteKing;
+    // --- Piece Placements ---
+    Bitboard whitePawns;   /**< Bitboard: White pawns */
+    Bitboard whiteKnights; /**< Bitboard: White knights */
+    Bitboard whiteBishops; /**< Bitboard: White bishops */
+    Bitboard whiteRooks;   /**< Bitboard: White rooks */
+    Bitboard whiteQueens;  /**< Bitboard: White queens */
+    Bitboard whiteKing;    /**< Bitboard: White king */
 
-    // Black Piece bitboards
-    Bitboard blackPawns;
-    Bitboard blackKnights;
-    Bitboard blackBishops;
-    Bitboard blackRooks;
-    Bitboard blackQueens;
-    Bitboard blackKing;
+    Bitboard blackPawns;   /**< Bitboard: Black pawns */
+    Bitboard blackKnights; /**< Bitboard: Black knights */
+    Bitboard blackBishops; /**< Bitboard: Black bishops */
+    Bitboard blackRooks;   /**< Bitboard: Black rooks */
+    Bitboard blackQueens;  /**< Bitboard: Black queens */
+    Bitboard blackKing;    /**< Bitboard: Black king */
 
-    // Occupancy bitboards
-    Bitboard whitePieces; // all white pieces
-    Bitboard blackPieces; // all black pieces
-    Bitboard allPieces;   // all pieces
+    // --- Occupancy Cache ---
+    Bitboard whitePieces; /**< Combined bitboard of all white pieces */
+    Bitboard blackPieces; /**< Combined bitboard of all black pieces */
+    Bitboard allPieces;   /**< Combined bitboard of every piece on board */
 
-    // Game state info
-    Color sideToMove;        // 0 for White, 1 for Black
-    uint8_t castlingRights;  // bit meanings: 0 = blackqueenside, 1 = blackkingside, 2 = whitequeenside, 3 = whitekingside
-    uint8_t epSquare;        // square index (0-63) or 64 if no en passant available
-    uint16_t halfmoveClock;  // for fifty-move rule
-    uint16_t fullmoveNumber; // starts at 1, incremented after Black's move
+    // --- Game State Metadata ---
+    Color sideToMove; /** 0 for White, 1 for Black */
 
-    // zobrist key
-    uint64_t zobristKey;
+    /**
+     * @brief Castling rights bitfield.
+     * Bits: 0:BQ, 1:BK, 2:WQ, 3:WK
+     */
+    uint8_t castlingRights;
+
+    uint8_t epSquare;        /**< Index (0-63) or 64 if none available */
+    uint16_t halfmoveClock;  /**< Counter for the fifty-move rule */
+    uint16_t fullmoveNumber; /**< Incremented after every Black move */
+
+    // --- Optimization ---
+    uint64_t zobristKey; /**< Unique hash key for the current position */
 } CBoard;
 
 /**
@@ -62,10 +72,20 @@ typedef struct CBoard
  */
 void printBoard(CBoard *board);
 
-// Parses a FEN string and initializes a CBoard struct with the corresponding piece placements, game state information (side to move, castling rights, en passant square, halfmove clock, fullmove number), and computes the Zobrist hash key for the resulting board state. The function handles standard FEN formatting and returns the initialized CBoard struct.
+/**
+ * @brief Parses a FEN string and initializes a CBoard struct with the corresponding piece placements, game state information (side to move, castling rights, en passant square, halfmove clock, fullmove number), and computes the Zobrist hash key for the resulting board state.
+ *
+ * @param fenString A null-terminated string in Forsyth-Edwards Notation representing a chess position, including piece placements, side to move, castling rights, en passant square, halfmove clock, and fullmove number.
+ * @return CBoard Initialized CBoard struct representing the position described by the FEN string.
+ */
 CBoard fenToCBoard(const char *fenString);
 
-// Converts a CBoard struct back into a FEN string representation, including piece placements, side to move, castling rights, en passant square, halfmove clock, fullmove number, and returns the resulting FEN string. The caller is responsible for freeing the returned string after use.
+/**
+ * @brief Converts a CBoard struct back into a FEN string representation, including piece placements, side to move, castling rights, en passant square, halfmove clock, and fullmove number. The returned string is dynamically allocated and should be freed by the caller.
+ *
+ * @param board Pointer to the CBoard struct to convert to FEN.
+ * @return char* Dynamically allocated null-terminated string in FEN format representing the given CBoard position. Caller is responsible for freeing this memory.
+ */
 char *CBoardToFen(CBoard *board);
 
 #endif // CBOARD_H

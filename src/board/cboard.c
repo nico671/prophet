@@ -64,7 +64,7 @@ void printBoard(CBoard *board)
     printf("Zobrist Key: %llu\n", board->zobristKey);
 }
 
-CBoard fenToCBoard(const char *fenString)
+CBoard fenToCBoard(const char *fenString) // TODO: Add error handling for invalid FEN strings
 {
     CBoard board = {0};
     board.epSquare = NO_SQUARE; // default no en passant
