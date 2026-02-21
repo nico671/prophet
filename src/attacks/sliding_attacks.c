@@ -317,7 +317,7 @@ static const int BBits[64] = {
     5, 5, 5, 5, 5, 5, 5, 5,
     6, 5, 5, 5, 5, 5, 5, 6};
 
-typedef Bitboard (*AttackGenerator)(int square, Bitboard blockers);
+typedef Bitboard (*AttackGenerator)(Square square, Bitboard blockers);
 
 // enumerates all relevant blocker bit positions for a given square and stores them in the provided positions array, returning the count of positions found. used to generate the occupancy variations for testing magic candidates and generating the attack tables.
 static int extractMaskBitPositions(Bitboard mask, int *positions, int maxPositions)
@@ -392,7 +392,7 @@ static void initializeAttackTable(
 }
 
 // generate rook attacks for a given square and blockers at initialization
-Bitboard generateRookAttacks(int square, Bitboard blockers)
+Bitboard generateRookAttacks(Square square, Bitboard blockers)
 {
     Bitboard attacks = 0ULL;
     int rank = square / 8;
@@ -440,7 +440,7 @@ Bitboard generateRookAttacks(int square, Bitboard blockers)
 }
 
 // generate bishop attacks for a given square and blockers at initialization
-Bitboard generateBishopAttacks(int square, Bitboard blockers)
+Bitboard generateBishopAttacks(Square square, Bitboard blockers)
 {
     Bitboard attacks = 0ULL;
     int rank = square / 8;
@@ -478,42 +478,25 @@ Bitboard generateBishopAttacks(int square, Bitboard blockers)
     return attacks;
 }
 
-Bitboard getRookAttacks(int square, Bitboard occupancy)
+Bitboard getRookAttacks(Square square, Bitboard occupancy)
 {
     occupancy &= rook_occupancy_maps[square];
     int index = magicIndex(occupancy, RMagic[square], RBits[square]);
     return rook_attacks[square][index];
 }
 
-Bitboard getBishopAttacks(int square, Bitboard occupancy)
+Bitboard getBishopAttacks(Square square, Bitboard occupancy)
 {
     occupancy &= bishop_occupancy_maps[square];
     int index = magicIndex(occupancy, BMagic[square], BBits[square]);
     return bishop_attacks[square][index];
 }
 
-Bitboard getQueenAttacks(int square, Bitboard occupancy)
+Bitboard getQueenAttacks(Square square, Bitboard occupancy)
 {
     return getRookAttacks(square, occupancy) | getBishopAttacks(square, occupancy);
 }
 
-/**
- * Initialize the precomputed sliding attack tables for rooks and bishops.
- *
- * This function is safe to call concurrently from multiple threads. It uses
- * an atomic initialization state machine (0 = uninitialized, 1 = initializing,
- * 2 = initialized) to ensure that the attack tables are materialized exactly
- * once, even when multiple threads attempt to initialize them at the same time.
- *
- * The first thread that successfully transitions the state from 0 to 1
- * performs the full initialization of the rook and bishop attack tables.
- * Other threads that call this function while initialization is in progress
- * will spin until the state becomes 2, at which point the tables are fully
- * initialized and ready for use.
- *
- * After initialization has completed (state == 2), subsequent calls return
- * immediately without performing any additional work.
- */
 void initSlidingAttacks(void)
 {
     static atomic_int initState = 0; // 0=uninitialized, 1=initializing, 2=initialized
