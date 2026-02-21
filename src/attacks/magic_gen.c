@@ -1,3 +1,6 @@
+// THIS CODE WAS USED TO GENERATE THE MAGIC NUMBERS FOR SLIDING ATTACKS. IT IS NOT PART OF THE ACTUAL ENGINE AND CAN BE DELETED OR MOVED TO A SEPARATE FILE IF DESIRED.
+// kept for reference and potential future use if we need to regenerate magics after changing the attack generation code
+
 // #include <stdio.h>
 // #include <stdlib.h>
 // #include <time.h>

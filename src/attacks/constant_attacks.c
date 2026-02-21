@@ -1,41 +1,5 @@
 #include "constant_attacks.h"
 
-// the following function was used to generate the constant array
-// for knight attacks
-// uncomment and run separately to regenerate if needed
-// Bitboard knight_attacks[64];
-// void initKnightAttacks()
-// {
-//     for (int sq = 0; sq < 64; sq++)
-//     {
-//         Bitboard attacks = 0;
-//         int rank = sq / 8;
-//         int file = sq % 8;
-
-//         int knight_moves[8][2] = {
-//             {2, 1}, {1, 2}, {-1, 2}, {-2, 1}, {-2, -1}, {-1, -2}, {1, -2}, {2, -1}};
-
-//         for (int i = 0; i < 8; i++)
-//         {
-//             int new_rank = rank + knight_moves[i][0];
-//             int new_file = file + knight_moves[i][1];
-
-//             if (new_rank >= 0 && new_rank < 8 && new_file >= 0 && new_file < 8)
-//             {
-//                 attacks |= ((Bitboard)1 << (new_rank * 8 + new_file));
-//             }
-//         }
-//         knight_attacks[sq] = attacks;
-//     }
-//     // print knight attacks for storage as constant array
-//     printf("const Bitboard knight_attacks[64] = {\n");
-//     for (int i = 0; i < 64; i++)
-//     {
-//         printf("    0x%016llxULL,%s\n", knight_attacks[i], (i % 8 == 7) ? "" : " ");
-//     }
-//     printf("};\n");
-// }
-
 // precomputed knight attack bitboards for each square, indexing same as Square enum
 const Bitboard knight_attacks[64] = {
     0x0000000000020400ULL,
@@ -104,44 +68,12 @@ const Bitboard knight_attacks[64] = {
     0x0020400000000000ULL,
 };
 
+// this function returns the attack bitboard for a knight on the given square, which is the squares it can move to (in an L shape)
 Bitboard getKnightAttacks(Square square)
 {
     return knight_attacks[square];
 }
 
-// this function generates and prints the king attack bitboards for each square, see the results below
-// Bitboard king_attacks[64];
-
-// void initKingAttacks()
-// {
-//     for (int sq = 0; sq < 64; sq++)
-//     {
-//         Bitboard attacks = 0;
-//         int rank = sq / 8;
-//         int file = sq % 8;
-
-//         int king_moves[8][2] = {
-//             {1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}, {0, -1}, {1, -1}};
-
-//         for (int i = 0; i < 8; i++)
-//         {
-//             int new_rank = rank + king_moves[i][0];
-//             int new_file = file + king_moves[i][1];
-
-//             if (new_rank >= 0 && new_rank < 8 && new_file >= 0 && new_file < 8)
-//             {
-//                 attacks |= ((Bitboard)1 << (new_rank * 8 + new_file));
-//             }
-//         }
-//         king_attacks[sq] = attacks;
-//     }
-//     printf("const Bitboard king_attacks[64] = {\n");
-//     for (int i = 0; i < 64; i++)
-//     {
-//         printf("    0x%016llxULL,%s\n", king_attacks[i], (i % 8 == 7) ? "" : " ");
-//     }
-//     printf("};\n");
-// }
 const Bitboard king_attacks[64] = {
     0x0000000000000302ULL,
     0x0000000000000705ULL,
@@ -209,6 +141,7 @@ const Bitboard king_attacks[64] = {
     0x40c0000000000000ULL,
 };
 
+// this function returns the attack bitboard for a king on the given square, which is the squares it can move to (one square in any direction)
 Bitboard getKingAttacks(Square square)
 {
     return king_attacks[square];
@@ -282,6 +215,7 @@ const Bitboard white_pawn_attacks[64] = {
     0x0000000000000000ULL,
 };
 
+// this function returns the attack bitboard for a white pawn on the given square, which is the squares it can capture on (diagonally forward left and right)
 Bitboard getWhitePawnAttacks(Square square)
 {
     return white_pawn_attacks[square];
@@ -355,10 +289,45 @@ const Bitboard black_pawn_attacks[64] = {
     0x0040000000000000ULL,
 };
 
+// this function returns the attack bitboard for a black pawn on the given square, which is the squares it can capture on (diagonally forward left and right)
 Bitboard getBlackPawnAttacks(Square square)
 {
     return black_pawn_attacks[square];
 }
+
+// FUNCTIONS USED TO GENERATE THE ABOVE ATTACK TABLES, KEPT FOR REFERENCE
+// void initKnightAttacks()
+// {
+//     for (int sq = 0; sq < 64; sq++)
+//     {
+//         Bitboard attacks = 0;
+//         int rank = sq / 8;
+//         int file = sq % 8;
+
+//         int knight_moves[8][2] = {
+//             {2, 1}, {1, 2}, {-1, 2}, {-2, 1}, {-2, -1}, {-1, -2}, {1, -2}, {2, -1}};
+
+//         for (int i = 0; i < 8; i++)
+//         {
+//             int new_rank = rank + knight_moves[i][0];
+//             int new_file = file + knight_moves[i][1];
+
+//             if (new_rank >= 0 && new_rank < 8 && new_file >= 0 && new_file < 8)
+//             {
+//                 attacks |= ((Bitboard)1 << (new_rank * 8 + new_file));
+//             }
+//         }
+//         knight_attacks[sq] = attacks;
+//     }
+//     // print knight attacks for storage as constant array
+//     printf("const Bitboard knight_attacks[64] = {\n");
+//     for (int i = 0; i < 64; i++)
+//     {
+//         printf("    0x%016llxULL,%s\n", knight_attacks[i], (i % 8 == 7) ? "" : " ");
+//     }
+//     printf("};\n");
+// }
+
 // void initWhitePawnAttacks()
 // {
 //     for (int sq = 0; sq < 64; sq++)
@@ -419,6 +388,37 @@ Bitboard getBlackPawnAttacks(Square square)
 //     for (int i = 0; i < 64; i++)
 //     {
 //         printf("    0x%016llxULL,%s\n", pawn_attacks_black[i], (i % 8 == 7) ? "" : " ");
+//     }
+//     printf("};\n");
+// }
+
+// void initKingAttacks()
+// {
+//     for (int sq = 0; sq < 64; sq++)
+//     {
+//         Bitboard attacks = 0;
+//         int rank = sq / 8;
+//         int file = sq % 8;
+
+//         int king_moves[8][2] = {
+//             {1, 0}, {1, 1}, {0, 1}, {-1, 1}, {-1, 0}, {-1, -1}, {0, -1}, {1, -1}};
+
+//         for (int i = 0; i < 8; i++)
+//         {
+//             int new_rank = rank + king_moves[i][0];
+//             int new_file = file + king_moves[i][1];
+
+//             if (new_rank >= 0 && new_rank < 8 && new_file >= 0 && new_file < 8)
+//             {
+//                 attacks |= ((Bitboard)1 << (new_rank * 8 + new_file));
+//             }
+//         }
+//         king_attacks[sq] = attacks;
+//     }
+//     printf("const Bitboard king_attacks[64] = {\n");
+//     for (int i = 0; i < 64; i++)
+//     {
+//         printf("    0x%016llxULL,%s\n", king_attacks[i], (i % 8 == 7) ? "" : " ");
 //     }
 //     printf("};\n");
 // }
