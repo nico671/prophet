@@ -6,7 +6,7 @@
 
 void engine_init(void)
 {
-    // Both of these are made idempotent.
+    // all of these functions are idempotent
     initSlidingAttacks();
     initZobristKeys();
     hceval_init();

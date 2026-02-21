@@ -31,9 +31,8 @@ void genAllPseudoLegalKingNonCastlingMoves(CBoard *board, MoveList *moveList)
     }
 }
 
-void genAllPseudoLegalKingMoves(CBoard *board, MoveList *moveList)
+void genAllPseudoLegalKingCastlingMoves(CBoard *board, MoveList *moveList)
 {
-    genAllPseudoLegalKingNonCastlingMoves(board, moveList);
     // handle white castling
     if (board->sideToMove == WHITE)
     {
@@ -92,4 +91,10 @@ void genAllPseudoLegalKingMoves(CBoard *board, MoveList *moveList)
             }
         }
     }
+}
+
+void genAllPseudoLegalKingMoves(CBoard *board, MoveList *moveList)
+{
+    genAllPseudoLegalKingNonCastlingMoves(board, moveList);
+    genAllPseudoLegalKingCastlingMoves(board, moveList);
 }

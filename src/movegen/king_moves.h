@@ -6,6 +6,7 @@
 typedef struct CBoard CBoard;
 
 void genAllPseudoLegalKingNonCastlingMoves(CBoard *board, MoveList *moveList);
+void genAllPseudoLegalKingCastlingMoves(CBoard *board, MoveList *moveList);
 void genAllPseudoLegalKingMoves(CBoard *board, MoveList *moveList);
 
 #endif // KING_MOVES_H
