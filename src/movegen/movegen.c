@@ -68,7 +68,7 @@ bool isSquareAttacked(CBoard *board, Square square, Color attackerColor)
 
 bool isKingInCheck(CBoard *board, Color side)
 {
-    Square kingSquare = (side == WHITE) ? bb_lsb_idx(board->whiteKing) : bb_lsb_idx(board->blackKing);
+    Square kingSquare = (side == WHITE) ? bitboardLSBIndex(board->whiteKing) : bitboardLSBIndex(board->blackKing);
     Color opponentColor = (side == WHITE) ? BLACK : WHITE;
     return isSquareAttacked(board, kingSquare, opponentColor);
 }

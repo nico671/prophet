@@ -9,68 +9,68 @@ static void movePieceOnBoard(CBoard *board, Square from, Square to, Color side)
 {
     if (side == WHITE)
     {
-        if (is_bit_set(board->whitePawns, from))
+        if (bitboardIsBitSet(board->whitePawns, from))
         {
-            bb_clear(&board->whitePawns, from);
-            bb_set(&board->whitePawns, to);
+            bitboardClearSquareBit(&board->whitePawns, from);
+            bitboardSetSquareBit(&board->whitePawns, to);
         }
-        else if (is_bit_set(board->whiteKnights, from))
+        else if (bitboardIsBitSet(board->whiteKnights, from))
         {
-            bb_clear(&board->whiteKnights, from);
-            bb_set(&board->whiteKnights, to);
+            bitboardClearSquareBit(&board->whiteKnights, from);
+            bitboardSetSquareBit(&board->whiteKnights, to);
         }
-        else if (is_bit_set(board->whiteBishops, from))
+        else if (bitboardIsBitSet(board->whiteBishops, from))
         {
-            bb_clear(&board->whiteBishops, from);
-            bb_set(&board->whiteBishops, to);
+            bitboardClearSquareBit(&board->whiteBishops, from);
+            bitboardSetSquareBit(&board->whiteBishops, to);
         }
-        else if (is_bit_set(board->whiteRooks, from))
+        else if (bitboardIsBitSet(board->whiteRooks, from))
         {
-            bb_clear(&board->whiteRooks, from);
-            bb_set(&board->whiteRooks, to);
+            bitboardClearSquareBit(&board->whiteRooks, from);
+            bitboardSetSquareBit(&board->whiteRooks, to);
         }
-        else if (is_bit_set(board->whiteQueens, from))
+        else if (bitboardIsBitSet(board->whiteQueens, from))
         {
-            bb_clear(&board->whiteQueens, from);
-            bb_set(&board->whiteQueens, to);
+            bitboardClearSquareBit(&board->whiteQueens, from);
+            bitboardSetSquareBit(&board->whiteQueens, to);
         }
-        else if (is_bit_set(board->whiteKing, from))
+        else if (bitboardIsBitSet(board->whiteKing, from))
         {
-            bb_clear(&board->whiteKing, from);
-            bb_set(&board->whiteKing, to);
+            bitboardClearSquareBit(&board->whiteKing, from);
+            bitboardSetSquareBit(&board->whiteKing, to);
         }
     }
     else
     {
-        if (is_bit_set(board->blackPawns, from))
+        if (bitboardIsBitSet(board->blackPawns, from))
         {
-            bb_clear(&board->blackPawns, from);
-            bb_set(&board->blackPawns, to);
+            bitboardClearSquareBit(&board->blackPawns, from);
+            bitboardSetSquareBit(&board->blackPawns, to);
         }
-        else if (is_bit_set(board->blackKnights, from))
+        else if (bitboardIsBitSet(board->blackKnights, from))
         {
-            bb_clear(&board->blackKnights, from);
-            bb_set(&board->blackKnights, to);
+            bitboardClearSquareBit(&board->blackKnights, from);
+            bitboardSetSquareBit(&board->blackKnights, to);
         }
-        else if (is_bit_set(board->blackBishops, from))
+        else if (bitboardIsBitSet(board->blackBishops, from))
         {
-            bb_clear(&board->blackBishops, from);
-            bb_set(&board->blackBishops, to);
+            bitboardClearSquareBit(&board->blackBishops, from);
+            bitboardSetSquareBit(&board->blackBishops, to);
         }
-        else if (is_bit_set(board->blackRooks, from))
+        else if (bitboardIsBitSet(board->blackRooks, from))
         {
-            bb_clear(&board->blackRooks, from);
-            bb_set(&board->blackRooks, to);
+            bitboardClearSquareBit(&board->blackRooks, from);
+            bitboardSetSquareBit(&board->blackRooks, to);
         }
-        else if (is_bit_set(board->blackQueens, from))
+        else if (bitboardIsBitSet(board->blackQueens, from))
         {
-            bb_clear(&board->blackQueens, from);
-            bb_set(&board->blackQueens, to);
+            bitboardClearSquareBit(&board->blackQueens, from);
+            bitboardSetSquareBit(&board->blackQueens, to);
         }
-        else if (is_bit_set(board->blackKing, from))
+        else if (bitboardIsBitSet(board->blackKing, from))
         {
-            bb_clear(&board->blackKing, from);
-            bb_set(&board->blackKing, to);
+            bitboardClearSquareBit(&board->blackKing, from);
+            bitboardSetSquareBit(&board->blackKing, to);
         }
     }
 }
@@ -82,67 +82,67 @@ static PieceType removeCapturedPiece(CBoard *board, Square square, Color capturi
 
     if (capturedColor == BLACK)
     {
-        if (is_bit_set(board->blackPawns, square))
+        if (bitboardIsBitSet(board->blackPawns, square))
         {
-            bb_clear(&board->blackPawns, square);
+            bitboardClearSquareBit(&board->blackPawns, square);
             return PAWN;
         }
-        else if (is_bit_set(board->blackKnights, square))
+        else if (bitboardIsBitSet(board->blackKnights, square))
         {
-            bb_clear(&board->blackKnights, square);
+            bitboardClearSquareBit(&board->blackKnights, square);
             return KNIGHT;
         }
-        else if (is_bit_set(board->blackBishops, square))
+        else if (bitboardIsBitSet(board->blackBishops, square))
         {
-            bb_clear(&board->blackBishops, square);
+            bitboardClearSquareBit(&board->blackBishops, square);
             return BISHOP;
         }
-        else if (is_bit_set(board->blackRooks, square))
+        else if (bitboardIsBitSet(board->blackRooks, square))
         {
-            bb_clear(&board->blackRooks, square);
+            bitboardClearSquareBit(&board->blackRooks, square);
             return ROOK;
         }
-        else if (is_bit_set(board->blackQueens, square))
+        else if (bitboardIsBitSet(board->blackQueens, square))
         {
-            bb_clear(&board->blackQueens, square);
+            bitboardClearSquareBit(&board->blackQueens, square);
             return QUEEN;
         }
-        else if (is_bit_set(board->blackKing, square))
+        else if (bitboardIsBitSet(board->blackKing, square))
         {
-            bb_clear(&board->blackKing, square);
+            bitboardClearSquareBit(&board->blackKing, square);
             return KING;
         }
     }
     else
     {
-        if (is_bit_set(board->whitePawns, square))
+        if (bitboardIsBitSet(board->whitePawns, square))
         {
-            bb_clear(&board->whitePawns, square);
+            bitboardClearSquareBit(&board->whitePawns, square);
             return PAWN;
         }
-        else if (is_bit_set(board->whiteKnights, square))
+        else if (bitboardIsBitSet(board->whiteKnights, square))
         {
-            bb_clear(&board->whiteKnights, square);
+            bitboardClearSquareBit(&board->whiteKnights, square);
             return KNIGHT;
         }
-        else if (is_bit_set(board->whiteBishops, square))
+        else if (bitboardIsBitSet(board->whiteBishops, square))
         {
-            bb_clear(&board->whiteBishops, square);
+            bitboardClearSquareBit(&board->whiteBishops, square);
             return BISHOP;
         }
-        else if (is_bit_set(board->whiteRooks, square))
+        else if (bitboardIsBitSet(board->whiteRooks, square))
         {
-            bb_clear(&board->whiteRooks, square);
+            bitboardClearSquareBit(&board->whiteRooks, square);
             return ROOK;
         }
-        else if (is_bit_set(board->whiteQueens, square))
+        else if (bitboardIsBitSet(board->whiteQueens, square))
         {
-            bb_clear(&board->whiteQueens, square);
+            bitboardClearSquareBit(&board->whiteQueens, square);
             return QUEEN;
         }
-        else if (is_bit_set(board->whiteKing, square))
+        else if (bitboardIsBitSet(board->whiteKing, square))
         {
-            bb_clear(&board->whiteKing, square);
+            bitboardClearSquareBit(&board->whiteKing, square);
             return KING;
         }
     }
@@ -158,16 +158,16 @@ static inline void updateOccupanciesForMove(CBoard *board, Square from, Square t
 {
     if (color == WHITE)
     {
-        bb_clear(&board->whitePieces, from);
-        bb_set(&board->whitePieces, to);
+        bitboardClearSquareBit(&board->whitePieces, from);
+        bitboardSetSquareBit(&board->whitePieces, to);
     }
     else
     {
-        bb_clear(&board->blackPieces, from);
-        bb_set(&board->blackPieces, to);
+        bitboardClearSquareBit(&board->blackPieces, from);
+        bitboardSetSquareBit(&board->blackPieces, to);
     }
-    bb_clear(&board->allPieces, from);
-    bb_set(&board->allPieces, to);
+    bitboardClearSquareBit(&board->allPieces, from);
+    bitboardSetSquareBit(&board->allPieces, to);
 }
 
 // Update occupancies when capturing a piece
@@ -175,13 +175,13 @@ static inline void updateOccupanciesForCapture(CBoard *board, Square square, Col
 {
     if (capturedColor == WHITE)
     {
-        bb_clear(&board->whitePieces, square);
+        bitboardClearSquareBit(&board->whitePieces, square);
     }
     else
     {
-        bb_clear(&board->blackPieces, square);
+        bitboardClearSquareBit(&board->blackPieces, square);
     }
-    bb_clear(&board->allPieces, square);
+    bitboardClearSquareBit(&board->allPieces, square);
 }
 
 // Update occupancies for promotion (pawn removed from 'from', promoted piece added to 'to')
@@ -198,35 +198,35 @@ static inline void updateOccupanciesForCastling(CBoard *board, Square kingFrom, 
 {
     if (color == WHITE)
     {
-        bb_clear(&board->whitePieces, kingFrom);
-        bb_clear(&board->whitePieces, rookFrom);
-        bb_set(&board->whitePieces, kingTo);
-        bb_set(&board->whitePieces, rookTo);
+        bitboardClearSquareBit(&board->whitePieces, kingFrom);
+        bitboardClearSquareBit(&board->whitePieces, rookFrom);
+        bitboardSetSquareBit(&board->whitePieces, kingTo);
+        bitboardSetSquareBit(&board->whitePieces, rookTo);
     }
     else
     {
-        bb_clear(&board->blackPieces, kingFrom);
-        bb_clear(&board->blackPieces, rookFrom);
-        bb_set(&board->blackPieces, kingTo);
-        bb_set(&board->blackPieces, rookTo);
+        bitboardClearSquareBit(&board->blackPieces, kingFrom);
+        bitboardClearSquareBit(&board->blackPieces, rookFrom);
+        bitboardSetSquareBit(&board->blackPieces, kingTo);
+        bitboardSetSquareBit(&board->blackPieces, rookTo);
     }
-    bb_clear(&board->allPieces, kingFrom);
-    bb_clear(&board->allPieces, rookFrom);
-    bb_set(&board->allPieces, kingTo);
-    bb_set(&board->allPieces, rookTo);
+    bitboardClearSquareBit(&board->allPieces, kingFrom);
+    bitboardClearSquareBit(&board->allPieces, rookFrom);
+    bitboardSetSquareBit(&board->allPieces, kingTo);
+    bitboardSetSquareBit(&board->allPieces, rookTo);
 }
 
 // Helper to update castling rights
 static void updateCastlingRights(CBoard *board, Square from, Square to)
 {
     // If king moved, lose all castling
-    if (is_bit_set(board->whiteKing, to))
+    if (bitboardIsBitSet(board->whiteKing, to))
     {
         CLEAR_BIT(board->castlingRights, 3);
         CLEAR_BIT(board->castlingRights, 2);
         // board->whiteCanCastleQueenside = false;
     }
-    else if (is_bit_set(board->blackKing, to))
+    else if (bitboardIsBitSet(board->blackKing, to))
     {
         CLEAR_BIT(board->castlingRights, 1);
         CLEAR_BIT(board->castlingRights, 0);
@@ -270,7 +270,7 @@ static UndoInfo saveUndoInfo(CBoard *board, PieceType captured)
 static void updateGameState(CBoard *board, Square to, bool isCapture)
 {
     // Update halfmove clock
-    bool isPawnMove = is_bit_set(board->whitePawns, to) || is_bit_set(board->blackPawns, to);
+    bool isPawnMove = bitboardIsBitSet(board->whitePawns, to) || bitboardIsBitSet(board->blackPawns, to);
     if (isPawnMove || isCapture)
     {
         board->halfmoveClock = 0;
@@ -304,17 +304,17 @@ UndoInfo makeQuietMove(CBoard *board, Move move)
 
     // Determine the piece type being moved
     PieceType movingPiece = NO_PIECE;
-    if (is_bit_set(board->whitePawns, from) || is_bit_set(board->blackPawns, from))
+    if (bitboardIsBitSet(board->whitePawns, from) || bitboardIsBitSet(board->blackPawns, from))
         movingPiece = PAWN;
-    else if (is_bit_set(board->whiteKnights, from) || is_bit_set(board->blackKnights, from))
+    else if (bitboardIsBitSet(board->whiteKnights, from) || bitboardIsBitSet(board->blackKnights, from))
         movingPiece = KNIGHT;
-    else if (is_bit_set(board->whiteBishops, from) || is_bit_set(board->blackBishops, from))
+    else if (bitboardIsBitSet(board->whiteBishops, from) || bitboardIsBitSet(board->blackBishops, from))
         movingPiece = BISHOP;
-    else if (is_bit_set(board->whiteRooks, from) || is_bit_set(board->blackRooks, from))
+    else if (bitboardIsBitSet(board->whiteRooks, from) || bitboardIsBitSet(board->blackRooks, from))
         movingPiece = ROOK;
-    else if (is_bit_set(board->whiteQueens, from) || is_bit_set(board->blackQueens, from))
+    else if (bitboardIsBitSet(board->whiteQueens, from) || bitboardIsBitSet(board->blackQueens, from))
         movingPiece = QUEEN;
-    else if (is_bit_set(board->whiteKing, from) || is_bit_set(board->blackKing, from))
+    else if (bitboardIsBitSet(board->whiteKing, from) || bitboardIsBitSet(board->blackKing, from))
         movingPiece = KING;
 
     // Update zobrist: remove piece from 'from' square
@@ -354,17 +354,17 @@ UndoInfo makeCaptureMove(CBoard *board, Move move)
 
     // Determine the piece type being moved
     PieceType movingPiece = NO_PIECE;
-    if (is_bit_set(board->whitePawns, from) || is_bit_set(board->blackPawns, from))
+    if (bitboardIsBitSet(board->whitePawns, from) || bitboardIsBitSet(board->blackPawns, from))
         movingPiece = PAWN;
-    else if (is_bit_set(board->whiteKnights, from) || is_bit_set(board->blackKnights, from))
+    else if (bitboardIsBitSet(board->whiteKnights, from) || bitboardIsBitSet(board->blackKnights, from))
         movingPiece = KNIGHT;
-    else if (is_bit_set(board->whiteBishops, from) || is_bit_set(board->blackBishops, from))
+    else if (bitboardIsBitSet(board->whiteBishops, from) || bitboardIsBitSet(board->blackBishops, from))
         movingPiece = BISHOP;
-    else if (is_bit_set(board->whiteRooks, from) || is_bit_set(board->blackRooks, from))
+    else if (bitboardIsBitSet(board->whiteRooks, from) || bitboardIsBitSet(board->blackRooks, from))
         movingPiece = ROOK;
-    else if (is_bit_set(board->whiteQueens, from) || is_bit_set(board->blackQueens, from))
+    else if (bitboardIsBitSet(board->whiteQueens, from) || bitboardIsBitSet(board->blackQueens, from))
         movingPiece = QUEEN;
-    else if (is_bit_set(board->whiteKing, from) || is_bit_set(board->blackKing, from))
+    else if (bitboardIsBitSet(board->whiteKing, from) || bitboardIsBitSet(board->blackKing, from))
         movingPiece = KING;
 
     // Remove captured piece first
@@ -556,11 +556,11 @@ UndoInfo makePromotionMove(CBoard *board, Move move)
     // Remove pawn from source square
     if (board->sideToMove == WHITE)
     {
-        bb_clear(&board->whitePawns, from);
+        bitboardClearSquareBit(&board->whitePawns, from);
     }
     else
     {
-        bb_clear(&board->blackPawns, from);
+        bitboardClearSquareBit(&board->blackPawns, from);
     }
 
     // Place promoted piece on destination square
@@ -569,16 +569,16 @@ UndoInfo makePromotionMove(CBoard *board, Move move)
         switch (promotionPiece)
         {
         case KNIGHT:
-            bb_set(&board->whiteKnights, to);
+            bitboardSetSquareBit(&board->whiteKnights, to);
             break;
         case BISHOP:
-            bb_set(&board->whiteBishops, to);
+            bitboardSetSquareBit(&board->whiteBishops, to);
             break;
         case ROOK:
-            bb_set(&board->whiteRooks, to);
+            bitboardSetSquareBit(&board->whiteRooks, to);
             break;
         case QUEEN:
-            bb_set(&board->whiteQueens, to);
+            bitboardSetSquareBit(&board->whiteQueens, to);
             break;
         default:
             break;
@@ -589,16 +589,16 @@ UndoInfo makePromotionMove(CBoard *board, Move move)
         switch (promotionPiece)
         {
         case KNIGHT:
-            bb_set(&board->blackKnights, to);
+            bitboardSetSquareBit(&board->blackKnights, to);
             break;
         case BISHOP:
-            bb_set(&board->blackBishops, to);
+            bitboardSetSquareBit(&board->blackBishops, to);
             break;
         case ROOK:
-            bb_set(&board->blackRooks, to);
+            bitboardSetSquareBit(&board->blackRooks, to);
             break;
         case QUEEN:
-            bb_set(&board->blackQueens, to);
+            bitboardSetSquareBit(&board->blackQueens, to);
             break;
         default:
             break;
@@ -647,11 +647,11 @@ UndoInfo makeCastlingMove(CBoard *board, Move move)
             zobristTogglePiece(&board->zobristKey, ROOK, WHITE, H1);
 
             // Move king from e1 to g1
-            bb_clear(&board->whiteKing, E1);
-            bb_set(&board->whiteKing, G1);
+            bitboardClearSquareBit(&board->whiteKing, E1);
+            bitboardSetSquareBit(&board->whiteKing, G1);
             // Move rook from h1 to f1
-            bb_clear(&board->whiteRooks, H1);
-            bb_set(&board->whiteRooks, F1);
+            bitboardClearSquareBit(&board->whiteRooks, H1);
+            bitboardSetSquareBit(&board->whiteRooks, F1);
             // Update occupancies incrementally
             updateOccupanciesForCastling(board, E1, G1, H1, F1, WHITE);
 
@@ -666,11 +666,11 @@ UndoInfo makeCastlingMove(CBoard *board, Move move)
             zobristTogglePiece(&board->zobristKey, ROOK, BLACK, H8);
 
             // Move king from e8 to g8
-            bb_clear(&board->blackKing, E8);
-            bb_set(&board->blackKing, G8);
+            bitboardClearSquareBit(&board->blackKing, E8);
+            bitboardSetSquareBit(&board->blackKing, G8);
             // Move rook from h8 to f8
-            bb_clear(&board->blackRooks, H8);
-            bb_set(&board->blackRooks, F8);
+            bitboardClearSquareBit(&board->blackRooks, H8);
+            bitboardSetSquareBit(&board->blackRooks, F8);
             // Update occupancies incrementally
             updateOccupanciesForCastling(board, E8, G8, H8, F8, BLACK);
 
@@ -688,11 +688,11 @@ UndoInfo makeCastlingMove(CBoard *board, Move move)
             zobristTogglePiece(&board->zobristKey, ROOK, WHITE, A1);
 
             // Move king from e1 to c1
-            bb_clear(&board->whiteKing, E1);
-            bb_set(&board->whiteKing, C1);
+            bitboardClearSquareBit(&board->whiteKing, E1);
+            bitboardSetSquareBit(&board->whiteKing, C1);
             // Move rook from a1 to d1
-            bb_clear(&board->whiteRooks, A1);
-            bb_set(&board->whiteRooks, D1);
+            bitboardClearSquareBit(&board->whiteRooks, A1);
+            bitboardSetSquareBit(&board->whiteRooks, D1);
             // Update occupancies incrementally
             updateOccupanciesForCastling(board, E1, C1, A1, D1, WHITE);
 
@@ -707,11 +707,11 @@ UndoInfo makeCastlingMove(CBoard *board, Move move)
             zobristTogglePiece(&board->zobristKey, ROOK, BLACK, A8);
 
             // Move king from e8 to c8
-            bb_clear(&board->blackKing, E8);
-            bb_set(&board->blackKing, C8);
+            bitboardClearSquareBit(&board->blackKing, E8);
+            bitboardSetSquareBit(&board->blackKing, C8);
             // Move rook from a8 to d8
-            bb_clear(&board->blackRooks, A8);
-            bb_set(&board->blackRooks, D8);
+            bitboardClearSquareBit(&board->blackRooks, A8);
+            bitboardSetSquareBit(&board->blackRooks, D8);
             // Update occupancies incrementally
             updateOccupanciesForCastling(board, E8, C8, A8, D8, BLACK);
 
@@ -790,21 +790,21 @@ void unmakeCastlingMove(CBoard *board, MoveFlag flag)
         if (board->sideToMove == WHITE)
         {
             // Move king back from g1 to e1
-            bb_clear(&board->whiteKing, G1);
-            bb_set(&board->whiteKing, E1);
+            bitboardClearSquareBit(&board->whiteKing, G1);
+            bitboardSetSquareBit(&board->whiteKing, E1);
             // Move rook back from f1 to h1
-            bb_clear(&board->whiteRooks, F1);
-            bb_set(&board->whiteRooks, H1);
+            bitboardClearSquareBit(&board->whiteRooks, F1);
+            bitboardSetSquareBit(&board->whiteRooks, H1);
             updateOccupanciesForCastling(board, G1, E1, F1, H1, WHITE);
         }
         else
         {
             // Move king back from g8 to e8
-            bb_clear(&board->blackKing, G8);
-            bb_set(&board->blackKing, E8);
+            bitboardClearSquareBit(&board->blackKing, G8);
+            bitboardSetSquareBit(&board->blackKing, E8);
             // Move rook back from f8 to h8
-            bb_clear(&board->blackRooks, F8);
-            bb_set(&board->blackRooks, H8);
+            bitboardClearSquareBit(&board->blackRooks, F8);
+            bitboardSetSquareBit(&board->blackRooks, H8);
             updateOccupanciesForCastling(board, G8, E8, F8, H8, BLACK);
         }
     }
@@ -813,21 +813,21 @@ void unmakeCastlingMove(CBoard *board, MoveFlag flag)
         if (board->sideToMove == WHITE)
         {
             // Move king back from c1 to e1
-            bb_clear(&board->whiteKing, C1);
-            bb_set(&board->whiteKing, E1);
+            bitboardClearSquareBit(&board->whiteKing, C1);
+            bitboardSetSquareBit(&board->whiteKing, E1);
             // Move rook back from d1 to a1
-            bb_clear(&board->whiteRooks, D1);
-            bb_set(&board->whiteRooks, A1);
+            bitboardClearSquareBit(&board->whiteRooks, D1);
+            bitboardSetSquareBit(&board->whiteRooks, A1);
             updateOccupanciesForCastling(board, C1, E1, D1, A1, WHITE);
         }
         else
         {
             // Move king back from c8 to e8
-            bb_clear(&board->blackKing, C8);
-            bb_set(&board->blackKing, E8);
+            bitboardClearSquareBit(&board->blackKing, C8);
+            bitboardSetSquareBit(&board->blackKing, E8);
             // Move rook back from d8 to a8
-            bb_clear(&board->blackRooks, D8);
-            bb_set(&board->blackRooks, A8);
+            bitboardClearSquareBit(&board->blackRooks, D8);
+            bitboardSetSquareBit(&board->blackRooks, A8);
             updateOccupanciesForCastling(board, C8, E8, D8, A8, BLACK);
         }
     }
@@ -870,57 +870,57 @@ void unmakeMove(CBoard *board, Move move, UndoInfo undoInfo)
             switch (promotionPiece)
             {
             case KNIGHT:
-                bb_clear(&board->whiteKnights, to);
+                bitboardClearSquareBit(&board->whiteKnights, to);
                 break;
             case BISHOP:
-                bb_clear(&board->whiteBishops, to);
+                bitboardClearSquareBit(&board->whiteBishops, to);
                 break;
             case ROOK:
-                bb_clear(&board->whiteRooks, to);
+                bitboardClearSquareBit(&board->whiteRooks, to);
                 break;
             case QUEEN:
-                bb_clear(&board->whiteQueens, to);
+                bitboardClearSquareBit(&board->whiteQueens, to);
                 break;
             default:
                 break;
             }
-            bb_clear(&board->whitePieces, to);
+            bitboardClearSquareBit(&board->whitePieces, to);
         }
         else
         {
             switch (promotionPiece)
             {
             case KNIGHT:
-                bb_clear(&board->blackKnights, to);
+                bitboardClearSquareBit(&board->blackKnights, to);
                 break;
             case BISHOP:
-                bb_clear(&board->blackBishops, to);
+                bitboardClearSquareBit(&board->blackBishops, to);
                 break;
             case ROOK:
-                bb_clear(&board->blackRooks, to);
+                bitboardClearSquareBit(&board->blackRooks, to);
                 break;
             case QUEEN:
-                bb_clear(&board->blackQueens, to);
+                bitboardClearSquareBit(&board->blackQueens, to);
                 break;
             default:
                 break;
             }
-            bb_clear(&board->blackPieces, to);
+            bitboardClearSquareBit(&board->blackPieces, to);
         }
-        bb_clear(&board->allPieces, to);
+        bitboardClearSquareBit(&board->allPieces, to);
 
         // Restore pawn to source square
         if (board->sideToMove == WHITE)
         {
-            bb_set(&board->whitePawns, from);
-            bb_set(&board->whitePieces, from);
+            bitboardSetSquareBit(&board->whitePawns, from);
+            bitboardSetSquareBit(&board->whitePieces, from);
         }
         else
         {
-            bb_set(&board->blackPawns, from);
-            bb_set(&board->blackPieces, from);
+            bitboardSetSquareBit(&board->blackPawns, from);
+            bitboardSetSquareBit(&board->blackPieces, from);
         }
-        bb_set(&board->allPieces, from);
+        bitboardSetSquareBit(&board->allPieces, from);
         // If promotion capture, restore captured piece
         if (isPromotionCapture && undoInfo.capturedPiece != NO_PIECE)
         {
@@ -930,50 +930,50 @@ void unmakeMove(CBoard *board, Move move, UndoInfo undoInfo)
                 switch (undoInfo.capturedPiece)
                 {
                 case PAWN:
-                    bb_set(&board->blackPawns, to);
+                    bitboardSetSquareBit(&board->blackPawns, to);
                     break;
                 case KNIGHT:
-                    bb_set(&board->blackKnights, to);
+                    bitboardSetSquareBit(&board->blackKnights, to);
                     break;
                 case BISHOP:
-                    bb_set(&board->blackBishops, to);
+                    bitboardSetSquareBit(&board->blackBishops, to);
                     break;
                 case ROOK:
-                    bb_set(&board->blackRooks, to);
+                    bitboardSetSquareBit(&board->blackRooks, to);
                     break;
                 case QUEEN:
-                    bb_set(&board->blackQueens, to);
+                    bitboardSetSquareBit(&board->blackQueens, to);
                     break;
                 default:
                     break;
                 }
-                bb_set(&board->blackPieces, to);
+                bitboardSetSquareBit(&board->blackPieces, to);
             }
             else
             {
                 switch (undoInfo.capturedPiece)
                 {
                 case PAWN:
-                    bb_set(&board->whitePawns, to);
+                    bitboardSetSquareBit(&board->whitePawns, to);
                     break;
                 case KNIGHT:
-                    bb_set(&board->whiteKnights, to);
+                    bitboardSetSquareBit(&board->whiteKnights, to);
                     break;
                 case BISHOP:
-                    bb_set(&board->whiteBishops, to);
+                    bitboardSetSquareBit(&board->whiteBishops, to);
                     break;
                 case ROOK:
-                    bb_set(&board->whiteRooks, to);
+                    bitboardSetSquareBit(&board->whiteRooks, to);
                     break;
                 case QUEEN:
-                    bb_set(&board->whiteQueens, to);
+                    bitboardSetSquareBit(&board->whiteQueens, to);
                     break;
                 default:
                     break;
                 }
-                bb_set(&board->whitePieces, to);
+                bitboardSetSquareBit(&board->whitePieces, to);
             }
-            bb_set(&board->allPieces, to);
+            bitboardSetSquareBit(&board->allPieces, to);
         }
     }
     else if (flag == EP_CAPTURE)
@@ -987,15 +987,15 @@ void unmakeMove(CBoard *board, Move move, UndoInfo undoInfo)
         Color opponentColor = (board->sideToMove == WHITE) ? BLACK : WHITE;
         if (opponentColor == BLACK)
         {
-            bb_set(&board->blackPawns, capturedPawnSquare);
-            bb_set(&board->blackPieces, capturedPawnSquare);
+            bitboardSetSquareBit(&board->blackPawns, capturedPawnSquare);
+            bitboardSetSquareBit(&board->blackPieces, capturedPawnSquare);
         }
         else
         {
-            bb_set(&board->whitePawns, capturedPawnSquare);
-            bb_set(&board->whitePieces, capturedPawnSquare);
+            bitboardSetSquareBit(&board->whitePawns, capturedPawnSquare);
+            bitboardSetSquareBit(&board->whitePieces, capturedPawnSquare);
         }
-        bb_set(&board->allPieces, capturedPawnSquare);
+        bitboardSetSquareBit(&board->allPieces, capturedPawnSquare);
     }
     else
     {
@@ -1013,56 +1013,56 @@ void unmakeMove(CBoard *board, Move move, UndoInfo undoInfo)
                 switch (undoInfo.capturedPiece)
                 {
                 case PAWN:
-                    bb_set(&board->blackPawns, to);
+                    bitboardSetSquareBit(&board->blackPawns, to);
                     break;
                 case KNIGHT:
-                    bb_set(&board->blackKnights, to);
+                    bitboardSetSquareBit(&board->blackKnights, to);
                     break;
                 case BISHOP:
-                    bb_set(&board->blackBishops, to);
+                    bitboardSetSquareBit(&board->blackBishops, to);
                     break;
                 case ROOK:
-                    bb_set(&board->blackRooks, to);
+                    bitboardSetSquareBit(&board->blackRooks, to);
                     break;
                 case QUEEN:
-                    bb_set(&board->blackQueens, to);
+                    bitboardSetSquareBit(&board->blackQueens, to);
                     break;
                 case KING:
-                    bb_set(&board->blackKing, to);
+                    bitboardSetSquareBit(&board->blackKing, to);
                     break;
                 default:
                     break;
                 }
-                bb_set(&board->blackPieces, to);
+                bitboardSetSquareBit(&board->blackPieces, to);
             }
             else
             {
                 switch (undoInfo.capturedPiece)
                 {
                 case PAWN:
-                    bb_set(&board->whitePawns, to);
+                    bitboardSetSquareBit(&board->whitePawns, to);
                     break;
                 case KNIGHT:
-                    bb_set(&board->whiteKnights, to);
+                    bitboardSetSquareBit(&board->whiteKnights, to);
                     break;
                 case BISHOP:
-                    bb_set(&board->whiteBishops, to);
+                    bitboardSetSquareBit(&board->whiteBishops, to);
                     break;
                 case ROOK:
-                    bb_set(&board->whiteRooks, to);
+                    bitboardSetSquareBit(&board->whiteRooks, to);
                     break;
                 case QUEEN:
-                    bb_set(&board->whiteQueens, to);
+                    bitboardSetSquareBit(&board->whiteQueens, to);
                     break;
                 case KING:
-                    bb_set(&board->whiteKing, to);
+                    bitboardSetSquareBit(&board->whiteKing, to);
                     break;
                 default:
                     break;
                 }
-                bb_set(&board->whitePieces, to);
+                bitboardSetSquareBit(&board->whitePieces, to);
             }
-            bb_set(&board->allPieces, to);
+            bitboardSetSquareBit(&board->allPieces, to);
         }
     }
 }

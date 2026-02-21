@@ -10,13 +10,13 @@ void genAllPseudoLegalKingNonCastlingMoves(CBoard *board, MoveList *moveList)
     Bitboard opponentPieces = (sideToMove == WHITE) ? board->blackPieces : board->whitePieces;
     if (king)
     {
-        Square from = bb_pop_lsb(&king);
+        Square from = bitboardPopLSB(&king);
         Bitboard attacks = getKingAttacks(from);
 
         Bitboard captures = attacks & opponentPieces;
         while (captures)
         {
-            Square to = bb_pop_lsb(&captures);
+            Square to = bitboardPopLSB(&captures);
             Move move = MAKE_CAPTURE(from, to);
             moveList->moves[moveList->count++] = move;
         }
@@ -24,7 +24,7 @@ void genAllPseudoLegalKingNonCastlingMoves(CBoard *board, MoveList *moveList)
         Bitboard quietMoves = attacks & ~board->allPieces;
         while (quietMoves)
         {
-            Square to = bb_pop_lsb(&quietMoves);
+            Square to = bitboardPopLSB(&quietMoves);
             Move move = MAKE_MOVE(from, to);
             moveList->moves[moveList->count++] = move;
         }
@@ -38,10 +38,10 @@ void genAllPseudoLegalKingCastlingMoves(CBoard *board, MoveList *moveList)
     {
         if (CHECK_BIT(board->castlingRights, 3))
         {
-            if ((bb_lsb_idx(board->whiteKing) == E1) &&
-                (is_bit_set(board->whiteRooks, H1)) &&
-                !(is_bit_set(board->allPieces, F1)) &&
-                !(is_bit_set(board->allPieces, G1)))
+            if ((bitboardLSBIndex(board->whiteKing) == E1) &&
+                (bitboardIsBitSet(board->whiteRooks, H1)) &&
+                !(bitboardIsBitSet(board->allPieces, F1)) &&
+                !(bitboardIsBitSet(board->allPieces, G1)))
             {
 
                 Move move = MAKE_CASTLE_KING(E1, G1);
@@ -50,11 +50,11 @@ void genAllPseudoLegalKingCastlingMoves(CBoard *board, MoveList *moveList)
         }
         if (CHECK_BIT(board->castlingRights, 2))
         {
-            if ((bb_lsb_idx(board->whiteKing) == E1) &&
-                (is_bit_set(board->whiteRooks, A1)) &&
-                !(is_bit_set(board->allPieces, D1)) &&
-                !(is_bit_set(board->allPieces, C1)) &&
-                !(is_bit_set(board->allPieces, B1)))
+            if ((bitboardLSBIndex(board->whiteKing) == E1) &&
+                (bitboardIsBitSet(board->whiteRooks, A1)) &&
+                !(bitboardIsBitSet(board->allPieces, D1)) &&
+                !(bitboardIsBitSet(board->allPieces, C1)) &&
+                !(bitboardIsBitSet(board->allPieces, B1)))
             {
 
                 Move move = MAKE_CASTLE_QUEEN(E1, C1);
@@ -67,10 +67,10 @@ void genAllPseudoLegalKingCastlingMoves(CBoard *board, MoveList *moveList)
     {
         if (CHECK_BIT(board->castlingRights, 1))
         {
-            if ((bb_lsb_idx(board->blackKing) == E8) &&
-                (is_bit_set(board->blackRooks, H8)) &&
-                !(is_bit_set(board->allPieces, F8)) &&
-                !(is_bit_set(board->allPieces, G8)))
+            if ((bitboardLSBIndex(board->blackKing) == E8) &&
+                (bitboardIsBitSet(board->blackRooks, H8)) &&
+                !(bitboardIsBitSet(board->allPieces, F8)) &&
+                !(bitboardIsBitSet(board->allPieces, G8)))
             {
 
                 Move move = MAKE_CASTLE_KING(E8, G8);
@@ -79,11 +79,11 @@ void genAllPseudoLegalKingCastlingMoves(CBoard *board, MoveList *moveList)
         }
         if (CHECK_BIT(board->castlingRights, 0))
         {
-            if ((bb_lsb_idx(board->blackKing) == E8) &&
-                (is_bit_set(board->blackRooks, A8)) &&
-                !(is_bit_set(board->allPieces, D8)) &&
-                !(is_bit_set(board->allPieces, C8)) &&
-                !(is_bit_set(board->allPieces, B8)))
+            if ((bitboardLSBIndex(board->blackKing) == E8) &&
+                (bitboardIsBitSet(board->blackRooks, A8)) &&
+                !(bitboardIsBitSet(board->allPieces, D8)) &&
+                !(bitboardIsBitSet(board->allPieces, C8)) &&
+                !(bitboardIsBitSet(board->allPieces, B8)))
             {
 
                 Move move = MAKE_CASTLE_QUEEN(E8, C8);

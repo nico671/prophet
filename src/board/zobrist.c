@@ -59,9 +59,9 @@ static bool shouldHashEnPassant(const CBoard *board, Square epSquare)
         if (epSquare < A6 || epSquare > H6)
             return false;
 
-        if (epFile > 0 && is_bit_set(board->whitePawns, epSquare - 9))
+        if (epFile > 0 && bitboardIsBitSet(board->whitePawns, epSquare - 9))
             return true;
-        if (epFile < 7 && is_bit_set(board->whitePawns, epSquare - 7))
+        if (epFile < 7 && bitboardIsBitSet(board->whitePawns, epSquare - 7))
             return true;
         return false;
     }
@@ -69,9 +69,9 @@ static bool shouldHashEnPassant(const CBoard *board, Square epSquare)
     if (epSquare < A3 || epSquare > H3)
         return false;
 
-    if (epFile > 0 && is_bit_set(board->blackPawns, epSquare + 7))
+    if (epFile > 0 && bitboardIsBitSet(board->blackPawns, epSquare + 7))
         return true;
-    if (epFile < 7 && is_bit_set(board->blackPawns, epSquare + 9))
+    if (epFile < 7 && bitboardIsBitSet(board->blackPawns, epSquare + 9))
         return true;
     return false;
 }

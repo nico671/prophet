@@ -9,27 +9,27 @@
 // A1 = LSB, H8 = MSB, little-endian rank-file mapping
 typedef unsigned long long Bitboard;
 
-static inline bool bb_is_empty(Bitboard bb)
+static inline bool bitboardIsEmpty(Bitboard bb)
 {
     return bb == 0ULL;
 }
 
-static inline int bb_popcount(Bitboard bb)
-{
-    return __builtin_popcountll(bb);
-}
+// static inline int bitBoardPopcount(Bitboard bb)
+// {
+//     return __builtin_popcountll(bb);
+// }
 
 // returns index (0-63) of least significant 1 bit
 // precondition: bb != 0
-static inline int bb_lsb_idx(Bitboard bb)
+static inline int bitboardLSBIndex(Bitboard bb)
 {
     return __builtin_ctzll(bb);
 }
 
 // Pop & return index of the least‐significant 1-bit
-static inline int bb_pop_lsb(Bitboard *b)
+static inline int bitboardPopLSB(Bitboard *b)
 {
-    if (bb_is_empty(*b))
+    if (bitboardIsEmpty(*b))
         return NO_SQUARE;
     int idx = __builtin_ctzll(*b); // count trailing zeros, built-in function
     *b &= *b - 1;
@@ -37,21 +37,21 @@ static inline int bb_pop_lsb(Bitboard *b)
 }
 
 // Build a mask for a single square by index.
-static inline Bitboard bb_square(int sq)
+static inline Bitboard bitboardSquareMask(Square sq)
 {
     return (Bitboard)1ULL << sq;
 }
 
 // Set bit sq in *b
-static inline void bb_set(Bitboard *b, int sq)
+static inline void bitboardSetSquareBit(Bitboard *b, Square sq)
 {
-    *b |= bb_square(sq);
+    *b |= bitboardSquareMask(sq);
 }
 
 // Clear bit sq in *b
-static inline void bb_clear(Bitboard *b, int sq)
+static inline void bitboardClearSquareBit(Bitboard *b, int sq)
 {
-    *b &= ~bb_square(sq);
+    *b &= ~bitboardSquareMask(sq);
 }
 
 /* file masks (A, H) and complements */
@@ -71,17 +71,17 @@ static const Bitboard RANK_7 = RANK_1 << 48;
 static const Bitboard RANK_8 = RANK_1 << 56;
 
 // Test whether bitboard b has bit sq set (0 or 1)
-static inline int is_bit_set(Bitboard b, int sq)
+static inline int bitboardIsBitSet(Bitboard b, int sq)
 {
     return (int)((b >> sq) & 1ULL);
 }
 
 /* Safe directional shifts (no wraps) */
-static inline Bitboard north(Bitboard b)
+static inline Bitboard bitboardShiftNorth(Bitboard b)
 {
     return b << 8;
 }
-static inline Bitboard south(Bitboard b) { return b >> 8; }
+static inline Bitboard bitboardShiftSouth(Bitboard b) { return b >> 8; }
 // static inline Bitboard east(Bitboard b) { return (b << 1) & NOT_FILE_A; } // file++ (mask out wraps into file a)
 // static inline Bitboard west(Bitboard b) { return (b >> 1) & NOT_FILE_H; } // file-- (mask out wraps into file h)
 // static inline Bitboard north_east(Bitboard b) { return (b << 9) & NOT_FILE_A; }
@@ -89,12 +89,10 @@ static inline Bitboard south(Bitboard b) { return b >> 8; }
 // static inline Bitboard south_east(Bitboard b) { return (b >> 7) & NOT_FILE_A; }
 // static inline Bitboard south_west(Bitboard b) { return (b >> 9) & NOT_FILE_H; }
 
-// generic bitfield ops
+// generic bitfield ops, not for bitboards but useful for other bitfield manipulations
 #define BIT_MASK(pos) (1ULL << (pos))
-
 #define SET_BIT(var, pos) ((var) |= BIT_MASK(pos))
 #define CLEAR_BIT(var, pos) ((var) &= ~BIT_MASK(pos))
 #define CHECK_BIT(var, pos) (!!((var) & BIT_MASK(pos)))
-#define TOGGLE_BIT(var, pos) ((var) ^= BIT_MASK(pos))
 
 #endif // BITBOARD_H

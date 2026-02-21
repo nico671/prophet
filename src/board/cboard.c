@@ -22,7 +22,7 @@ void printBoard(CBoard *board)
         {
             int squareIndex = rank * 8 + file; // Fixed calculation
             char pieceChar = '.';
-            Bitboard squareMask = bb_square(squareIndex);
+            Bitboard squareMask = bitboardSquareMask(squareIndex);
             if (board->whitePawns & squareMask)
                 pieceChar = 'P';
             else if (board->whiteKnights & squareMask)
@@ -91,7 +91,7 @@ CBoard fenToCBoard(const char *fenString) // TODO: Add error handling for invali
             continue;
         }
         int squareIndex = rank * 8 + file;
-        Bitboard squareMask = bb_square(squareIndex);
+        Bitboard squareMask = bitboardSquareMask(squareIndex);
         switch (ch)
         {
         case 'P':
@@ -248,7 +248,7 @@ char *CBoardToFen(CBoard *board)
         for (int file = 0; file < 8; ++file)
         {
             int squareIndex = rank * 8 + file;
-            Bitboard squareMask = bb_square(squareIndex);
+            Bitboard squareMask = bitboardSquareMask(squareIndex);
             char pieceChar = '\0';
             if (board->whitePawns & squareMask)
                 pieceChar = 'P';

@@ -15,27 +15,27 @@ void scoreMoves(CBoard *board, MoveList *moveList, int *scores)
             int capturedPieceValue = 0;
             PieceType capturedPiece = NO_PIECE;
 
-            if (is_bit_set(board->whitePawns, TO_SQ(currMove)) | is_bit_set(board->blackPawns, TO_SQ(currMove)))
+            if (bitboardIsBitSet(board->whitePawns, TO_SQ(currMove)) | bitboardIsBitSet(board->blackPawns, TO_SQ(currMove)))
             {
                 capturedPiece = PAWN;
             }
-            else if (is_bit_set(board->whiteKnights, TO_SQ(currMove)) || is_bit_set(board->blackKnights, TO_SQ(currMove)))
+            else if (bitboardIsBitSet(board->whiteKnights, TO_SQ(currMove)) || bitboardIsBitSet(board->blackKnights, TO_SQ(currMove)))
             {
                 capturedPiece = KNIGHT;
             }
-            else if (is_bit_set(board->whiteBishops, TO_SQ(currMove)) || is_bit_set(board->blackBishops, TO_SQ(currMove)))
+            else if (bitboardIsBitSet(board->whiteBishops, TO_SQ(currMove)) || bitboardIsBitSet(board->blackBishops, TO_SQ(currMove)))
             {
                 capturedPiece = BISHOP;
             }
-            else if (is_bit_set(board->whiteRooks, TO_SQ(currMove)) || is_bit_set(board->blackRooks, TO_SQ(currMove)))
+            else if (bitboardIsBitSet(board->whiteRooks, TO_SQ(currMove)) || bitboardIsBitSet(board->blackRooks, TO_SQ(currMove)))
             {
                 capturedPiece = ROOK;
             }
-            else if (is_bit_set(board->whiteQueens, TO_SQ(currMove)) || is_bit_set(board->blackQueens, TO_SQ(currMove)))
+            else if (bitboardIsBitSet(board->whiteQueens, TO_SQ(currMove)) || bitboardIsBitSet(board->blackQueens, TO_SQ(currMove)))
             {
                 capturedPiece = QUEEN;
             }
-            else if (is_bit_set(board->whiteKing, TO_SQ(currMove)) || is_bit_set(board->blackKing, TO_SQ(currMove)))
+            else if (bitboardIsBitSet(board->whiteKing, TO_SQ(currMove)) || bitboardIsBitSet(board->blackKing, TO_SQ(currMove)))
             {
                 capturedPiece = KING;
             }
@@ -66,27 +66,27 @@ void scoreMoves(CBoard *board, MoveList *moveList, int *scores)
 
             int attackerPieceValue = 0;
             PieceType attackerPiece = NO_PIECE;
-            if (is_bit_set(board->whitePawns, FROM_SQ(currMove)) || is_bit_set(board->blackPawns, FROM_SQ(currMove)))
+            if (bitboardIsBitSet(board->whitePawns, FROM_SQ(currMove)) || bitboardIsBitSet(board->blackPawns, FROM_SQ(currMove)))
             {
                 attackerPiece = PAWN;
             }
-            else if (is_bit_set(board->whiteKnights, FROM_SQ(currMove)) || is_bit_set(board->blackKnights, FROM_SQ(currMove)))
+            else if (bitboardIsBitSet(board->whiteKnights, FROM_SQ(currMove)) || bitboardIsBitSet(board->blackKnights, FROM_SQ(currMove)))
             {
                 attackerPiece = KNIGHT;
             }
-            else if (is_bit_set(board->whiteBishops, FROM_SQ(currMove)) || is_bit_set(board->blackBishops, FROM_SQ(currMove)))
+            else if (bitboardIsBitSet(board->whiteBishops, FROM_SQ(currMove)) || bitboardIsBitSet(board->blackBishops, FROM_SQ(currMove)))
             {
                 attackerPiece = BISHOP;
             }
-            else if (is_bit_set(board->whiteRooks, FROM_SQ(currMove)) || is_bit_set(board->blackRooks, FROM_SQ(currMove)))
+            else if (bitboardIsBitSet(board->whiteRooks, FROM_SQ(currMove)) || bitboardIsBitSet(board->blackRooks, FROM_SQ(currMove)))
             {
                 attackerPiece = ROOK;
             }
-            else if (is_bit_set(board->whiteQueens, FROM_SQ(currMove)) || is_bit_set(board->blackQueens, FROM_SQ(currMove)))
+            else if (bitboardIsBitSet(board->whiteQueens, FROM_SQ(currMove)) || bitboardIsBitSet(board->blackQueens, FROM_SQ(currMove)))
             {
                 attackerPiece = QUEEN;
             }
-            else if (is_bit_set(board->whiteKing, FROM_SQ(currMove)) || is_bit_set(board->blackKing, FROM_SQ(currMove)))
+            else if (bitboardIsBitSet(board->whiteKing, FROM_SQ(currMove)) || bitboardIsBitSet(board->blackKing, FROM_SQ(currMove)))
             {
                 attackerPiece = KING;
             }

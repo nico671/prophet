@@ -13,7 +13,7 @@ void genAllPseudoLegalKnightMoves(CBoard *board, MoveList *moveList)
 
     while (knights)
     {
-        Square from = bb_pop_lsb(&knights);
+        Square from = bitboardPopLSB(&knights);
         Bitboard attacks = getKnightAttacks(from);
 
         attacks &= ~friendlyPieces;
@@ -25,7 +25,7 @@ void genAllPseudoLegalKnightMoves(CBoard *board, MoveList *moveList)
         // Generate quiet moves
         while (quietMoves)
         {
-            Square to = bb_pop_lsb(&quietMoves);
+            Square to = bitboardPopLSB(&quietMoves);
             Move move = MAKE_MOVE(from, to);
             moveList->moves[moveList->count++] = move;
         }
@@ -33,7 +33,7 @@ void genAllPseudoLegalKnightMoves(CBoard *board, MoveList *moveList)
         // Generate captures
         while (captures)
         {
-            Square to = bb_pop_lsb(&captures);
+            Square to = bitboardPopLSB(&captures);
             Move move = MAKE_CAPTURE(from, to);
             moveList->moves[moveList->count++] = move;
         }

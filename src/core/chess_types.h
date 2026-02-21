@@ -70,13 +70,13 @@ typedef enum
     G8,
     H8
 } Square;
+#define NO_SQUARE 64
 
 typedef enum
 {
     WHITE = 0,
     BLACK = 1
 } Color;
-#define NO_SQUARE 64
 
 typedef enum
 {

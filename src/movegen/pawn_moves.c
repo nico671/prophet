@@ -11,12 +11,14 @@ void genSinglePawnPushes(CBoard *board, MoveList *moveList)
     Bitboard promotionRank = (sideToMove == WHITE) ? RANK_7 : RANK_2;
     pawns &= ~promotionRank; // exclude pawns on promotion rank
     Bitboard singlePushes = (sideToMove == WHITE)
-                                ? north(pawns) & emptySquares
-                                : south(pawns) & emptySquares;
+                                ? bitboardShiftNorth(pawns) &
+                                      emptySquares
+                                : bitboardShiftSouth(pawns) &
+                                      emptySquares;
 
     while (singlePushes)
     {
-        Square to = bb_pop_lsb(&singlePushes);
+        Square to = bitboardPopLSB(&singlePushes);
         Square from = to - (sideToMove == WHITE ? 8 : -8);
         Move move = MAKE_MOVE(from, to);
         moveList->moves[moveList->count++] = move;
@@ -36,22 +38,22 @@ void genDoublePawnPushes(CBoard *board, MoveList *moveList)
     if (sideToMove == WHITE)
     {
         // First push must land on empty square
-        Bitboard singlePushes = north(pawns) & emptySquares;
+        Bitboard singlePushes = bitboardShiftNorth(pawns) & emptySquares;
         // Second push must also land on empty square
-        doublePushes = north(singlePushes) & emptySquares;
+        doublePushes = bitboardShiftNorth(singlePushes) & emptySquares;
     }
     else
     {
         // First push must land on empty square
-        Bitboard singlePushes = south(pawns) & emptySquares;
+        Bitboard singlePushes = bitboardShiftSouth(pawns) & emptySquares;
         // Second push must also land on empty square
-        doublePushes = south(singlePushes) & emptySquares;
+        doublePushes = bitboardShiftSouth(singlePushes) & emptySquares;
     }
 
     // Iterate through each square in the double pushes bitboard
     while (doublePushes)
     {
-        Square to = bb_pop_lsb(&doublePushes);
+        Square to = bitboardPopLSB(&doublePushes);
         Square from = to - (sideToMove == WHITE ? 16 : -16);
         Move move = MAKE_DOUBLE_PUSH(from, to);
         moveList->moves[moveList->count++] = move;
@@ -68,12 +70,12 @@ void genPawnCaptures(CBoard *board, MoveList *moveList)
 
     while (pawns)
     {
-        Square from = bb_pop_lsb(&pawns);
+        Square from = bitboardPopLSB(&pawns);
         Bitboard captureTargets = getPawnAttacks(from, sideToMove) & opponentPieces;
 
         while (captureTargets)
         {
-            Square to = bb_pop_lsb(&captureTargets);
+            Square to = bitboardPopLSB(&captureTargets);
             Move move = MAKE_CAPTURE(from, to);
             moveList->moves[moveList->count++] = move;
         }
@@ -92,12 +94,13 @@ void genPawnPromotions(CBoard *board, MoveList *moveList)
 
     // Promotion pushes
     Bitboard promotionPushes = (sideToMove == WHITE)
-                                   ? north(pawns) & emptySquares & RANK_8
-                                   : south(pawns) & emptySquares & RANK_1;
+                                   ? bitboardShiftNorth(pawns) &
+                                         emptySquares & RANK_8
+                                   : bitboardShiftSouth(pawns) & emptySquares & RANK_1;
 
     while (promotionPushes)
     {
-        Square to = bb_pop_lsb(&promotionPushes);
+        Square to = bitboardPopLSB(&promotionPushes);
         Square from = to - (sideToMove == WHITE ? 8 : -8);
         // Generate all promotion piece types
         for (PieceType pt = KNIGHT; pt <= QUEEN; pt++)
@@ -110,12 +113,12 @@ void genPawnPromotions(CBoard *board, MoveList *moveList)
     // Promotion captures
     while (pawns)
     {
-        Square from = bb_pop_lsb(&pawns);
+        Square from = bitboardPopLSB(&pawns);
         Bitboard captureTargets = getPawnAttacks(from, sideToMove) & opponentPieces;
 
         while (captureTargets)
         {
-            Square to = bb_pop_lsb(&captureTargets);
+            Square to = bitboardPopLSB(&captureTargets);
             // Generate all promotion piece types
             for (PieceType pt = KNIGHT; pt <= QUEEN; pt++)
             {
@@ -146,7 +149,7 @@ void genEnPassantPawnMoves(CBoard *board, MoveList *moveList)
 
     while (pawnsThatCanCaptureEP)
     {
-        Square from = bb_pop_lsb(&pawnsThatCanCaptureEP);
+        Square from = bitboardPopLSB(&pawnsThatCanCaptureEP);
         Square to = board->epSquare;
         Move move = MAKE_EP(from, to);
         moveList->moves[moveList->count++] = move;
