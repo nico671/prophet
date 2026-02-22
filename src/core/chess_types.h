@@ -72,12 +72,14 @@ typedef enum
 } Square;
 #define NO_SQUARE 64
 
+// color enum
 typedef enum
 {
     WHITE = 0,
     BLACK = 1
 } Color;
 
+// piece types enum
 typedef enum
 {
     PAWN,

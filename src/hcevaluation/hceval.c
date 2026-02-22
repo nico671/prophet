@@ -855,7 +855,7 @@ static int mg_table[12][64];
 static int eg_table[12][64];
 static bool tables_initialized = false;
 
-void hceval_init(void)
+void hcEvalInit(void)
 {
     if (tables_initialized)
     {

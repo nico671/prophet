@@ -10,7 +10,7 @@
 #include "board/cboard.h"
 #include <stdbool.h>
 
-void genAllPseudoLegalMoves(CBoard *board, MoveList *moveList)
+void genAllPseudoLegalMoves(CBoard *board, MoveList *moveList) // TODO: refactor movegen to have less reused code everywhere, all individual piece gen is abt the same minus pawns and kings
 {
     genAllPseudoLegalPawnMoves(board, moveList);
     genAllPseudoLegalKnightMoves(board, moveList);

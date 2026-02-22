@@ -9,6 +9,12 @@
 // A1 = LSB, H8 = MSB, little-endian rank-file mapping
 typedef unsigned long long Bitboard;
 
+/**
+ * @brief Checks if a bitboard is empty (i.e., all bits are zero).
+ *
+ * @param bb The bitboard to check.
+ * @return true if the bitboard is empty, false otherwise.
+ */
 static inline bool bitboardIsEmpty(Bitboard bb)
 {
     return bb == 0ULL;
@@ -19,75 +25,102 @@ static inline bool bitboardIsEmpty(Bitboard bb)
 //     return __builtin_popcountll(bb);
 // }
 
-// returns index (0-63) of least significant 1 bit
-// precondition: bb != 0
+/**
+ * @brief Returns the index (0-63) of the least significant 1 bit in a bitboard.
+ *
+ * @param bb The bitboard to analyze.
+ * @return int The index of the least significant 1 bit.
+ */
 static inline int bitboardLSBIndex(Bitboard bb)
 {
     return __builtin_ctzll(bb);
 }
 
-// Pop & return index of the least‐significant 1-bit
-static inline int bitboardPopLSB(Bitboard *b)
+/**
+ * @brief Pops and returns the index (0-63) of the least significant 1 bit in a bitboard.
+ *        The bitboard is modified in place by clearing the least significant 1 bit.
+ *
+ * @param bb The bitboard to pop from.
+ * @return int The index of the least significant 1 bit, or NO_SQUARE if the bitboard is empty.
+ */
+static inline int bitboardPopLSB(Bitboard *bb)
 {
-    if (bitboardIsEmpty(*b))
+    if (bitboardIsEmpty(*bb))
         return NO_SQUARE;
-    int idx = __builtin_ctzll(*b); // count trailing zeros, built-in function
-    *b &= *b - 1;
+    int idx = __builtin_ctzll(*bb); // count trailing zeros, built-in function
+    *bb &= *bb - 1;
     return idx;
 }
 
-// Build a mask for a single square by index.
+/**
+ * @brief Returns a bitboard with a single 1-bit set at the given square index.
+ *
+ * @param sq The square index (0-63).
+ * @return Bitboard The resulting bitboard.
+ */
 static inline Bitboard bitboardSquareMask(Square sq)
 {
     return (Bitboard)1ULL << sq;
 }
 
-// Set bit sq in *b
-static inline void bitboardSetSquareBit(Bitboard *b, Square sq)
+/**
+ * @brief Sets the bit corresponding to a square in a bitboard.
+ *
+ * @param bb The bitboard to modify.
+ * @param sq The square index (0-63) to set.
+ */
+static inline void bitboardSetSquareBit(Bitboard *bb, Square sq)
 {
-    *b |= bitboardSquareMask(sq);
+    *bb |= bitboardSquareMask(sq);
 }
 
-// Clear bit sq in *b
-static inline void bitboardClearSquareBit(Bitboard *b, int sq)
+/**
+ * @brief Clears the bit corresponding to a square in a bitboard.
+ *
+ * @param bb The bitboard to modify.
+ * @param sq The square index (0-63) to clear.
+ */
+static inline void bitboardClearSquareBit(Bitboard *bb, int sq)
 {
-    *b &= ~bitboardSquareMask(sq);
+    *bb &= ~bitboardSquareMask(sq);
 }
-
-/* file masks (A, H) and complements */
-// static const Bitboard FILE_A = 0x0101010101010101ULL;
-// static const Bitboard FILE_H = 0x8080808080808080ULL;
-// static const Bitboard NOT_FILE_A = ~FILE_A;
-// static const Bitboard NOT_FILE_H = ~FILE_H;
 
 /* rank masks (1..8) */
 static const Bitboard RANK_1 = 0x00000000000000FFULL;
 static const Bitboard RANK_2 = RANK_1 << 8;
-// static const Bitboard RANK_3 = RANK_1 << 16;
-// static const Bitboard RANK_4 = RANK_1 << 24;
-// static const Bitboard RANK_5 = RANK_1 << 32;
-// static const Bitboard RANK_6 = RANK_1 << 40;
 static const Bitboard RANK_7 = RANK_1 << 48;
 static const Bitboard RANK_8 = RANK_1 << 56;
 
-// Test whether bitboard b has bit sq set (0 or 1)
-static inline int bitboardIsBitSet(Bitboard b, int sq)
+/**
+ * @brief Tests whether a bitboard has a specific bit set.
+ *
+ * @param bb The bitboard to test.
+ * @param sq The square index (0-63) to test.
+ * @return int 1 if the bit is set, 0 otherwise.
+ */
+static inline int bitboardIsBitSet(Bitboard bb, int sq)
 {
-    return (int)((b >> sq) & 1ULL);
+    return (int)((bb >> sq) & 1ULL);
 }
 
-/* Safe directional shifts (no wraps) */
-static inline Bitboard bitboardShiftNorth(Bitboard b)
+/**
+ * @brief Shifts a bitboard one rank north (toward rank 8).
+ *
+ * @param bb The bitboard to shift.
+ * @return Bitboard The shifted bitboard.
+ */
+static inline Bitboard bitboardShiftNorth(Bitboard bb)
 {
-    return b << 8;
+    return bb << 8;
 }
-static inline Bitboard bitboardShiftSouth(Bitboard b) { return b >> 8; }
-// static inline Bitboard east(Bitboard b) { return (b << 1) & NOT_FILE_A; } // file++ (mask out wraps into file a)
-// static inline Bitboard west(Bitboard b) { return (b >> 1) & NOT_FILE_H; } // file-- (mask out wraps into file h)
-// static inline Bitboard north_east(Bitboard b) { return (b << 9) & NOT_FILE_A; }
-// static inline Bitboard north_west(Bitboard b) { return (b << 7) & NOT_FILE_H; }
-// static inline Bitboard south_east(Bitboard b) { return (b >> 7) & NOT_FILE_A; }
-// static inline Bitboard south_west(Bitboard b) { return (b >> 9) & NOT_FILE_H; }
+
+/**
+ * @brief Shifts a bitboard one rank south (toward rank 1).
+ *
+ * @param bb The bitboard to shift.
+ * @return Bitboard The shifted bitboard.
+ */
+static inline Bitboard bitboardShiftSouth(Bitboard bb) { return bb >> 8; }
 
 // generic bitfield ops, not for bitboards but useful for other bitfield manipulations
 #define BIT_MASK(pos) (1ULL << (pos))

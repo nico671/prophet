@@ -9,5 +9,5 @@ void engine_init(void)
     // all of these functions are idempotent
     initSlidingAttacks();
     initZobristKeys();
-    hceval_init();
+    hcEvalInit();
 }
