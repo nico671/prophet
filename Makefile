@@ -8,7 +8,7 @@ BUILDDIR := build
 MAIN_SOURCES := $(shell find $(SRCDIR) -name '*.c' ! -name 'magic_gen.c' ! -name 'perft_test.c')
 MAIN_OBJECTS := $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.o,$(MAIN_SOURCES))
 
-TARGET := chess
+TARGET := prophet
 MAGIC_TARGET := magic_gen
 PERFT_TARGET := perft
 

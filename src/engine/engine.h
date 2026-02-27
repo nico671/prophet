@@ -3,6 +3,6 @@
 
 // Initializes global engine state (attack tables, zobrist keys, eval function helpers).
 // Safe to call multiple times.
-void engine_init(void);
+void initEngine(void);
 
 #endif // PROPHET_ENGINE_H

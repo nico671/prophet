@@ -4,7 +4,7 @@
 #include "board/zobrist.h"
 #include "hcevaluation/hceval.h"
 
-void engine_init(void)
+void initEngine(void)
 {
     // all of these functions are idempotent
     initSlidingAttacks();

@@ -4,6 +4,7 @@
 #include "hcevaluation/hceval.h"
 #include "movegen/movegen.h"
 #include "movegen/move_make.h"
+
 void scoreMoves(CBoard *board, MoveList *moveList, int *scores)
 {
     for (int i = 0; i < moveList->count; i++)

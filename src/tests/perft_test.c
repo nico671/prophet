@@ -172,7 +172,7 @@ uint64_t divide(CBoard *board, int depth)
 
 int main()
 {
-    engine_init();
+    initEngine();
 
     int num_tests = sizeof(test_suite) / sizeof(PerftTest);
     int total_passed = 0;

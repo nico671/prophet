@@ -12,6 +12,12 @@ typedef struct CBoard CBoard;
 // Initializes evaluation tables (safe to call multiple times).
 void hcEvalInit(void);
 
+/**
+ * @brief Evaluates a chess board position.
+ *
+ * @param board The board to evaluate.
+ * @return int The evaluation score (positive for white advantage, negative for black advantage).
+ */
 int evaluateBoard(const CBoard *board);
 
 #endif // HCEVAL_H
