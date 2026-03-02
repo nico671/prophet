@@ -1,12 +1,16 @@
 #include "uci/uci.h"
 #include <stdio.h>
 #include "engine/engine.h"
-#include "move_make.h"
-#include "undo.h"
+#include "movegen/move_make.h"
+#include "movegen/movegen.h"
+#include "board/undo.h"
 #include <string.h>
 #include <ctype.h>
-#define START_FEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+
 #include "movegen/move.h"
+
+#define START_FEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+
 int safeLineRead(char *line_input)
 {
     if (fgets(line_input, 8192, stdin) == NULL)
@@ -20,6 +24,7 @@ int safeLineRead(char *line_input)
     }
     return 1;
 }
+
 void skipWhitespace(const char **str)
 {
     while (**str && isspace((unsigned char)**str))
@@ -30,21 +35,79 @@ void skipWhitespace(const char **str)
 
 Square algebraicToSquare(const char *squareStr)
 {
+    if (strlen(squareStr) < 2)
+    {
+        return NO_SQUARE;
+    }
+    char file = squareStr[0];
+    char rank = squareStr[1];
+    if (file < 'a' || file > 'h' || rank < '1' || rank > '8')
+    {
+        return NO_SQUARE;
+    }
+    int fileIndex = file - 'a';
+    int rankIndex = rank - '1';
+    return (Square)(rankIndex * 8 + fileIndex);
 }
 
 Move parseLongAlgebraicMove(const CBoard *board, const char *moveStr)
 {
+
     if (strlen(moveStr) < 4)
     {
+        printf("info string Invalid move format: %s\n", moveStr);
         return (Move){.from = NO_SQUARE, .to = NO_SQUARE, .flag = 0};
     }
 
     Square from = algebraicToSquare(moveStr);
     Square to = algebraicToSquare(moveStr + 2);
-    if (strlen(moveStr) == 5)
+    if (from == NO_SQUARE || to == NO_SQUARE)
     {
-        char promoChar = moveStr[4];
+        printf("info string Invalid move format: %s\n", moveStr);
+        return (Move){.from = NO_SQUARE, .to = NO_SQUARE, .flag = 0};
     }
+
+    // generateLegalMoves() temporarily makes/unmakes moves internally.
+    // Work on a copy here so parsing cannot accidentally perturb live board state.
+    CBoard boardCopy = *board;
+    MoveList moveList = generateLegalMoves(&boardCopy);
+
+    char promotionChar = '\0';
+    if (strlen(moveStr) >= 5)
+    {
+        promotionChar = (char)tolower((unsigned char)moveStr[4]);
+    }
+
+    for (int i = 0; i < moveList.count; i++)
+    {
+        if (moveList.moves[i].from == from && moveList.moves[i].to == to)
+        {
+            if (promotionChar == '\0')
+            {
+                return moveList.moves[i];
+            }
+
+            if (!move_is_promotion(moveList.moves[i]))
+            {
+                continue;
+            }
+
+            PieceType promoType = getPromotionPieceType(moveList.moves[i]);
+            bool promotionMatches =
+                (promotionChar == 'n' && promoType == KNIGHT) ||
+                (promotionChar == 'b' && promoType == BISHOP) ||
+                (promotionChar == 'r' && promoType == ROOK) ||
+                (promotionChar == 'q' && promoType == QUEEN);
+
+            if (promotionMatches)
+            {
+                return moveList.moves[i];
+            }
+            continue;
+        }
+    }
+    printf("info string Move not in legal moves list: %s\n", moveStr);
+    return (Move){.from = NO_SQUARE, .to = NO_SQUARE, .flag = 0};
 }
 
 void handlePositionCommand(UCIState *state, const char *command)
@@ -61,35 +124,64 @@ void handlePositionCommand(UCIState *state, const char *command)
     {
         command += 3;
         skipWhitespace(&command);
-        size_t fen_length = strcspn(command, "moves");
+
+        // Find optional " moves " token as a full keyword, not as a set of chars.
+        const char *moves_pos = strstr(command, " moves");
+        size_t fen_length = moves_pos ? (size_t)(moves_pos - command) : strlen(command);
+        while (fen_length > 0 && isspace((unsigned char)command[fen_length - 1]))
+        {
+            fen_length--;
+        }
+
         char fen_copy[1024];
+        if (fen_length >= sizeof(fen_copy))
+        {
+            printf("info string FEN too long in position command\n");
+            return;
+        }
         strncpy(fen_copy, command, fen_length);
         fen_copy[fen_length] = '\0';
         state->board = fenToCBoard(fen_copy);
         command += fen_length;
-        if (!strncmp(command, "moves", 5) && (command[5] == '\0' || isspace((unsigned char)command[5])))
+
+        if (state->debugMode)
         {
-            command += 5;
-            skipWhitespace(&command);
-            size_t move_length = strcspn(command, " \r\n");
-            while (move_length > 0)
+            printf("info string Parsed FEN: %s\n", fen_copy);
+            printf("info string Command after FEN: '%s'\n", command);
+        }
+    }
+
+    // process moves if present
+    skipWhitespace(&command);
+    if (!strncmp(command, "moves", 5) && (command[5] == '\0' || isspace((unsigned char)command[5])))
+    {
+        command += 5;
+        skipWhitespace(&command);
+        size_t move_length = strcspn(command, " \r\n");
+        while (move_length > 0)
+        {
+            char move_str[16];
+
+            if (move_length >= sizeof(move_str))
             {
-                char move_str[16];
-                strncpy(move_str, command, move_length);
-                move_str[move_length] = '\0';
-                Move move = parseLongAlgebraicMove(&state->board, move_str);
-                if (move.from != NO_SQUARE && move.to != NO_SQUARE)
-                {
-                    UndoInfo undoInfo = makeMove(&state->board, move);
-                }
-                else
-                {
-                    printf("info string Invalid move in position command: %s\n", move_str);
-                }
-                command += move_length;
-                skipWhitespace(&command);
-                move_length = strcspn(command, " \r\n");
+                printf("info string Move token too long in position command\n");
+                return;
             }
+
+            strncpy(move_str, command, move_length);
+            move_str[move_length] = '\0';
+            Move move = parseLongAlgebraicMove(&state->board, move_str);
+            if (move.from != NO_SQUARE && move.to != NO_SQUARE)
+            {
+                makeMove(&state->board, move);
+            }
+            else
+            {
+                printf("info string Invalid move in position command: %s\n", move_str);
+            }
+            command += move_length;
+            skipWhitespace(&command);
+            move_length = strcspn(command, " \r\n");
         }
     }
 }
