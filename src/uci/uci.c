@@ -274,34 +274,37 @@ void uciLoop(void)
                 printf("info string Invalid debug command: %s\n", p);
             }
         }
+        else if (!strncmp(p, "debug", 5))
+        {
+            p += 5;
+            skipWhitespace(&p);
+            if (!strncmp(p, "on", 2) && (p[2] == '\0' || isspace((unsigned char)p[2])))
+            {
+                state.debugMode = true;
+                printf("info string Debug mode enabled\n");
+            }
+            else if (!strncmp(p, "off", 3) && (p[3] == '\0' || isspace((unsigned char)p[3])))
+            {
+                state.debugMode = false;
+                printf("info string Debug mode disabled\n");
+            }
+            else
+            {
+                printf("info string Invalid debug command: %s\n", p);
+            }
+        }
         else if (!strncmp(p, "printboard", 10) && (p[10] == '\0' || isspace((unsigned char)p[10])))
         {
-            printBoard(&state.board);
+            if (state.debugMode)
+                printBoard(&state.board);
+            else
+                printf("info string 'printboard' command only works in debug mode\n");
         }
         else
         {
             printf("Unknown command: %s\n", p);
         }
 
-        // else if (!strncmp(p, "debug", 5))
-        // {
-        //     p += 5;
-        //     skipWhitespace(&p);
-        //     if (!strncmp(p, "on", 2) && (p[2] == '\0' || isspace((unsigned char)p[2])))
-        //     {
-        //         state.debugMode = true;
-        //         printf("info string Debug mode enabled\n");
-        //     }
-        //     else if (!strncmp(p, "off", 3) && (p[3] == '\0' || isspace((unsigned char)p[3])))
-        //     {
-        //         state.debugMode = false;
-        //         printf("info string Debug mode disabled\n");
-        //     }
-        //     else
-        //     {
-        //         printf("info string Invalid debug command: %s\n", p);
-        //     }
-        // }
         // else if (!strncmp(p, "position", 8) && (p[8] == '\0' || isspace((unsigned char)p[8])))
         // {
         //     p += 8;
