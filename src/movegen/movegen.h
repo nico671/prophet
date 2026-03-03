@@ -15,6 +15,6 @@ void initMoveList(MoveList *moveList);
 
 bool isSquareAttacked(CBoard *board, Square square, Color attackerColor);
 bool isKingInCheck(CBoard *board, Color side);
-MoveList generateLegalMoves(CBoard *board);
+void generateLegalMoves(CBoard *board, MoveList *out);
 
 #endif // MOVEGEN_H

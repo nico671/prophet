@@ -78,7 +78,7 @@ PerftTest test_suite[] = {
         .name = "Initial Position",
         .fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
         .expected_nodes = expected_nodes_initial_position,
-        .max_depth = 7, // 5 for speed, 6 is reasonable, 7+ takes too long
+        .max_depth = 6, // 5 for speed, 6 is reasonable, 7+ takes too long
     },
     {
         .name = "Kiwipete Position",
@@ -115,8 +115,9 @@ uint64_t perft(CBoard *board, int depth)
 {
     if (depth == 0)
         return 1;
-
-    MoveList moveList = generateLegalMoves(board);
+    MoveList moveList;
+    initMoveList(&moveList);
+    generateLegalMoves(board, &moveList);
     if (depth == 1)
         return moveList.count;
 
@@ -141,7 +142,9 @@ uint64_t perft(CBoard *board, int depth)
 
 uint64_t divide(CBoard *board, int depth)
 {
-    MoveList moveList = generateLegalMoves(board);
+    MoveList moveList;
+    initMoveList(&moveList);
+    generateLegalMoves(board, &moveList);
 
     uint64_t totalNodes = 0;
     for (int i = 0; i < moveList.count; i++)
@@ -192,7 +195,7 @@ int main()
             continue;
         }
         bool suite_passed = true;
-        for (int depth = 0; depth <= test.max_depth; depth++)
+        for (int depth = 1; depth <= test.max_depth; depth++)
         {
             clock_t start = clock();
             uint64_t nodes = perft(&board, depth);

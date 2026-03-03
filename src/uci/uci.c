@@ -70,7 +70,9 @@ Move parseLongAlgebraicMove(const CBoard *board, const char *moveStr)
     // generateLegalMoves() temporarily makes/unmakes moves internally.
     // Work on a copy here so parsing cannot accidentally perturb live board state.
     CBoard boardCopy = *board;
-    MoveList moveList = generateLegalMoves(&boardCopy);
+    MoveList moveList;
+    initMoveList(&moveList);
+    generateLegalMoves(&boardCopy, &moveList);
 
     char promotionChar = '\0';
     if (strlen(moveStr) >= 5)

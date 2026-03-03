@@ -136,7 +136,9 @@ int negamax(CBoard *node, int depth, int alpha, int beta, Color color)
         return evaluateBoard(node);
     }
 
-    MoveList moveList = generateLegalMoves(node);
+    MoveList moveList;
+    initMoveList(&moveList);
+    generateLegalMoves(node, &moveList);
     int scores[moveList.count];
     scoreMoves(node, &moveList, scores);
 

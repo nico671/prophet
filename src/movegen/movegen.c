@@ -73,14 +73,11 @@ bool isKingInCheck(CBoard *board, Color side)
     return isSquareAttacked(board, kingSquare, opponentColor);
 }
 
-MoveList generateLegalMoves(CBoard *board)
+void generateLegalMoves(CBoard *board, MoveList *out)
 {
     MoveList pseudoLegalMoves;
     initMoveList(&pseudoLegalMoves);
     genAllPseudoLegalMoves(board, &pseudoLegalMoves);
-
-    MoveList legalMoves;
-    initMoveList(&legalMoves);
 
     for (int i = 0; i < pseudoLegalMoves.count; i++)
     {
@@ -122,10 +119,8 @@ MoveList generateLegalMoves(CBoard *board)
         UndoInfo undoInfo = makeMove(board, move);
         if (!isKingInCheck(board, (board->sideToMove == WHITE) ? BLACK : WHITE))
         {
-            legalMoves.moves[legalMoves.count++] = move;
+            out->moves[out->count++] = move;
         }
         unmakeMove(board, move, undoInfo);
     }
-
-    return legalMoves;
 }
