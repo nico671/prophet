@@ -75,10 +75,13 @@ void printBoard(CBoard *board);
 /**
  * @brief Parses a FEN string and initializes a CBoard struct with the corresponding piece placements, game state information (side to move, castling rights, en passant square, halfmove clock, fullmove number), and computes the Zobrist hash key for the resulting board state.
  *
+ * @note Assumes the input FEN string is well-formed and valid. Error handling for invalid FEN strings is a TODO item.
+ *
  * @param fenString A null-terminated string in Forsyth-Edwards Notation representing a chess position, including piece placements, side to move, castling rights, en passant square, halfmove clock, and fullmove number.
- * @return CBoard Initialized CBoard struct representing the position described by the FEN string.
+ * @param board Pointer to a CBoard struct that will be initialized based on the provided FEN string. The function will populate all fields of the CBoard struct according to the information encoded in the FEN string.
+ * @return bool True if the FEN string was successfully parsed and the CBoard struct was initialized, false otherwise.
  */
-CBoard fenToCBoard(const char *fenString);
+bool fenToCBoard(const char *fenString, CBoard *board);
 
 /**
  * @brief Converts a CBoard struct back into a FEN string representation, including piece placements, side to move, castling rights, en passant square, halfmove clock, and fullmove number. The returned string is dynamically allocated and should be freed by the caller.

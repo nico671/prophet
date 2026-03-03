@@ -20,10 +20,10 @@ static inline bool bitboardIsEmpty(Bitboard bb)
     return bb == 0ULL;
 }
 
-// static inline int bitBoardPopcount(Bitboard bb)
-// {
-//     return __builtin_popcountll(bb);
-// }
+static inline int bitBoardPopcount(Bitboard bb)
+{
+    return __builtin_popcountll(bb);
+}
 
 /**
  * @brief Returns the index (0-63) of the least significant 1 bit in a bitboard.
@@ -83,6 +83,18 @@ static inline void bitboardSetSquareBit(Bitboard *bb, Square sq)
 static inline void bitboardClearSquareBit(Bitboard *bb, int sq)
 {
     *bb &= ~bitboardSquareMask(sq);
+}
+
+/**
+ * @brief Checks if the bit corresponding to a square is set in a bitboard.
+ *
+ * @param bb The bitboard to check.
+ * @param sq The square index (0-63) to check.
+ * @return true if the bit is set, false otherwise.
+ */
+static inline bool bitboardCheckSquareBit(Bitboard bb, int sq)
+{
+    return (bb & bitboardSquareMask(sq)) != 0;
 }
 
 /* rank masks (1..8) */

@@ -117,7 +117,11 @@ void handlePositionCommand(UCIState *state, const char *command)
 
     if (!strncmp(command, "startpos", 8) && (command[8] == '\0' || isspace((unsigned char)command[8])))
     {
-        state->board = fenToCBoard(START_FEN);
+        bool success = fenToCBoard(START_FEN, &state->board);
+        if (!success)
+        {
+            printf("info string Failed to parse start position FEN\n");
+        }
         command += 8;
     }
     else if (!strncmp(command, "fen", 3) && (command[3] == '\0' || isspace((unsigned char)command[3])))
@@ -141,7 +145,11 @@ void handlePositionCommand(UCIState *state, const char *command)
         }
         strncpy(fen_copy, command, fen_length);
         fen_copy[fen_length] = '\0';
-        state->board = fenToCBoard(fen_copy);
+        bool success = fenToCBoard(fen_copy, &state->board);
+        if (!success)
+        {
+            printf("info string Failed to parse FEN: %s\n", fen_copy);
+        }
         command += fen_length;
 
         if (state->debugMode)
@@ -195,7 +203,12 @@ void uciLoop(void)
     state.debugMode = false;
     state.ready = false;
     state.quitting = false;
-    state.board = fenToCBoard(START_FEN); // Initialize board to starting position
+    bool success = fenToCBoard(START_FEN, &state.board);
+    if (!success)
+    {
+        printf("info string Failed to parse start position FEN\n");
+        return;
+    }
     while (safeLineRead(line_input))
     {
         const char *p = line_input;
@@ -237,7 +250,11 @@ void uciLoop(void)
         }
         else if (!strncmp(p, "ucinewgame", 10) && (p[10] == '\0' || isspace((unsigned char)p[10])))
         {
-            state.board = fenToCBoard(START_FEN);
+            bool success = fenToCBoard(START_FEN, &state.board);
+            if (!success)
+            {
+                printf("info string Failed to reset board to start position\n");
+            }
         }
         else if (!strncmp(p, "position", 8) && (p[8] == '\0' || isspace((unsigned char)p[8])))
         {
@@ -304,23 +321,5 @@ void uciLoop(void)
         {
             printf("Unknown command: %s\n", p);
         }
-
-        // else if (!strncmp(p, "position", 8) && (p[8] == '\0' || isspace((unsigned char)p[8])))
-        // {
-        //     p += 8;
-        //     skipWhitespace(&p);
-        //     if (!strncmp(p, "startpos", 8) && (p[8] == '\0' || isspace((unsigned char)p[8])))
-        //     {
-        //         state.board = fenToCBoard(START_FEN);
-        //     }
-        //     else
-        //     {
-        //         // Prefer silent ignore unless debug mode is on
-        //         if (state.debugMode)
-        //         {
-        //             printf("info string Unknown command: %s\n", p);
-        //         }
-        //     }
-        // }
     }
 }

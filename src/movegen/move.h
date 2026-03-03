@@ -32,6 +32,8 @@ typedef struct
     Square to;
     MoveFlag flag;
 } Move;
+// TODO: use stockfish move representation
+// https://github.com/official-stockfish/Stockfish/blob/master/src/types.h#L428
 
 // Move list structure
 typedef struct

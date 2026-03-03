@@ -64,10 +64,10 @@ void printBoard(CBoard *board)
     printf("Zobrist Key: %llu\n", board->zobristKey);
 }
 
-CBoard fenToCBoard(const char *fenString) // TODO: Add error handling for invalid FEN strings
+bool fenToCBoard(const char *fenString, CBoard *board) // TODO: Add error handling for invalid FEN strings
 {
-    CBoard board = {0};
-    board.epSquare = NO_SQUARE; // default no en passant
+    *board = (CBoard){0};
+    board->epSquare = NO_SQUARE; // default no en passant
     size_t len = strlen(fenString);
     int rank = 7;
     int file = 0;
@@ -82,7 +82,15 @@ CBoard fenToCBoard(const char *fenString) // TODO: Add error handling for invali
         if (ch == '/')
         {
             rank--;
+            if (file != 8)
+            {
+                return false; // Not enough files in this rank
+            }
             file = 0;
+            if (rank < 0)
+            {
+                return false; // More ranks than expected
+            }
             continue;
         }
         if (ch >= '1' && ch <= '8')
@@ -95,76 +103,83 @@ CBoard fenToCBoard(const char *fenString) // TODO: Add error handling for invali
         switch (ch)
         {
         case 'P':
-            board.whitePawns |= squareMask;
-            board.whitePieces |= squareMask;
+            board->whitePawns |= squareMask;
+            board->whitePieces |= squareMask;
             break;
         case 'N':
-            board.whiteKnights |= squareMask;
-            board.whitePieces |= squareMask;
+            board->whiteKnights |= squareMask;
+            board->whitePieces |= squareMask;
             break;
         case 'B':
-            board.whiteBishops |= squareMask;
-            board.whitePieces |= squareMask;
+            board->whiteBishops |= squareMask;
+            board->whitePieces |= squareMask;
             break;
         case 'R':
-            board.whiteRooks |= squareMask;
-            board.whitePieces |= squareMask;
+            board->whiteRooks |= squareMask;
+            board->whitePieces |= squareMask;
             break;
         case 'Q':
-            board.whiteQueens |= squareMask;
-            board.whitePieces |= squareMask;
+            board->whiteQueens |= squareMask;
+            board->whitePieces |= squareMask;
             break;
         case 'K':
-            board.whiteKing |= squareMask;
-            board.whitePieces |= squareMask;
+            board->whiteKing |= squareMask;
+            board->whitePieces |= squareMask;
             break;
         case 'p':
-            board.blackPawns |= squareMask;
-            board.blackPieces |= squareMask;
+            board->blackPawns |= squareMask;
+            board->blackPieces |= squareMask;
             break;
         case 'n':
-            board.blackKnights |= squareMask;
-            board.blackPieces |= squareMask;
+            board->blackKnights |= squareMask;
+            board->blackPieces |= squareMask;
             break;
         case 'b':
-            board.blackBishops |= squareMask;
-            board.blackPieces |= squareMask;
+            board->blackBishops |= squareMask;
+            board->blackPieces |= squareMask;
             break;
         case 'r':
-            board.blackRooks |= squareMask;
-            board.blackPieces |= squareMask;
+            board->blackRooks |= squareMask;
+            board->blackPieces |= squareMask;
             break;
         case 'q':
-            board.blackQueens |= squareMask;
-            board.blackPieces |= squareMask;
+            board->blackQueens |= squareMask;
+            board->blackPieces |= squareMask;
             break;
         case 'k':
-            board.blackKing |= squareMask;
-            board.blackPieces |= squareMask;
+            board->blackKing |= squareMask;
+            board->blackPieces |= squareMask;
             break;
         default:
-            fputs("Unexpected character in FEN: ", stderr);
-            fputc(ch, stderr);
-            fputc('\n', stderr);
-            break;
+            return false; // Invalid character in piece placement
         }
 
         file++;
     }
+    if (rank < 0)
+    {
+        return false; // More ranks than expected
+    }
+    if (file > 8)
+    {
+        return false;
+    }
 
-    board.allPieces = board.whitePieces | board.blackPieces;
+    board->allPieces = board->whitePieces | board->blackPieces;
 
     // now parse remaining fields safely using strtok-like navigation
     const char *p = strchr(fenString, ' ');
     if (!p)
-        return board;
+        return false;
     ++p;
 
     // side to move
-    board.sideToMove = (*p == 'w') ? WHITE : BLACK;
+    if (*p != 'w' && *p != 'b')
+        return false; // Invalid side to move character
+    board->sideToMove = (*p == 'w') ? WHITE : BLACK;
     p = strchr(p, ' ');
     if (!p)
-        return board;
+        return false;
     ++p;
 
     // castling rights
@@ -180,19 +195,19 @@ CBoard fenToCBoard(const char *fenString) // TODO: Add error handling for invali
             switch (*p)
             {
             case 'K':
-                SET_BIT(board.castlingRights, 3);
+                SET_BIT(board->castlingRights, 3);
                 break;
             case 'Q':
-                SET_BIT(board.castlingRights, 2);
+                SET_BIT(board->castlingRights, 2);
                 break;
             case 'k':
-                SET_BIT(board.castlingRights, 1);
+                SET_BIT(board->castlingRights, 1);
                 break;
             case 'q':
-                SET_BIT(board.castlingRights, 0);
+                SET_BIT(board->castlingRights, 0);
                 break;
             default:
-                break;
+                return false; // Invalid castling right character
             }
             ++p;
         }
@@ -209,32 +224,51 @@ CBoard fenToCBoard(const char *fenString) // TODO: Add error handling for invali
         {
             int epFile = f - 'a';
             int epRank = r - '1';
-            board.epSquare = epRank * 8 + epFile;
+            board->epSquare = epRank * 8 + epFile;
         }
         else
         {
-            board.epSquare = NO_SQUARE; // invalid en passant square
+            return false; // Invalid en passant square
         }
     }
     else
     {
-        board.epSquare = NO_SQUARE; // no en passant
+        board->epSquare = NO_SQUARE; // no en passant
     }
     // advance to halfmove/fullmove fields
     p = strchr(p, ' ');
     if (p)
     {
         ++p;
-        board.halfmoveClock = (uint16_t)atoi(p);
+        board->halfmoveClock = (uint16_t)atoi(p);
+        if (board->halfmoveClock < 0)
+        {
+            return false; // Halfmove clock cannot be negative
+        }
         p = strchr(p, ' ');
         if (p)
         {
             ++p;
-            board.fullmoveNumber = (uint16_t)atoi(p);
+            board->fullmoveNumber = (uint16_t)atoi(p);
+            if (board->fullmoveNumber < 1)
+            {
+                return false; // Fullmove number must be at least 1
+            }
         }
     }
-    computeZobristKey(&board);
-    return board;
+    // ensure exactly one white king and one black king on board
+    if (bitBoardPopcount(board->whiteKing) != 1 || bitBoardPopcount(board->blackKing) != 1)
+    {
+        return false; // Invalid number of kings
+    }
+    // ensure no pawns on first or last rank
+    if ((board->whitePawns & (RANK_1 | RANK_8)) || (board->blackPawns & (RANK_1 | RANK_8)))
+    {
+        return false; // Pawns cannot be on first or last rank
+    }
+
+    computeZobristKey(board);
+    return true;
 }
 
 char *CBoardToFen(CBoard *board)
