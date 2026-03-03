@@ -6,8 +6,9 @@
 #include "board/undo.h"
 #include <string.h>
 #include <ctype.h>
-
+#include <stdlib.h>
 #include "movegen/move.h"
+#include "search/search.h"
 
 #define START_FEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
@@ -112,6 +113,143 @@ Move parseLongAlgebraicMove(const CBoard *board, const char *moveStr)
     return (Move){.from = NO_SQUARE, .to = NO_SQUARE, .flag = 0};
 }
 
+void handleGoCommand(UCIState *state, const char *command)
+{
+    command += 2; // Skip "go"
+    skipWhitespace(&command);
+
+    SearchLimits goCmd = {0};
+
+    // loop through command parameters, which can be in any order, and parse them
+    while (*command)
+    {
+        if (!strncmp("searchmoves", command, 11) && (command[11] == '\0' || isspace((unsigned char)command[11])))
+        {
+
+            MoveList searchMovesInput;
+            initMoveList(&searchMovesInput);
+            goCmd.searchMoves = searchMovesInput;
+            command += 11;
+            skipWhitespace(&command);
+            while (*command && !isspace((unsigned char)*command))
+            {
+                size_t move_length = strcspn(command, " \r\n");
+                if (move_length == 0)
+                {
+                    break;
+                }
+                char move_str[16];
+                if (move_length >= sizeof(move_str))
+                {
+                    printf("info string Move token too long in go command\n");
+                    return;
+                }
+                strncpy(move_str, command, move_length);
+                move_str[move_length] = '\0';
+                printf("info string Parsing move from searchmoves: %s\n", move_str);
+                Move move = parseLongAlgebraicMove(&state->board, move_str);
+                if (move.from != NO_SQUARE && move.to != NO_SQUARE)
+                {
+                    if (goCmd.searchMoves.count < 256)
+                    {
+                        goCmd.searchMoves.moves[goCmd.searchMoves.count++] = move;
+                    }
+                    else
+                    {
+                        printf("info string Too many moves in searchmoves parameter, ignoring extra moves\n");
+                        break;
+                    }
+                }
+                else
+                {
+                    printf("info string Invalid move in go command: %s\n", move_str);
+                }
+                command += move_length;
+                skipWhitespace(&command);
+            }
+            if (searchMovesInput.count == 0)
+            {
+                printf("info string No valid moves found in searchmoves parameter\n");
+                printf("bestmove 0000\n");
+                return;
+            }
+        }
+        else if (!strncmp("ponder", command, 6) && (command[6] == '\0' || isspace((unsigned char)command[6])))
+        {
+            goCmd.ponder = true;
+            command += 6;
+        }
+        else if (!strncmp("infinite", command, 8) && (command[8] == '\0' || isspace((unsigned char)command[8])))
+        {
+            goCmd.infiniteSearch = true;
+            command += 8;
+        }
+        else if (!strncmp("wtime", command, 5) && (command[5] == '\0' || isspace((unsigned char)command[5])))
+        {
+            command += 5;
+            skipWhitespace(&command);
+            goCmd.timeForWhiteMs = atoi(command);
+            while (*command && !isspace((unsigned char)*command))
+            {
+                command++;
+            }
+        }
+        else if (!strncmp("btime", command, 5) && (command[5] == '\0' || isspace((unsigned char)command[5])))
+        {
+            command += 5;
+            skipWhitespace(&command);
+            goCmd.timeForBlackMs = atoi(command);
+            while (*command && !isspace((unsigned char)*command))
+            {
+                command++;
+            }
+        }
+        else if (!strncmp("winc", command, 4) && (command[4] == '\0' || isspace((unsigned char)command[4])))
+        {
+            command += 4;
+            skipWhitespace(&command);
+            goCmd.incrementForWhiteMs = atoi(command);
+            while (*command && !isspace((unsigned char)*command))
+            {
+                command++;
+            }
+        }
+        else if (!strncmp("binc", command, 4) && (command[4] == '\0' || isspace((unsigned char)command[4])))
+        {
+            command += 4;
+            skipWhitespace(&command);
+            goCmd.incrementForBlackMs = atoi(command);
+            while (*command && !isspace((unsigned char)*command))
+            {
+                command++;
+            }
+        }
+        else if (!strncmp("movestogo", command, 9) && (command[9] == '\0' || isspace((unsigned char)command[9])))
+        {
+            command += 9;
+            skipWhitespace(&command);
+            goCmd.movesUntilNextTimeControl = atoi(command);
+            while (*command && !isspace((unsigned char)*command))
+            {
+                command++;
+            }
+        }
+    }
+
+    // handle go command with the parsed parameters in goCmd struct
+    if (state->debugMode)
+    {
+        printf("info string Parsed go command parameters:\n");
+        printf("  ponder: %d\n", goCmd.ponder);
+        printf("  infiniteSearch: %d\n", goCmd.infiniteSearch);
+        printf("  timeForWhiteMs: %d\n", goCmd.timeForWhiteMs);
+        printf("  timeForBlackMs: %d\n", goCmd.timeForBlackMs);
+        printf("  incrementForWhiteMs: %d\n", goCmd.incrementForWhiteMs);
+        printf("  incrementForBlackMs: %d\n", goCmd.incrementForBlackMs);
+        printf("  movesUntilNextTimeControl: %d\n", goCmd.movesUntilNextTimeControl);
+        printf("  searchMoves count: %d\n", goCmd.searchMoves.count);
+    }
+}
 void handlePositionCommand(UCIState *state, const char *command)
 {
     command += 8; // Skip "position"
@@ -264,7 +402,7 @@ void uciLoop(void)
         }
         else if (!strncmp(p, "go", 2) && (p[2] == '\0' || isspace((unsigned char)p[2])))
         {
-            printf("info string 'go' command received, handling unfinished\n");
+            handleGoCommand(&state, p);
         }
         else if (!strncmp(p, "stop", 4) && (p[4] == '\0' || isspace((unsigned char)p[4])))
         {

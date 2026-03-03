@@ -1,5 +1,51 @@
 #ifndef PROPHET_ENGINE_H
 #define PROPHET_ENGINE_H
+#include "board/cboard.h"
+#include "movegen/move.h"
+#include <pthread.h>
+#include <stdatomic.h>
+#include <stdbool.h>
+
+// Global, thread-safe flag to interrupt the search
+extern atomic_bool engine_stop_search;
+
+typedef struct SearchLimits
+{
+    bool ponder;
+    bool infiniteSearch;
+    int timeForWhiteMs;
+    int timeForBlackMs;
+    int incrementForWhiteMs;
+    int incrementForBlackMs;
+    int movesUntilNextTimeControl;
+    int searchDepthLimit;
+    int searchNodeLimit;
+    int searchForMateInNMoves;
+    int searchMoveTimeLimitMs;
+    MoveList searchMoves;
+} SearchLimits;
+
+// The payload we send to the search thread
+typedef struct
+{
+    CBoard board;        // A COPY of the board, safe from UCI mutations
+    SearchLimits limits; // The parsed go parameters
+} SearchThreadData;
+
+// Updated UCI state
+typedef struct UCIState
+{
+    bool initialized;
+    bool debugMode;
+    bool ready;
+    bool quitting;
+
+    CBoard board; // The "root" board managed by UCI
+
+    // Thread management
+    pthread_t searchThread;
+    bool isSearching; // Tracks if the thread is currently active
+} UCIState;
 
 // Initializes global engine state (attack tables, zobrist keys, eval function helpers).
 // Safe to call multiple times.
