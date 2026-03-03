@@ -2,49 +2,49 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-
+#include <stdlib.h>
 #include "engine/engine.h"
-
-typedef struct
-{
-    const char *name;
-    const char *fen;
-    uint64_t *expected_nodes;
-    int max_depth;
-} PerftTest;
+#include "movegen/movegen.h"
+#include "movegen/move_make.h"
+#include "board/cboard.h"
+#include "attacks/sliding_attacks.h"
+#include "tests/testing_utils.h"
 
 // REFERENCE: https://www.chessprogramming.org/Perft_Results
 uint64_t expected_nodes_initial_position[] = {
-    1ULL,
-    20ULL,
-    400ULL,
-    8902ULL,
-    197281ULL,
-    4865609ULL,
-    119060324ULL,
-    3195901860ULL,
-    84998978956ULL,
-    2439530234167ULL,
-    69352859712417ULL};
+    1ULL,              // depth 0
+    20ULL,             // depth 1
+    400ULL,            // depth 2
+    8902ULL,           // depth 3
+    197281ULL,         // depth 4
+    4865609ULL,        // depth 5
+    119060324ULL,      // depth 6
+    3195901860ULL,     // depth 7
+    84998978956ULL,    // depth 8
+    2439530234167ULL,  // depth 9
+    69352859712417ULL, // depth 10
+};
 
 uint64_t expected_nodes_kiwipete_position[] = {
-    1ULL,
-    48ULL,
-    2039ULL,
-    97862ULL,
-    4085603ULL,
-    193690690ULL,
-    8031647685ULL,
+    1ULL,          // depth 0
+    48ULL,         // depth 1
+    2039ULL,       // depth 2
+    97862ULL,      // depth 3
+    4085603ULL,    // depth 4
+    193690690ULL,  // depth 5
+    8031647685ULL, // depth 6
 };
 
 uint64_t expected_nodes_position_3[] = {
-    1ULL,
-    14ULL,
-    191ULL,
-    2812ULL,
-    43238ULL,
-    674624ULL,
-    11030083ULL,
+    1ULL,          // depth 0
+    14ULL,         // depth 1
+    191ULL,        // depth 2
+    2812ULL,       // depth 3
+    43238ULL,      // depth 4
+    674624ULL,     // depth 5
+    11030083ULL,   // depth 6
+    178633661ULL,  // depth 7
+    3009794393ULL, // depth 8
 };
 uint64_t expected_nodes_position_4[] = {
     1ULL,
@@ -78,7 +78,7 @@ PerftTest test_suite[] = {
         .name = "Initial Position",
         .fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
         .expected_nodes = expected_nodes_initial_position,
-        .max_depth = 6, // 5 for speed, 6 is reasonable, 7+ takes too long
+        .max_depth = 7, // 5 for speed, 6 is reasonable, 7+ takes too long
     },
     {
         .name = "Kiwipete Position",
@@ -116,9 +116,9 @@ uint64_t perft(CBoard *board, int depth)
     if (depth == 0)
         return 1;
 
-    MoveList moveList;
-    moveList.count = 0;
-    moveList = generateLegalMoves(board);
+    MoveList moveList = generateLegalMoves(board);
+    if (depth == 1)
+        return moveList.count;
 
     uint64_t nodes = 0;
     for (int i = 0; i < moveList.count; i++)
@@ -141,9 +141,7 @@ uint64_t perft(CBoard *board, int depth)
 
 uint64_t divide(CBoard *board, int depth)
 {
-    MoveList moveList;
-    moveList.count = 0;
-    moveList = generateLegalMoves(board);
+    MoveList moveList = generateLegalMoves(board);
 
     uint64_t totalNodes = 0;
     for (int i = 0; i < moveList.count; i++)
@@ -185,10 +183,15 @@ int main()
         PerftTest test = test_suite[t];
         printf("=== %s ===\n", test.name);
         printf("FEN: %s\n", test.fen);
-
-        CBoard board = fenToCBoard(test.fen);
+        CBoard board;
+        bool parsedFen = fenToCBoard(test.fen, &board);
+        if (!parsedFen)
+        {
+            printf("Failed to parse FEN for test '%s'. Skipping this test.\n\n", test.name);
+            total_failed += test.max_depth + 1; // Count all depths as failed for this test
+            continue;
+        }
         bool suite_passed = true;
-
         for (int depth = 0; depth <= test.max_depth; depth++)
         {
             clock_t start = clock();
