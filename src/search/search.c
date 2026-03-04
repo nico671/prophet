@@ -4,6 +4,7 @@
 #include "hcevaluation/hceval.h"
 #include "movegen/movegen.h"
 #include "movegen/move_make.h"
+#include "search/tt.h"
 #include "engine/engine.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -207,7 +208,7 @@ static int searchRootBestMove(CBoard *board, int depth, Move *outBestMove)
     }
 
     ScoredMove scoredMoves[256];
-    scoreMoves(board, &moveList, scoredMoves);
+    scoreMoves(board, &moveList, scoredMoves, (Move){.from = NO_SQUARE, .to = NO_SQUARE, .flag = 0});
     sortScoredMoves(scoredMoves, moveList.count);
 
     int alpha = -200000000;
@@ -308,15 +309,18 @@ void *search_worker(void *arg)
         long long elapsed = nowMs() - searchStartMs;
         long long nodes = atomic_load(&searchedNodes);
         long long nps = elapsed > 0 ? (nodes * 1000LL) / elapsed : nodes;
-        char bestMoveUci[6];
-        moveToUciString(bestMove, bestMoveUci);
+        Move pvLine[256];
+        int pvLength = extractPVLine(&searchBoard, pvLine, currentDepth);
+        char pvString[2048] = "";
+        for (int i = 0; i < pvLength; i++)
+        {
+            char moveStr[6];
+            moveToUciString(pvLine[i], moveStr);
+            strcat(pvString, moveStr);
+            strcat(pvString, " ");
+        }
         printf("info depth %d score cp %d nodes %lld time %lld nps %lld pv %s\n",
-               currentDepth,
-               bestScore,
-               nodes,
-               elapsed,
-               nps,
-               bestMoveUci);
+               currentDepth, bestScore, nodes, elapsed, nps, pvString);
 
         currentDepth++;
 
@@ -368,7 +372,7 @@ void searchOnGoCommand(UCIState *state, SearchLimits goCmd)
     }
 }
 
-void scoreMoves(CBoard *board, MoveList *moveList, ScoredMove *scoredMoves)
+void scoreMoves(CBoard *board, MoveList *moveList, ScoredMove *scoredMoves, Move ttMove)
 {
     for (int i = 0; i < moveList->count; i++)
     {
@@ -376,19 +380,24 @@ void scoreMoves(CBoard *board, MoveList *moveList, ScoredMove *scoredMoves)
         int score = 0;
 
         scoredMoves[i].move = currMove;
-
-        if (move_is_capture(currMove))
+        if (ttMove.from != NO_SQUARE && movesEqual(currMove, ttMove))
         {
-            PieceType capturedPiece = getPieceAtSquare(board, TO_SQ(currMove));
-            PieceType attackerPiece = getPieceAtSquare(board, FROM_SQ(currMove));
-            score += 1000000 + pieceValue(capturedPiece) - pieceValue(attackerPiece);
+            score = 2000000; // TT move gets highest priority
         }
-
-        if (move_is_promotion(currMove))
+        else
         {
-            score += 500000 + pieceValue(getPromotionPieceType(currMove));
-        }
+            if (move_is_capture(currMove))
+            {
+                PieceType capturedPiece = getPieceAtSquare(board, TO_SQ(currMove));
+                PieceType attackerPiece = getPieceAtSquare(board, FROM_SQ(currMove));
+                score += 1000000 + pieceValue(capturedPiece) - pieceValue(attackerPiece);
+            }
 
+            if (move_is_promotion(currMove))
+            {
+                score += 500000 + pieceValue(getPromotionPieceType(currMove));
+            }
+        }
         scoredMoves[i].score = score;
     }
 }
@@ -408,11 +417,34 @@ int negamax(CBoard *node, int depth, int alpha, int beta, Color color)
         return evaluateBoard(node);
     }
 
-    // check if depth is 0 or game over
-    // TODO: implement quiescence search
+    int originalAlpha = alpha;
+    TTEntry *ttEntry = probeTT(node->zobristKey);
+    Move ttBestMove = (Move){.from = NO_SQUARE, .to = NO_SQUARE, .flag = 0};
+    if (ttEntry && ttEntry->zobristKey == node->zobristKey)
+    {
+        ttBestMove = ttEntry->bestMove;
+        if (ttEntry->depth >= depth)
+        {
+            if (ttEntry->bound == TT_PV)
+            {
+                return ttEntry->score;
+            }
+            else if (ttEntry->bound == TT_CUT && ttEntry->score >= beta)
+            {
+                return ttEntry->score;
+            }
+            else if (ttEntry->bound == TT_ALL && ttEntry->score <= alpha)
+            {
+                return ttEntry->score;
+            }
+            if (alpha >= beta)
+            {
+                return ttEntry->score;
+            }
+        }
+    }
     if (depth == 0)
     {
-
         return evaluateBoard(node);
     }
 
@@ -420,7 +452,7 @@ int negamax(CBoard *node, int depth, int alpha, int beta, Color color)
     initMoveList(&moveList);
     generateLegalMoves(node, &moveList);
     ScoredMove scoredMoves[256];
-    scoreMoves(node, &moveList, scoredMoves);
+    scoreMoves(node, &moveList, scoredMoves, ttBestMove);
     sortScoredMoves(scoredMoves, moveList.count);
 
     // check for checkmate or stalemate
@@ -464,6 +496,15 @@ int negamax(CBoard *node, int depth, int alpha, int beta, Color color)
             break; // beta cutoff
         }
     }
-
+    TTBound bound = TT_PV;
+    if (maxEval <= originalAlpha)
+    {
+        bound = TT_ALL;
+    }
+    else if (maxEval >= beta)
+    {
+        bound = TT_CUT;
+    }
+    storeTT(node->zobristKey, depth, maxEval, bound, ttBestMove);
     return maxEval;
 }
