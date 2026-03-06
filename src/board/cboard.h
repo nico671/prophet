@@ -48,6 +48,8 @@ typedef struct CBoard
     Bitboard blackPieces; /**< Combined bitboard of all black pieces */
     Bitboard allPieces;   /**< Combined bitboard of every piece on board */
 
+    PieceType pieceAtSquare[64]; /**< Array mapping each square index to the piece type occupying it, or NONE if empty */
+
     // --- Game State Metadata ---
     Color sideToMove; /** 0 for White, 1 for Black */
 
@@ -91,4 +93,12 @@ bool fenToCBoard(const char *fenString, CBoard *board);
  */
 char *CBoardToFen(CBoard *board);
 
+/**
+ * @brief Returns the piece type occupying the given square on the board, or NO_PIECE if the square is empty. The function uses the pieceAtSquare array in the CBoard struct, which is indexed by the square (0-63 corresponding to A1-H8) and contains the piece type for each square. This allows for O(1) retrieval of the piece type at any given square without needing to check individual bitboards.
+ *
+ * @param board Pointer to the CBoard struct representing the current board state.
+ * @param square The square for which to retrieve the piece type.
+ * @return PieceType The piece type occupying the given square, or NO_PIECE if the square is empty.
+ */
+PieceType getPieceAtSquare(const CBoard *board, Square square);
 #endif // CBOARD_H

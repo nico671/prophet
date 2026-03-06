@@ -32,34 +32,6 @@ static int pieceValue(PieceType piece)
         return 0;
     }
 }
-static PieceType getPieceAtSquare(const CBoard *board, Square square)
-{
-    if (bitboardIsBitSet(board->whitePawns, square) || bitboardIsBitSet(board->blackPawns, square))
-    {
-        return PAWN;
-    }
-    if (bitboardIsBitSet(board->whiteKnights, square) || bitboardIsBitSet(board->blackKnights, square))
-    {
-        return KNIGHT;
-    }
-    if (bitboardIsBitSet(board->whiteBishops, square) || bitboardIsBitSet(board->blackBishops, square))
-    {
-        return BISHOP;
-    }
-    if (bitboardIsBitSet(board->whiteRooks, square) || bitboardIsBitSet(board->blackRooks, square))
-    {
-        return ROOK;
-    }
-    if (bitboardIsBitSet(board->whiteQueens, square) || bitboardIsBitSet(board->blackQueens, square))
-    {
-        return QUEEN;
-    }
-    if (bitboardIsBitSet(board->whiteKing, square) || bitboardIsBitSet(board->blackKing, square))
-    {
-        return KING;
-    }
-    return NO_PIECE;
-}
 
 static int compareScoredMovesDescending(const void *a, const void *b)
 {

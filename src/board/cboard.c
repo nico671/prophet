@@ -68,6 +68,10 @@ bool fenToCBoard(const char *fenString, CBoard *board) // TODO: Add error handli
 {
     *board = (CBoard){0};
     board->epSquare = NO_SQUARE; // default no en passant
+    for (int sq = 0; sq < 64; ++sq)
+    {
+        board->pieceAtSquare[sq] = NO_PIECE;
+    }
     size_t len = strlen(fenString);
     int rank = 7;
     int file = 0;
@@ -105,50 +109,62 @@ bool fenToCBoard(const char *fenString, CBoard *board) // TODO: Add error handli
         case 'P':
             board->whitePawns |= squareMask;
             board->whitePieces |= squareMask;
+            board->pieceAtSquare[squareIndex] = PAWN;
             break;
         case 'N':
             board->whiteKnights |= squareMask;
             board->whitePieces |= squareMask;
+            board->pieceAtSquare[squareIndex] = KNIGHT;
             break;
         case 'B':
             board->whiteBishops |= squareMask;
             board->whitePieces |= squareMask;
+            board->pieceAtSquare[squareIndex] = BISHOP;
             break;
         case 'R':
             board->whiteRooks |= squareMask;
             board->whitePieces |= squareMask;
+            board->pieceAtSquare[squareIndex] = ROOK;
             break;
         case 'Q':
             board->whiteQueens |= squareMask;
             board->whitePieces |= squareMask;
+            board->pieceAtSquare[squareIndex] = QUEEN;
             break;
         case 'K':
             board->whiteKing |= squareMask;
             board->whitePieces |= squareMask;
+            board->pieceAtSquare[squareIndex] = KING;
             break;
         case 'p':
             board->blackPawns |= squareMask;
             board->blackPieces |= squareMask;
+            board->pieceAtSquare[squareIndex] = PAWN;
             break;
         case 'n':
             board->blackKnights |= squareMask;
             board->blackPieces |= squareMask;
+            board->pieceAtSquare[squareIndex] = KNIGHT;
             break;
         case 'b':
             board->blackBishops |= squareMask;
             board->blackPieces |= squareMask;
+            board->pieceAtSquare[squareIndex] = BISHOP;
             break;
         case 'r':
             board->blackRooks |= squareMask;
             board->blackPieces |= squareMask;
+            board->pieceAtSquare[squareIndex] = ROOK;
             break;
         case 'q':
             board->blackQueens |= squareMask;
             board->blackPieces |= squareMask;
+            board->pieceAtSquare[squareIndex] = QUEEN;
             break;
         case 'k':
             board->blackKing |= squareMask;
             board->blackPieces |= squareMask;
+            board->pieceAtSquare[squareIndex] = KING;
             break;
         default:
             return false; // Invalid character in piece placement
@@ -382,4 +398,20 @@ char *CBoardToFen(CBoard *board)
 
     *p = '\0';
     return fenString;
+}
+
+PieceType getPieceAtSquare(const CBoard *board, Square square)
+{
+    if (!board || square < A1 || square >= NO_SQUARE)
+    {
+        return NO_PIECE;
+    }
+
+    // Mailbox-backed lookup with occupancy validation.
+    if (!bitboardIsBitSet(board->allPieces, square))
+    {
+        return NO_PIECE;
+    }
+
+    return board->pieceAtSquare[square];
 }
