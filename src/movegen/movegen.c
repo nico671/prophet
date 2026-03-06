@@ -68,7 +68,12 @@ bool isSquareAttacked(CBoard *board, Square square, Color attackerColor)
 
 bool isKingInCheck(CBoard *board, Color side)
 {
-    Square kingSquare = (side == WHITE) ? bitboardLSBIndex(board->whiteKing) : bitboardLSBIndex(board->blackKing);
+    Bitboard king = (side == WHITE) ? board->whiteKing : board->blackKing;
+    if (king == 0)
+    {
+        return true;
+    }
+    Square kingSquare = bitboardLSBIndex(king);
     Color opponentColor = (side == WHITE) ? BLACK : WHITE;
     return isSquareAttacked(board, kingSquare, opponentColor);
 }
@@ -97,7 +102,8 @@ void generateLegalMoves(CBoard *board, MoveList *out)
             }
 
             // Check squares the king moves through
-            if (MOVE_FLAG(move) == KINGSIDE_CASTLE)
+            if ((side == WHITE && getFromSquare(move) == E1 && getToSquare(move) == G1) ||
+                (side == BLACK && getFromSquare(move) == E8 && getToSquare(move) == G8)) // KINGSIDE_CASTLE
             {
                 Square throughSquare = (side == WHITE) ? F1 : F8;
                 if (isSquareAttacked(board, throughSquare, opponent))

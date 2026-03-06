@@ -20,7 +20,7 @@ void genSinglePawnPushes(CBoard *board, MoveList *moveList)
     {
         Square to = bitboardPopLSB(&singlePushes);
         Square from = to - (sideToMove == WHITE ? 8 : -8);
-        Move move = MAKE_MOVE(from, to);
+        Move move = createMove(from, to, NORMAL, NO_PIECE);
         moveList->moves[moveList->count++] = move;
     }
 }
@@ -55,7 +55,7 @@ void genDoublePawnPushes(CBoard *board, MoveList *moveList)
     {
         Square to = bitboardPopLSB(&doublePushes);
         Square from = to - (sideToMove == WHITE ? 16 : -16);
-        Move move = MAKE_DOUBLE_PUSH(from, to);
+        Move move = createMove(from, to, NORMAL, NO_PIECE);
         moveList->moves[moveList->count++] = move;
     }
 }
@@ -66,7 +66,9 @@ void genPawnCaptures(CBoard *board, MoveList *moveList)
     Bitboard pawns = (sideToMove == WHITE) ? board->whitePawns : board->blackPawns;
     Bitboard promotionRank = (sideToMove == WHITE) ? RANK_7 : RANK_2;
     pawns &= ~promotionRank; // exclude pawns on promotion rank, handled in promotions function
-    Bitboard opponentPieces = (sideToMove == WHITE) ? board->blackPieces : board->whitePieces;
+    Bitboard opponentPieces = (sideToMove == WHITE)
+                                  ? (board->blackPieces & ~board->blackKing)
+                                  : (board->whitePieces & ~board->whiteKing);
 
     while (pawns)
     {
@@ -76,7 +78,7 @@ void genPawnCaptures(CBoard *board, MoveList *moveList)
         while (captureTargets)
         {
             Square to = bitboardPopLSB(&captureTargets);
-            Move move = MAKE_CAPTURE(from, to);
+            Move move = createMove(from, to, NORMAL, NO_PIECE);
             moveList->moves[moveList->count++] = move;
         }
     }
@@ -87,7 +89,9 @@ void genPawnPromotions(CBoard *board, MoveList *moveList)
     Color sideToMove = board->sideToMove;
     Bitboard pawns = (sideToMove == WHITE) ? board->whitePawns : board->blackPawns;
     Bitboard emptySquares = ~(board->allPieces);
-    Bitboard opponentPieces = (sideToMove == WHITE) ? board->blackPieces : board->whitePieces;
+    Bitboard opponentPieces = (sideToMove == WHITE)
+                                  ? (board->blackPieces & ~board->blackKing)
+                                  : (board->whitePieces & ~board->whiteKing);
 
     Bitboard promotionRank = (sideToMove == WHITE) ? RANK_7 : RANK_2;
     pawns &= promotionRank;
@@ -105,7 +109,7 @@ void genPawnPromotions(CBoard *board, MoveList *moveList)
         // Generate all promotion piece types
         for (PieceType pt = KNIGHT; pt <= QUEEN; pt++)
         {
-            Move move = MAKE_PROMOTION(from, to, pt, false);
+            Move move = createMove(from, to, PROMO, pt);
             moveList->moves[moveList->count++] = move;
         }
     }
@@ -122,7 +126,7 @@ void genPawnPromotions(CBoard *board, MoveList *moveList)
             // Generate all promotion piece types
             for (PieceType pt = KNIGHT; pt <= QUEEN; pt++)
             {
-                Move move = MAKE_PROMOTION(from, to, pt, true);
+                Move move = createMove(from, to, PROMO, pt);
                 moveList->moves[moveList->count++] = move;
             }
         }
@@ -151,7 +155,7 @@ void genEnPassantPawnMoves(CBoard *board, MoveList *moveList)
     {
         Square from = bitboardPopLSB(&pawnsThatCanCaptureEP);
         Square to = board->epSquare;
-        Move move = MAKE_EP(from, to);
+        Move move = createMove(from, to, EN_PASSANT, NO_PIECE);
         moveList->moves[moveList->count++] = move;
     }
 }

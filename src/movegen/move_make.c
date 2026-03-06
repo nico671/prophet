@@ -1,216 +1,17 @@
 #include "movegen/move_make.h"
+#include "movegen/move.h"
 #include "core/bitboard.h"
 #include "board/cboard.h"
 #include "board/zobrist.h"
 #include <stdbool.h>
 #include <stddef.h>
-
-static inline Bitboard *pieceBitboard(CBoard *board, Color color, PieceType piece)
-{
-    if (color == WHITE)
-    {
-        switch (piece)
-        {
-        case PAWN:
-            return &board->whitePawns;
-        case KNIGHT:
-            return &board->whiteKnights;
-        case BISHOP:
-            return &board->whiteBishops;
-        case ROOK:
-            return &board->whiteRooks;
-        case QUEEN:
-            return &board->whiteQueens;
-        case KING:
-            return &board->whiteKing;
-        default:
-            return NULL;
-        }
-    }
-    else
-    {
-        switch (piece)
-        {
-        case PAWN:
-            return &board->blackPawns;
-        case KNIGHT:
-            return &board->blackKnights;
-        case BISHOP:
-            return &board->blackBishops;
-        case ROOK:
-            return &board->blackRooks;
-        case QUEEN:
-            return &board->blackQueens;
-        case KING:
-            return &board->blackKing;
-        default:
-            return NULL;
-        }
-    }
-}
-
-static inline void addPieceToBoard(CBoard *board, Square square, Color color, PieceType piece)
-{
-    Bitboard *bb = pieceBitboard(board, color, piece);
-    if (!bb)
-    {
-        return;
-    }
-
-    bitboardSetSquareBit(bb, square);
-    board->pieceAtSquare[square] = piece;
-}
-
-static inline void removePieceFromBoard(CBoard *board, Square square, Color color, PieceType piece)
-{
-    Bitboard *bb = pieceBitboard(board, color, piece);
-    if (!bb)
-    {
-        return;
-    }
-
-    bitboardClearSquareBit(bb, square);
-    board->pieceAtSquare[square] = NO_PIECE;
-}
-
-// Helper function to move a piece from one square to another
-static void movePieceOnBoard(CBoard *board, Square from, Square to, Color side)
-{
-    PieceType movingPiece = getPieceAtSquare(board, from);
-    if (movingPiece == NO_PIECE)
-    {
-        return;
-    }
-
-    removePieceFromBoard(board, from, side, movingPiece);
-    addPieceToBoard(board, to, side, movingPiece);
-}
-
-// Helper function to remove a captured piece and return its type
-static PieceType removeCapturedPiece(CBoard *board, Square square, Color capturingColor)
-{
-    Color capturedColor = (capturingColor == WHITE) ? BLACK : WHITE;
-
-    PieceType capturedPiece = getPieceAtSquare(board, square);
-    if (capturedPiece == NO_PIECE)
-    {
-        return NO_PIECE;
-    }
-
-    removePieceFromBoard(board, square, capturedColor, capturedPiece);
-    return capturedPiece;
-}
-
-// The recomputeOccupancies() function is still available in cboard.c for full recomputation, but testing seems to hold with incremental updates.
-
-// Incremental occupancy update helpers
-// Update occupancies when moving a piece from one square to another
-static inline void updateOccupanciesForMove(CBoard *board, Square from, Square to, Color color)
-{
-    if (color == WHITE)
-    {
-        bitboardClearSquareBit(&board->whitePieces, from);
-        bitboardSetSquareBit(&board->whitePieces, to);
-    }
-    else
-    {
-        bitboardClearSquareBit(&board->blackPieces, from);
-        bitboardSetSquareBit(&board->blackPieces, to);
-    }
-    bitboardClearSquareBit(&board->allPieces, from);
-    bitboardSetSquareBit(&board->allPieces, to);
-}
-
-// Update occupancies when capturing a piece
-static inline void updateOccupanciesForCapture(CBoard *board, Square square, Color capturedColor)
-{
-    if (capturedColor == WHITE)
-    {
-        bitboardClearSquareBit(&board->whitePieces, square);
-    }
-    else
-    {
-        bitboardClearSquareBit(&board->blackPieces, square);
-    }
-    bitboardClearSquareBit(&board->allPieces, square);
-}
-
-// Update occupancies for promotion (pawn removed from 'from', promoted piece added to 'to')
-static inline void updateOccupanciesForPromotion(CBoard *board, Square from, Square to, Color color)
-{
-    // Same as a regular move - color occupancy changes from 'from' to 'to'
-    // Piece type changes but color stays the same
-    updateOccupanciesForMove(board, from, to, color);
-}
-
-// Update occupancies for castling (king and rook both move)
-static inline void updateOccupanciesForCastling(CBoard *board, Square kingFrom, Square kingTo,
-                                                Square rookFrom, Square rookTo, Color color)
-{
-    if (color == WHITE)
-    {
-        bitboardClearSquareBit(&board->whitePieces, kingFrom);
-        bitboardClearSquareBit(&board->whitePieces, rookFrom);
-        bitboardSetSquareBit(&board->whitePieces, kingTo);
-        bitboardSetSquareBit(&board->whitePieces, rookTo);
-    }
-    else
-    {
-        bitboardClearSquareBit(&board->blackPieces, kingFrom);
-        bitboardClearSquareBit(&board->blackPieces, rookFrom);
-        bitboardSetSquareBit(&board->blackPieces, kingTo);
-        bitboardSetSquareBit(&board->blackPieces, rookTo);
-    }
-    bitboardClearSquareBit(&board->allPieces, kingFrom);
-    bitboardClearSquareBit(&board->allPieces, rookFrom);
-    bitboardSetSquareBit(&board->allPieces, kingTo);
-    bitboardSetSquareBit(&board->allPieces, rookTo);
-}
-
-// Helper to update castling rights
-static void updateCastlingRights(CBoard *board, Square from, Square to)
-{
-    // If king moved, lose all castling
-    if (bitboardIsBitSet(board->whiteKing, to))
-    {
-        CLEAR_BIT(board->castlingRights, 3);
-        CLEAR_BIT(board->castlingRights, 2);
-        // board->whiteCanCastleQueenside = false;
-    }
-    else if (bitboardIsBitSet(board->blackKing, to))
-    {
-        CLEAR_BIT(board->castlingRights, 1);
-        CLEAR_BIT(board->castlingRights, 0);
-        // board->blackCanCastleKingside = false;
-        // board->blackCanCastleQueenside = false;
-    }
-
-    // If rook moved from corner, lose that side's castling
-    if (from == H1)
-        CLEAR_BIT(board->castlingRights, 3);
-    if (from == A1)
-        CLEAR_BIT(board->castlingRights, 2);
-    if (from == H8)
-        CLEAR_BIT(board->castlingRights, 1);
-    if (from == A8)
-        CLEAR_BIT(board->castlingRights, 0);
-
-    // If rook was captured on corner square, lose that side's castling
-    if (to == H1)
-        CLEAR_BIT(board->castlingRights, 3);
-    if (to == A1)
-        CLEAR_BIT(board->castlingRights, 2);
-    if (to == H8)
-        CLEAR_BIT(board->castlingRights, 1);
-    if (to == A8)
-        CLEAR_BIT(board->castlingRights, 0);
-}
-
+#include <stdio.h>
 // Helper to save undo info
-static UndoInfo saveUndoInfo(CBoard *board, PieceType captured)
+static UndoInfo saveUndoInfo(CBoard *board, PieceType captured, Move move)
 {
     UndoInfo undoInfo = {0};
     undoInfo.capturedPiece = captured;
+    undoInfo.capturedSquare = (captured != NO_PIECE) ? getToSquare(move) : NO_SQUARE;
     undoInfo.previousEpSquare = board->epSquare;
     undoInfo.previousHalfmoveClock = board->halfmoveClock;
     undoInfo.previousCastlingRights = board->castlingRights;
@@ -246,11 +47,11 @@ static void updateGameState(CBoard *board, Square to, bool isCapture)
 
 UndoInfo makeQuietMove(CBoard *board, Move move)
 {
-    Square from = FROM_SQ(move);
-    Square to = TO_SQ(move);
+    Square from = getFromSquare(move);
+    Square to = getToSquare(move);
 
     // Save undo info before making changes
-    UndoInfo undoInfo = saveUndoInfo(board, NO_PIECE);
+    UndoInfo undoInfo = saveUndoInfo(board, NO_PIECE, move);
     undoInfo.previousZobristKey = board->zobristKey;
 
     // Determine the piece type being moved
@@ -289,8 +90,8 @@ UndoInfo makeQuietMove(CBoard *board, Move move)
 
 UndoInfo makeCaptureMove(CBoard *board, Move move)
 {
-    Square from = FROM_SQ(move);
-    Square to = TO_SQ(move);
+    Square from = getFromSquare(move);
+    Square to = getToSquare(move);
 
     // Determine the piece type being moved
     PieceType movingPiece = NO_PIECE;
@@ -300,7 +101,7 @@ UndoInfo makeCaptureMove(CBoard *board, Move move)
     PieceType captured = removeCapturedPiece(board, to, board->sideToMove);
 
     // Save undo info
-    UndoInfo undoInfo = saveUndoInfo(board, captured);
+    UndoInfo undoInfo = saveUndoInfo(board, captured, move);
     undoInfo.previousZobristKey = board->zobristKey;
 
     // Update zobrist: remove moving piece from 'from' square
@@ -342,11 +143,11 @@ UndoInfo makeCaptureMove(CBoard *board, Move move)
 
 UndoInfo makeDoublePawnPushMove(CBoard *board, Move move)
 {
-    Square from = FROM_SQ(move);
-    Square to = TO_SQ(move);
+    Square from = getFromSquare(move);
+    Square to = getToSquare(move);
 
     // Save undo info before making any changes
-    UndoInfo undoInfo = saveUndoInfo(board, NO_PIECE);
+    UndoInfo undoInfo = saveUndoInfo(board, NO_PIECE, move);
     undoInfo.previousZobristKey = board->zobristKey;
 
     // Calculate en passant square BEFORE switching sides
@@ -389,15 +190,15 @@ UndoInfo makeDoublePawnPushMove(CBoard *board, Move move)
     return undoInfo;
 }
 
-UndoInfo makeEnPassantMove(CBoard *board, Move move)
+UndoInfo makeEnPassantCapture(CBoard *board, Move move)
 {
-    Square from = FROM_SQ(move);
-    Square to = TO_SQ(move);
+    Square from = getFromSquare(move);
+    Square to = getToSquare(move);
 
     // Determine the square of the captured pawn
     Square capturedPawnSquare = (board->sideToMove == WHITE) ? to - 8 : to + 8;
 
-    UndoInfo undoInfo = saveUndoInfo(board, PAWN);
+    UndoInfo undoInfo = saveUndoInfo(board, PAWN, move);
     undoInfo.previousZobristKey = board->zobristKey;
 
     // Update zobrist: remove capturing pawn from 'from' square
@@ -442,12 +243,19 @@ UndoInfo makeEnPassantMove(CBoard *board, Move move)
 
 UndoInfo makePromotionMove(CBoard *board, Move move)
 {
-    Square from = FROM_SQ(move);
-    Square to = TO_SQ(move);
-    MoveFlag flag = MOVE_FLAG(move);
+    Square from = getFromSquare(move);
+    Square to = getToSquare(move);
 
     // Determine if it's a promotion capture
-    bool isPromotionCapture = (flag >= KNIGHT_PROMO_CAPTURE && flag <= QUEEN_PROMO_CAPTURE);
+    bool isPromotionCapture;
+    if (board->sideToMove == WHITE)
+    {
+        isPromotionCapture = bitboardIsBitSet(board->blackPieces, to);
+    }
+    else
+    {
+        isPromotionCapture = bitboardIsBitSet(board->whitePieces, to);
+    }
 
     // If capture, remove the captured piece first and save its type
     PieceType captured = NO_PIECE;
@@ -460,7 +268,7 @@ UndoInfo makePromotionMove(CBoard *board, Move move)
     }
 
     // Save undo info before making changes
-    UndoInfo undoInfo = saveUndoInfo(board, captured);
+    UndoInfo undoInfo = saveUndoInfo(board, captured, move);
     undoInfo.previousZobristKey = board->zobristKey;
 
     // Get the promotion piece type
@@ -506,11 +314,10 @@ UndoInfo makePromotionMove(CBoard *board, Move move)
 
 UndoInfo makeCastlingMove(CBoard *board, Move move)
 {
-    Square to = TO_SQ(move);
-    MoveFlag flag = MOVE_FLAG(move);
-
+    Square to = getToSquare(move);
+    Square from = getFromSquare(move);
     // Save undo info before making changes
-    UndoInfo undoInfo = saveUndoInfo(board, NO_PIECE);
+    UndoInfo undoInfo = saveUndoInfo(board, NO_PIECE, move);
     undoInfo.previousZobristKey = board->zobristKey;
 
     // Remove old EP square from hash
@@ -519,9 +326,10 @@ UndoInfo makeCastlingMove(CBoard *board, Move move)
     // Save old castling rights
     uint8_t oldCastlingRights = board->castlingRights;
 
-    if (flag == KINGSIDE_CASTLE)
+    if (board->sideToMove == WHITE)
     {
-        if (board->sideToMove == WHITE)
+        // check if kingside castle and handle accordingly (king moves e1->g1, rook moves h1->f1)
+        if (from == E1 && to == G1)
         {
             // Update zobrist: remove pieces from original squares
             zobristTogglePiece(&board->zobristKey, KING, WHITE, E1);
@@ -538,6 +346,25 @@ UndoInfo makeCastlingMove(CBoard *board, Move move)
             zobristTogglePiece(&board->zobristKey, ROOK, WHITE, F1);
         }
         else
+        { // handle queenside castle (king moves e1->c1, rook moves a1->d1)
+            // Update zobrist: remove pieces from original squares
+            zobristTogglePiece(&board->zobristKey, KING, WHITE, E1);
+            zobristTogglePiece(&board->zobristKey, ROOK, WHITE, A1);
+
+            // Move king from e1 to c1 and rook from a1 to d1
+            movePieceOnBoard(board, E1, C1, WHITE);
+            movePieceOnBoard(board, A1, D1, WHITE);
+            // Update occupancies incrementally
+            updateOccupanciesForCastling(board, E1, C1, A1, D1, WHITE);
+
+            // Update zobrist: add pieces to new squares
+            zobristTogglePiece(&board->zobristKey, KING, WHITE, C1);
+            zobristTogglePiece(&board->zobristKey, ROOK, WHITE, D1);
+        }
+    }
+    else
+    {
+        if (from == E8 && to == G8)
         {
             // Update zobrist: remove pieces from original squares
             zobristTogglePiece(&board->zobristKey, KING, BLACK, E8);
@@ -553,43 +380,21 @@ UndoInfo makeCastlingMove(CBoard *board, Move move)
             zobristTogglePiece(&board->zobristKey, KING, BLACK, G8);
             zobristTogglePiece(&board->zobristKey, ROOK, BLACK, F8);
         }
-    }
-    else // QUEENSIDE_CASTLE
-    {
-        if (board->sideToMove == WHITE)
-        {
-            // Update zobrist: remove pieces from original squares
-            zobristTogglePiece(&board->zobristKey, KING, WHITE, E1);
-            zobristTogglePiece(&board->zobristKey, ROOK, WHITE, A1);
-
-            // Move king from e1 to c1 and rook from a1 to d1
-            movePieceOnBoard(board, E1, C1, WHITE);
-            movePieceOnBoard(board, A1, D1, WHITE);
-            // Update occupancies incrementally
-            updateOccupanciesForCastling(board, E1, C1, A1, D1, WHITE);
-
-            // Update zobrist: add pieces to new squares
-            zobristTogglePiece(&board->zobristKey, KING, WHITE, C1);
-            zobristTogglePiece(&board->zobristKey, ROOK, WHITE, D1);
-        }
         else
-        {
+        { // handle queenside castle (king moves e8->c8, rook moves a8->d8)
             // Update zobrist: remove pieces from original squares
             zobristTogglePiece(&board->zobristKey, KING, BLACK, E8);
             zobristTogglePiece(&board->zobristKey, ROOK, BLACK, A8);
-
             // Move king from e8 to c8 and rook from a8 to d8
             movePieceOnBoard(board, E8, C8, BLACK);
             movePieceOnBoard(board, A8, D8, BLACK);
             // Update occupancies incrementally
             updateOccupanciesForCastling(board, E8, C8, A8, D8, BLACK);
-
             // Update zobrist: add pieces to new squares
             zobristTogglePiece(&board->zobristKey, KING, BLACK, C8);
             zobristTogglePiece(&board->zobristKey, ROOK, BLACK, D8);
         }
     }
-
     // Update castling rights (castling removes all rights for this color)
     if (board->sideToMove == WHITE)
     {
@@ -613,50 +418,135 @@ UndoInfo makeCastlingMove(CBoard *board, Move move)
 
     return undoInfo;
 }
+// else // QUEENSIDE_CASTLE
+// {
+//     if (board->sideToMove == WHITE)
+//     {
+//         // Update zobrist: remove pieces from original squares
+//         zobristTogglePiece(&board->zobristKey, KING, WHITE, E1);
+//         zobristTogglePiece(&board->zobristKey, ROOK, WHITE, A1);
+
+//         // Move king from e1 to c1 and rook from a1 to d1
+//         movePieceOnBoard(board, E1, C1, WHITE);
+//         movePieceOnBoard(board, A1, D1, WHITE);
+//         // Update occupancies incrementally
+//         updateOccupanciesForCastling(board, E1, C1, A1, D1, WHITE);
+
+//         // Update zobrist: add pieces to new squares
+//         zobristTogglePiece(&board->zobristKey, KING, WHITE, C1);
+//         zobristTogglePiece(&board->zobristKey, ROOK, WHITE, D1);
+//     }
+//     else
+//     {
+//         // Update zobrist: remove pieces from original squares
+//         zobristTogglePiece(&board->zobristKey, KING, BLACK, E8);
+//         zobristTogglePiece(&board->zobristKey, ROOK, BLACK, A8);
+
+//         // Move king from e8 to c8 and rook from a8 to d8
+//         movePieceOnBoard(board, E8, C8, BLACK);
+//         movePieceOnBoard(board, A8, D8, BLACK);
+//         // Update occupancies incrementally
+//         updateOccupanciesForCastling(board, E8, C8, A8, D8, BLACK);
+
+//         // Update zobrist: add pieces to new squares
+//         zobristTogglePiece(&board->zobristKey, KING, BLACK, C8);
+//         zobristTogglePiece(&board->zobristKey, ROOK, BLACK, D8);
+//     }
+// }
 
 UndoInfo makeMove(CBoard *board, Move move)
 {
     // extract flag
-    MoveFlag flag = MOVE_FLAG(move);
+    Square from = getFromSquare(move);
+    Square to = getToSquare(move);
+    PieceType movingPiece = getPieceAtSquare(board, from);
 
-    if (flag == QUIET)
+    if (move_is_castling(move))
     {
-        return makeQuietMove(board, move);
+        if (board->sideToMove == WHITE)
+        {
+            if (to == G1)
+            {
+                return makeCastlingMove(board, move); // Kingside castle
+            }
+            else
+            {
+                return makeCastlingMove(board, move); // Queenside castle
+            }
+        }
+        else
+        {
+            if (to == G8)
+            {
+                return makeCastlingMove(board, move); // Kingside castle
+            }
+            else
+            {
+                return makeCastlingMove(board, move); // Queenside castle
+            }
+        }
     }
-    else if (flag == DOUBLE_PAWN_PUSH)
+    else if (move_is_enpassant(move))
     {
-        return makeDoublePawnPushMove(board, move);
+        // since ep flag is set if en passant is possible, we need to verify that the move is actually an en passant capture (should not happen if move generation is correct)
+        Square capturedPawnSquare = (board->sideToMove == WHITE) ? to - 8 : to + 8;
+        if (getPieceAtSquare(board, to) != NO_PIECE || getPieceAtSquare(board, capturedPawnSquare) != PAWN)
+        {
+            // Invalid en passant move, treat as quiet move (should not happen if move generation is correct)
+            return makeQuietMove(board, move);
+        }
+        return makeEnPassantCapture(board, move);
     }
-    else if (flag == KINGSIDE_CASTLE || flag == QUEENSIDE_CASTLE)
-    {
-        return makeCastlingMove(board, move);
-    }
-    else if (flag == CAPTURE)
-    {
-        return makeCaptureMove(board, move);
-    }
-    else if (flag == EP_CAPTURE)
-    {
-        return makeEnPassantMove(board, move);
-    }
-    else if (flag >= KNIGHT_PROMO_QUIET && flag <= QUEEN_PROMO_CAPTURE)
+    else if (move_is_promotion(move))
     {
         return makePromotionMove(board, move);
     }
-    else
+    else // normal move (quiet or capture)
     {
-        // Unknown move flag - return empty undo info
-        UndoInfo undoInfo = {0};
-        return undoInfo;
+        // check for captures
+        if (board->sideToMove == WHITE)
+        {
+            if (bitboardIsBitSet(board->blackPieces, to))
+            {
+                return makeCaptureMove(board, move);
+            }
+        }
+        else
+        {
+            if (bitboardIsBitSet(board->whitePieces, to))
+            {
+                return makeCaptureMove(board, move);
+            }
+        }
+        // Detect double pawn pushes (used to set en passant square).
+        if (movingPiece == PAWN)
+        {
+            if (board->sideToMove == WHITE)
+            {
+                if ((to - from) == 16)
+                {
+                    return makeDoublePawnPushMove(board, move);
+                }
+            }
+            else
+            {
+                if ((from - to) == 16)
+                {
+                    return makeDoublePawnPushMove(board, move);
+                }
+            }
+        }
+        return makeQuietMove(board, move);
     }
 }
 
-void unmakeCastlingMove(CBoard *board, MoveFlag flag)
+void unmakeCastlingMove(CBoard *board, Move move)
 {
     // Unmake castling
-    if (flag == KINGSIDE_CASTLE)
+
+    if (board->sideToMove == WHITE)
     {
-        if (board->sideToMove == WHITE)
+        if (getToSquare(move) == G1)
         {
             // Move king back from g1 to e1 and rook from f1 to h1
             movePieceOnBoard(board, G1, E1, WHITE);
@@ -665,20 +555,20 @@ void unmakeCastlingMove(CBoard *board, MoveFlag flag)
         }
         else
         {
-            // Move king back from g8 to e8 and rook from f8 to h8
-            movePieceOnBoard(board, G8, E8, BLACK);
-            movePieceOnBoard(board, F8, H8, BLACK);
-            updateOccupanciesForCastling(board, G8, E8, F8, H8, BLACK);
-        }
-    }
-    else // QUEENSIDE_CASTLE
-    {
-        if (board->sideToMove == WHITE)
-        {
             // Move king back from c1 to e1 and rook from d1 to a1
             movePieceOnBoard(board, C1, E1, WHITE);
             movePieceOnBoard(board, D1, A1, WHITE);
             updateOccupanciesForCastling(board, C1, E1, D1, A1, WHITE);
+        }
+    }
+    else
+    {
+        if (getToSquare(move) == G8)
+        {
+            // Move king back from g8 to e8 and rook from f8 to h8
+            movePieceOnBoard(board, G8, E8, BLACK);
+            movePieceOnBoard(board, F8, H8, BLACK);
+            updateOccupanciesForCastling(board, G8, E8, F8, H8, BLACK);
         }
         else
         {
@@ -688,12 +578,45 @@ void unmakeCastlingMove(CBoard *board, MoveFlag flag)
             updateOccupanciesForCastling(board, C8, E8, D8, A8, BLACK);
         }
     }
+    // if (flag == KINGSIDE_CASTLE)
+    // {
+    //     if (board->sideToMove == WHITE)
+    //     {
+    //         // Move king back from g1 to e1 and rook from f1 to h1
+    //         movePieceOnBoard(board, G1, E1, WHITE);
+    //         movePieceOnBoard(board, F1, H1, WHITE);
+    //         updateOccupanciesForCastling(board, G1, E1, F1, H1, WHITE);
+    //     }
+    //     else
+    //     {
+    //         // Move king back from g8 to e8 and rook from f8 to h8
+    //         movePieceOnBoard(board, G8, E8, BLACK);
+    //         movePieceOnBoard(board, F8, H8, BLACK);
+    //         updateOccupanciesForCastling(board, G8, E8, F8, H8, BLACK);
+    //     }
+    // }
+    // else // QUEENSIDE_CASTLE
+    // {
+    //     if (board->sideToMove == WHITE)
+    //     {
+    //         // Move king back from c1 to e1 and rook from d1 to a1
+    //         movePieceOnBoard(board, C1, E1, WHITE);
+    //         movePieceOnBoard(board, D1, A1, WHITE);
+    //         updateOccupanciesForCastling(board, C1, E1, D1, A1, WHITE);
+    //     }
+    //     else
+    //     {
+    //         // Move king back from c8 to e8 and rook from d8 to a8
+    //         movePieceOnBoard(board, C8, E8, BLACK);
+    //         movePieceOnBoard(board, D8, A8, BLACK);
+    //         updateOccupanciesForCastling(board, C8, E8, D8, A8, BLACK);
+    //     }
+    // }
 }
 void unmakeMove(CBoard *board, Move move, UndoInfo undoInfo)
 {
-    Square from = FROM_SQ(move);
-    Square to = TO_SQ(move);
-    MoveFlag flag = MOVE_FLAG(move);
+    Square from = getFromSquare(move);
+    Square to = getToSquare(move);
 
     // Switch side back first (before any checks that depend on sideToMove)
     board->sideToMove = (board->sideToMove == WHITE) ? BLACK : WHITE;
@@ -711,15 +634,15 @@ void unmakeMove(CBoard *board, Move move, UndoInfo undoInfo)
     }
 
     // Handle different move types
-    if (flag == KINGSIDE_CASTLE || flag == QUEENSIDE_CASTLE)
+    if (move_is_castling(move))
     {
-        unmakeCastlingMove(board, flag);
+        unmakeCastlingMove(board, move);
     }
-    else if (flag >= KNIGHT_PROMO_QUIET && flag <= QUEEN_PROMO_CAPTURE)
+    else if (move_is_promotion(move))
     {
         // Unmake promotion
         PieceType promotionPiece = getPromotionPieceType(move);
-        bool isPromotionCapture = (flag >= KNIGHT_PROMO_CAPTURE && flag <= QUEEN_PROMO_CAPTURE);
+        bool isPromotionCapture = (undoInfo.capturedPiece != NO_PIECE);
         updateOccupanciesForMove(board, to, from, board->sideToMove);
         // Replace promoted piece with pawn
         removePieceFromBoard(board, to, board->sideToMove, promotionPiece);
@@ -737,8 +660,17 @@ void unmakeMove(CBoard *board, Move move, UndoInfo undoInfo)
             bitboardSetSquareBit(&board->allPieces, to);
         }
     }
-    else if (flag == EP_CAPTURE)
+    else if (move_is_enpassant(move))
     {
+        if (undoInfo.capturedPiece != PAWN)
+        {
+            // Invalid undo info for en passant, treat as quiet unmake (should not happen if move generation is correct
+            printf("Warning: Invalid undo info for en passant unmake, treating as quiet unmake\n");
+            // Move piece back from destination to source
+            movePieceOnBoard(board, to, from, board->sideToMove);
+            updateOccupanciesForMove(board, to, from, board->sideToMove);
+            return;
+        }
         // Unmake en passant
         // Move pawn back from destination to source
         movePieceOnBoard(board, to, from, board->sideToMove);
@@ -761,7 +693,7 @@ void unmakeMove(CBoard *board, Move move, UndoInfo undoInfo)
         updateOccupanciesForMove(board, to, from, board->sideToMove);
 
         // If it was a capture, restore the captured piece
-        if (flag == CAPTURE && undoInfo.capturedPiece != NO_PIECE)
+        if (undoInfo.capturedSquare != NO_SQUARE && undoInfo.capturedPiece != NO_PIECE)
         {
             Color opponentColor = (board->sideToMove == WHITE) ? BLACK : WHITE;
             addPieceToBoard(board, to, opponentColor, undoInfo.capturedPiece);

@@ -2,14 +2,16 @@
 #include "attacks/constant_attacks.h"
 #include "core/bitboard.h"
 #include "board/cboard.h"
-
+#include "movegen/move.h"
 // Generates all pseudo-legal knight moves (both quiet moves and captures) for the side to move on the given board.
 // This function does NOT check for king safety, so it may generate moves that leave the king in check. It is the caller's responsibility to filter those out if necessary.
 void genAllPseudoLegalKnightMoves(CBoard *board, MoveList *moveList)
 {
     Bitboard knights = (board->sideToMove == WHITE) ? board->whiteKnights : board->blackKnights;
     Bitboard friendlyPieces = (board->sideToMove == WHITE) ? board->whitePieces : board->blackPieces;
-    Bitboard enemyPieces = (board->sideToMove == WHITE) ? board->blackPieces : board->whitePieces;
+    Bitboard enemyPieces = (board->sideToMove == WHITE)
+                               ? (board->blackPieces & ~board->blackKing)
+                               : (board->whitePieces & ~board->whiteKing);
 
     while (knights)
     {
@@ -26,7 +28,7 @@ void genAllPseudoLegalKnightMoves(CBoard *board, MoveList *moveList)
         while (quietMoves)
         {
             Square to = bitboardPopLSB(&quietMoves);
-            Move move = MAKE_MOVE(from, to);
+            Move move = createMove(from, to, NORMAL, NO_PIECE);
             moveList->moves[moveList->count++] = move;
         }
 
@@ -34,7 +36,7 @@ void genAllPseudoLegalKnightMoves(CBoard *board, MoveList *moveList)
         while (captures)
         {
             Square to = bitboardPopLSB(&captures);
-            Move move = MAKE_CAPTURE(from, to);
+            Move move = createMove(from, to, NORMAL, NO_PIECE);
             moveList->moves[moveList->count++] = move;
         }
     }

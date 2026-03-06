@@ -8,10 +8,10 @@ char *moveToStringCoordinate(Move move)
     static char str[5];
     char files[] = "abcdefgh";
     char ranks[] = "12345678";
-    str[0] = files[move.from % 8];
-    str[1] = ranks[move.from / 8];
-    str[2] = files[move.to % 8];
-    str[3] = ranks[move.to / 8];
+    str[0] = files[getFromSquare(move) % 8];
+    str[1] = ranks[getFromSquare(move) / 8];
+    str[2] = files[getToSquare(move) % 8];
+    str[3] = ranks[getToSquare(move) / 8];
     str[4] = '\0';
     return str;
 }
@@ -22,9 +22,10 @@ char *moveToStringAlgebraic(Move move)
     const char *files = "abcdefgh";
     const char *ranks = "12345678";
 
-    Square from = FROM_SQ(move);
-    Square to = TO_SQ(move);
-    MoveFlag flag = MOVE_FLAG(move);
+    Square from = getFromSquare(move);
+    Square to = getToSquare(move);
+    MoveType type = getMoveType(move);
+    PieceType promoPiece = getPromotionPieceType(move);
 
     int fromFile = from % 8;
     int fromRank = from / 8;
@@ -37,25 +38,21 @@ char *moveToStringAlgebraic(Move move)
             files[toFile], ranks[toRank]);
 
     // Add promotion piece if applicable
-    if (flag >= KNIGHT_PROMO_QUIET && flag <= QUEEN_PROMO_CAPTURE)
+    if (type == PROMO)
     {
         char promoChar = ' ';
-        switch (flag)
+        switch (promoPiece)
         {
-        case KNIGHT_PROMO_QUIET:
-        case KNIGHT_PROMO_CAPTURE:
+        case KNIGHT:
             promoChar = 'n';
             break;
-        case BISHOP_PROMO_QUIET:
-        case BISHOP_PROMO_CAPTURE:
+        case BISHOP:
             promoChar = 'b';
             break;
-        case ROOK_PROMO_QUIET:
-        case ROOK_PROMO_CAPTURE:
+        case ROOK:
             promoChar = 'r';
             break;
-        case QUEEN_PROMO_QUIET:
-        case QUEEN_PROMO_CAPTURE:
+        case QUEEN:
             promoChar = 'q';
             break;
         default:

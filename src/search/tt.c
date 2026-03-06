@@ -47,7 +47,7 @@ void clearTT()
         tt_table[i].score = 0;
         tt_table[i].depth = -1;
         tt_table[i].bound = TT_ALL;
-        tt_table[i].bestMove = (Move){.from = NO_SQUARE, .to = NO_SQUARE, .flag = 0};
+        tt_table[i].bestMove = createMove(NO_SQUARE, NO_SQUARE, NORMAL, NO_PIECE);
     }
 }
 
@@ -88,7 +88,7 @@ int extractPVLine(CBoard *board, Move *pvArray, int maxDepth)
         TTEntry *entry = probeTT(board->zobristKey);
 
         // Stop if no TT entry, or if the TT entry doesn't have a valid move
-        if (!entry || entry->zobristKey != board->zobristKey || entry->bestMove.from == NO_SQUARE)
+        if (!entry || entry->zobristKey != board->zobristKey || getFromSquare(entry->bestMove) == NO_SQUARE)
         {
             break;
         }

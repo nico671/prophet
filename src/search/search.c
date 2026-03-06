@@ -52,11 +52,6 @@ static long long nowMs(void)
     return (long long)ts.tv_sec * 1000LL + (long long)ts.tv_nsec / 1000000LL;
 }
 
-static bool movesEqual(Move a, Move b)
-{
-    return a.from == b.from && a.to == b.to && a.flag == b.flag;
-}
-
 static bool moveAllowedBySearchMoves(Move move, const MoveList *searchMoves)
 {
     if (searchMoves->count <= 0)
@@ -66,7 +61,7 @@ static bool moveAllowedBySearchMoves(Move move, const MoveList *searchMoves)
 
     for (int i = 0; i < searchMoves->count; i++)
     {
-        if (movesEqual(move, searchMoves->moves[i]))
+        if (move == searchMoves->moves[i])
         {
             return true;
         }
@@ -135,16 +130,16 @@ static long long computeTimeBudgetMs(const CBoard *board, SearchLimits limits)
 
 static void moveToUciString(Move move, char *out)
 {
-    if (move.from == NO_SQUARE || move.to == NO_SQUARE)
+    if (getFromSquare(move) == NO_SQUARE || getToSquare(move) == NO_SQUARE)
     {
         strcpy(out, "0000");
         return;
     }
 
-    out[0] = (char)('a' + (move.from % 8));
-    out[1] = (char)('1' + (move.from / 8));
-    out[2] = (char)('a' + (move.to % 8));
-    out[3] = (char)('1' + (move.to / 8));
+    out[0] = (char)('a' + (getFromSquare(move) % 8));
+    out[1] = (char)('1' + (getFromSquare(move) / 8));
+    out[2] = (char)('a' + (getToSquare(move) % 8));
+    out[3] = (char)('1' + (getToSquare(move) / 8));
 
     if (move_is_promotion(move))
     {
@@ -175,18 +170,18 @@ static int searchRootBestMove(CBoard *board, int depth, Move *outBestMove)
 
     if (moveList.count == 0)
     {
-        *outBestMove = (Move){.from = NO_SQUARE, .to = NO_SQUARE, .flag = 0};
+        *outBestMove = createMove(NO_SQUARE, NO_SQUARE, 0, 0);
         return isKingInCheck(board, board->sideToMove) ? -200000000 : 0;
     }
 
     ScoredMove scoredMoves[256];
-    scoreMoves(board, &moveList, scoredMoves, (Move){.from = NO_SQUARE, .to = NO_SQUARE, .flag = 0});
+    scoreMoves(board, &moveList, scoredMoves, createMove(NO_SQUARE, NO_SQUARE, 0, 0));
     sortScoredMoves(scoredMoves, moveList.count);
 
     int alpha = -200000000;
     int beta = 200000000;
     int bestScore = -200000000;
-    Move bestMove = (Move){.from = NO_SQUARE, .to = NO_SQUARE, .flag = 0};
+    Move bestMove = createMove(NO_SQUARE, NO_SQUARE, 0, 0);
     bool searchedAtLeastOneMove = false;
 
     for (int i = 0; i < moveList.count; i++)
@@ -212,7 +207,7 @@ static int searchRootBestMove(CBoard *board, int depth, Move *outBestMove)
             break;
         }
 
-        if (eval > bestScore || bestMove.from == NO_SQUARE)
+        if (eval > bestScore || getFromSquare(bestMove) == NO_SQUARE)
         {
             bestScore = eval;
             bestMove = move;
@@ -226,7 +221,7 @@ static int searchRootBestMove(CBoard *board, int depth, Move *outBestMove)
 
     if (!searchedAtLeastOneMove)
     {
-        *outBestMove = (Move){.from = NO_SQUARE, .to = NO_SQUARE, .flag = 0};
+        *outBestMove = createMove(NO_SQUARE, NO_SQUARE, 0, 0);
         return -200000000;
     }
 
@@ -256,7 +251,7 @@ void *search_worker(void *arg)
 
     int currentDepth = 1;
     int bestScore = 0;
-    Move bestMove = {.from = NO_SQUARE, .to = NO_SQUARE, .flag = 0};
+    Move bestMove = createMove(NO_SQUARE, NO_SQUARE, 0, 0);
 
     int maxDepth = limits.searchDepthLimit > 0 ? limits.searchDepthLimit : 100;
 
@@ -272,7 +267,7 @@ void *search_worker(void *arg)
 
         Move depthBestMove = bestMove;
         int score = searchRootBestMove(&searchBoard, currentDepth, &depthBestMove);
-        if (!shouldStopSearch() && depthBestMove.from != NO_SQUARE)
+        if (!shouldStopSearch() && getFromSquare(depthBestMove) != NO_SQUARE)
         {
             bestMove = depthBestMove;
             bestScore = score;
@@ -352,16 +347,25 @@ void scoreMoves(CBoard *board, MoveList *moveList, ScoredMove *scoredMoves, Move
         int score = 0;
 
         scoredMoves[i].move = currMove;
-        if (ttMove.from != NO_SQUARE && movesEqual(currMove, ttMove))
+        if (getFromSquare(ttMove) != NO_SQUARE && currMove == ttMove)
         {
             score = 2000000; // TT move gets highest priority
         }
         else
         {
-            if (move_is_capture(currMove))
+            bool isCapture;
+            if (board->sideToMove == WHITE)
             {
-                PieceType capturedPiece = getPieceAtSquare(board, TO_SQ(currMove));
-                PieceType attackerPiece = getPieceAtSquare(board, FROM_SQ(currMove));
+                isCapture = bitboardCheckSquareBit(board->blackPieces, getToSquare(currMove));
+            }
+            else
+            {
+                isCapture = bitboardCheckSquareBit(board->whitePieces, getToSquare(currMove));
+            }
+            if (isCapture)
+            {
+                PieceType capturedPiece = getPieceAtSquare(board, getToSquare(currMove));
+                PieceType attackerPiece = getPieceAtSquare(board, getFromSquare(currMove));
                 score += 1000000 + pieceValue(capturedPiece) - pieceValue(attackerPiece);
             }
 
@@ -391,7 +395,7 @@ int negamax(CBoard *node, int depth, int alpha, int beta, Color color)
 
     int originalAlpha = alpha;
     TTEntry *ttEntry = probeTT(node->zobristKey);
-    Move ttBestMove = (Move){.from = NO_SQUARE, .to = NO_SQUARE, .flag = 0};
+    Move ttBestMove = createMove(NO_SQUARE, NO_SQUARE, 0, 0);
     if (ttEntry && ttEntry->zobristKey == node->zobristKey)
     {
         ttBestMove = ttEntry->bestMove;

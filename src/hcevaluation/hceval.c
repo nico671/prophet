@@ -7,18 +7,21 @@
 
 #include "board/cboard.h"
 
-#define WHITE_PAWN (2 * PAWN + WHITE)
-#define BLACK_PAWN (2 * PAWN + BLACK)
-#define WHITE_KNIGHT (2 * KNIGHT + WHITE)
-#define BLACK_KNIGHT (2 * KNIGHT + BLACK)
-#define WHITE_BISHOP (2 * BISHOP + WHITE)
-#define BLACK_BISHOP (2 * BISHOP + BLACK)
-#define WHITE_ROOK (2 * ROOK + WHITE)
-#define BLACK_ROOK (2 * ROOK + BLACK)
-#define WHITE_QUEEN (2 * QUEEN + WHITE)
-#define BLACK_QUEEN (2 * QUEEN + BLACK)
-#define WHITE_KING (2 * KING + WHITE)
-#define BLACK_KING (2 * KING + BLACK)
+enum
+{
+    WHITE_PAWN = 0,
+    BLACK_PAWN = 1,
+    WHITE_KNIGHT = 2,
+    BLACK_KNIGHT = 3,
+    WHITE_BISHOP = 4,
+    BLACK_BISHOP = 5,
+    WHITE_ROOK = 6,
+    BLACK_ROOK = 7,
+    WHITE_QUEEN = 8,
+    BLACK_QUEEN = 9,
+    WHITE_KING = 10,
+    BLACK_KING = 11,
+};
 
 #define PCOLOR(p) ((p) & 1)
 #define FLIP(sq) ((sq) ^ 56)
@@ -862,14 +865,14 @@ void hcEvalInit(void)
         return;
     }
 
-    for (int p = PAWN, pc = WHITE_PAWN; p <= KING; pc += 2, p++)
+    for (int p = PAWN, pieceIndex = 0, pc = WHITE_PAWN; p <= KING; p++, pieceIndex++, pc += 2)
     {
         for (int sq = 0; sq < 64; sq++)
         {
-            mg_table[pc][sq] = mg_value[p] + mg_pesto_table[p][sq];
-            eg_table[pc][sq] = eg_value[p] + eg_pesto_table[p][sq];
-            mg_table[pc + 1][sq] = mg_value[p] + mg_pesto_table[p][FLIP(sq)];
-            eg_table[pc + 1][sq] = eg_value[p] + eg_pesto_table[p][FLIP(sq)];
+            mg_table[pc][sq] = mg_value[pieceIndex] + mg_pesto_table[pieceIndex][sq];
+            eg_table[pc][sq] = eg_value[pieceIndex] + eg_pesto_table[pieceIndex][sq];
+            mg_table[pc + 1][sq] = mg_value[pieceIndex] + mg_pesto_table[pieceIndex][FLIP(sq)];
+            eg_table[pc + 1][sq] = eg_value[pieceIndex] + eg_pesto_table[pieceIndex][FLIP(sq)];
         }
     }
 

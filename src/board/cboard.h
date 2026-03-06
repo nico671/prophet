@@ -22,6 +22,8 @@
  *
  * - Occupancies: whitePieces, blackPieces, allPieces
  *
+ * - Square piece mapping: pieceAtSquare[64] for O(1) piece type retrieval at any square without bitboard checks
+ *
  * - State metadata: sideToMove, castlingRights, epSquare, halfmoveClock, fullmoveNumber
  *
  * - Hash: zobristKey
@@ -101,4 +103,106 @@ char *CBoardToFen(CBoard *board);
  * @return PieceType The piece type occupying the given square, or NO_PIECE if the square is empty.
  */
 PieceType getPieceAtSquare(const CBoard *board, Square square);
+
+/**
+ * @brief Returns a pointer to the bitboard representing the specified piece for the given color.
+ *
+ * @param board Pointer to the CBoard struct.
+ * @param color The color of the pieces to retrieve.
+ * @param piece The type of piece to retrieve.
+ * @return Bitboard* Pointer to the bitboard representing the specified piece for the given color, or NULL if not found.
+ */
+Bitboard *pieceBitboard(CBoard *board, Color color, PieceType piece);
+
+/**
+ * @brief Adds a piece to the board at the specified square.
+ *
+ * @param board Pointer to the CBoard struct.
+ * @param square The square where the piece will be added.
+ * @param color The color of the piece to add.
+ * @param piece The type of piece to add.
+ */
+void addPieceToBoard(CBoard *board, Square square, Color color, PieceType piece);
+
+/**
+ * @brief Removes a piece from the board at the specified square.
+ *
+ * @param board Pointer to the CBoard struct.
+ * @param square The square from which the piece will be removed.
+ * @param color The color of the piece to remove.
+ * @param piece The type of piece to remove.
+ */
+void removePieceFromBoard(CBoard *board, Square square, Color color, PieceType piece);
+
+/**
+ * @brief Moves a piece from one square to another on the board.
+ *
+ * @param board Pointer to the CBoard struct.
+ * @param from The square from which the piece will be moved.
+ * @param to The square to which the piece will be moved.
+ * @param side The color of the piece being moved.
+
+*/
+void movePieceOnBoard(CBoard *board, Square from, Square to, Color side);
+
+/**
+ * @brief Removes a captured piece from the board and returns its type.
+ *
+ * @param board Pointer to the CBoard struct.
+ * @param square The square from which the piece will be removed.
+ * @param capturingColor The color of the piece that captured the target piece.
+ * @return PieceType The type of the captured piece, or NO_PIECE if no piece was captured.
+
+ */
+PieceType removeCapturedPiece(CBoard *board, Square square, Color capturingColor);
+
+/**
+ * @brief Updates the occupancy bitboards when moving a piece from one square to another.
+ *
+ * @param board Pointer to the CBoard struct.
+ * @param from The square from which the piece will be moved.
+ * @param to The square to which the piece will be moved.
+ * @param color The color of the piece being moved.
+ */
+void updateOccupanciesForMove(CBoard *board, Square from, Square to, Color color);
+
+/**
+ * @brief Updates the occupancy bitboards when capturing a piece.
+ *
+ * @param board Pointer to the CBoard struct.
+ * @param square The square from which the piece will be captured.
+ * @param capturedColor The color of the piece being captured.
+ */
+void updateOccupanciesForCapture(CBoard *board, Square square, Color capturedColor);
+
+/**
+ * @brief Updates the occupancy bitboards when promoting a pawn. Same as a regular move - color occupancy changes from 'from' to 'to'
+ *
+ * @param board Pointer to the CBoard struct.
+ * @param from The square from which the pawn will be moved.
+ * @param to The square to which the pawn will be moved.
+ * @param color The color of the piece being moved.
+ */
+void updateOccupanciesForPromotion(CBoard *board, Square from, Square to, Color color);
+
+/**
+ * @brief Updates the occupancy bitboards when castling.
+ *
+ * @param board Pointer to the CBoard struct.
+ * @param kingFrom The square from which the king will be moved.
+ * @param kingTo The square to which the king will be moved.
+ * @param rookFrom The square from which the rook will be moved.
+ * @param rookTo The square to which the rook will be moved.
+ * @param color The color of the pieces being moved.
+ */
+void updateOccupanciesForCastling(CBoard *board, Square kingFrom, Square kingTo, Square rookFrom, Square rookTo, Color color);
+
+/**
+ * @brief Updates the castling rights when a rook or king moves.
+ *
+ * @param board Pointer to the CBoard struct.
+ * @param from The square from which the piece will be moved.
+ * @param to The square to which the piece will be moved.
+ */
+void updateCastlingRights(CBoard *board, Square from, Square to);
 #endif // CBOARD_H

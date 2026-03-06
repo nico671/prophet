@@ -17,6 +17,7 @@
 typedef struct UndoInfo
 {
     PieceType capturedPiece;        // What was captured (NO_PIECE if none)
+    Square capturedSquare;          // Previous en passant square (or NO_SQUARE)
     uint8_t previousEpSquare;       // Previous en passant square (or NO_SQUARE)
     uint16_t previousHalfmoveClock; // Previous 50-move counter
     uint8_t previousCastlingRights; // 0..15 bitfield

@@ -7,7 +7,9 @@ void genAllPseudoLegalKingNonCastlingMoves(CBoard *board, MoveList *moveList)
 {
     Color sideToMove = board->sideToMove;
     Bitboard king = (sideToMove == WHITE) ? board->whiteKing : board->blackKing;
-    Bitboard opponentPieces = (sideToMove == WHITE) ? board->blackPieces : board->whitePieces;
+    Bitboard opponentPieces = (sideToMove == WHITE)
+                                  ? (board->blackPieces & ~board->blackKing)
+                                  : (board->whitePieces & ~board->whiteKing);
     if (king)
     {
         Square from = bitboardPopLSB(&king);
@@ -17,7 +19,7 @@ void genAllPseudoLegalKingNonCastlingMoves(CBoard *board, MoveList *moveList)
         while (captures)
         {
             Square to = bitboardPopLSB(&captures);
-            Move move = MAKE_CAPTURE(from, to);
+            Move move = createMove(from, to, NORMAL, NO_PIECE);
             moveList->moves[moveList->count++] = move;
         }
 
@@ -25,7 +27,7 @@ void genAllPseudoLegalKingNonCastlingMoves(CBoard *board, MoveList *moveList)
         while (quietMoves)
         {
             Square to = bitboardPopLSB(&quietMoves);
-            Move move = MAKE_MOVE(from, to);
+            Move move = createMove(from, to, NORMAL, NO_PIECE);
             moveList->moves[moveList->count++] = move;
         }
     }
@@ -52,7 +54,7 @@ void genAllPseudoLegalKingCastlingMoves(CBoard *board, MoveList *moveList)
                 !(bitboardIsBitSet(board->allPieces, G1)))
             {
 
-                Move move = MAKE_CASTLE_KING(E1, G1);
+                Move move = createMove(E1, G1, CASTLE, NO_PIECE);
                 moveList->moves[moveList->count++] = move;
             }
         }
@@ -65,7 +67,7 @@ void genAllPseudoLegalKingCastlingMoves(CBoard *board, MoveList *moveList)
                 !(bitboardIsBitSet(board->allPieces, B1)))
             {
 
-                Move move = MAKE_CASTLE_QUEEN(E1, C1);
+                Move move = createMove(E1, C1, CASTLE, NO_PIECE);
                 moveList->moves[moveList->count++] = move;
             }
         }
@@ -86,7 +88,7 @@ void genAllPseudoLegalKingCastlingMoves(CBoard *board, MoveList *moveList)
                 !(bitboardIsBitSet(board->allPieces, G8)))
             {
 
-                Move move = MAKE_CASTLE_KING(E8, G8);
+                Move move = createMove(E8, G8, CASTLE, NO_PIECE);
                 moveList->moves[moveList->count++] = move;
             }
         }
@@ -99,7 +101,7 @@ void genAllPseudoLegalKingCastlingMoves(CBoard *board, MoveList *moveList)
                 !(bitboardIsBitSet(board->allPieces, B8)))
             {
 
-                Move move = MAKE_CASTLE_QUEEN(E8, C8);
+                Move move = createMove(E8, C8, CASTLE, NO_PIECE);
                 moveList->moves[moveList->count++] = move;
             }
         }

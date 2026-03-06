@@ -7,7 +7,7 @@
 #include "chess_types.h"
 
 // A1 = LSB, H8 = MSB, little-endian rank-file mapping
-typedef unsigned long long Bitboard;
+typedef uint64_t Bitboard;
 
 /**
  * @brief Checks if a bitboard is empty (i.e., all bits are zero).

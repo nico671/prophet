@@ -415,3 +415,192 @@ PieceType getPieceAtSquare(const CBoard *board, Square square)
 
     return board->pieceAtSquare[square];
 }
+
+Bitboard *pieceBitboard(CBoard *board, Color color, PieceType piece)
+{
+    if (color == WHITE)
+    {
+        switch (piece)
+        {
+        case PAWN:
+            return &board->whitePawns;
+        case KNIGHT:
+            return &board->whiteKnights;
+        case BISHOP:
+            return &board->whiteBishops;
+        case ROOK:
+            return &board->whiteRooks;
+        case QUEEN:
+            return &board->whiteQueens;
+        case KING:
+            return &board->whiteKing;
+        default:
+            return NULL;
+        }
+    }
+    else
+    {
+        switch (piece)
+        {
+        case PAWN:
+            return &board->blackPawns;
+        case KNIGHT:
+            return &board->blackKnights;
+        case BISHOP:
+            return &board->blackBishops;
+        case ROOK:
+            return &board->blackRooks;
+        case QUEEN:
+            return &board->blackQueens;
+        case KING:
+            return &board->blackKing;
+        default:
+            return NULL;
+        }
+    }
+}
+
+void addPieceToBoard(CBoard *board, Square square, Color color, PieceType piece)
+{
+    Bitboard *bb = pieceBitboard(board, color, piece);
+    if (!bb)
+    {
+        return;
+    }
+
+    bitboardSetSquareBit(bb, square);
+    board->pieceAtSquare[square] = piece;
+}
+
+void removePieceFromBoard(CBoard *board, Square square, Color color, PieceType piece)
+{
+    Bitboard *bb = pieceBitboard(board, color, piece);
+    if (!bb)
+    {
+        return;
+    }
+
+    bitboardClearSquareBit(bb, square);
+    board->pieceAtSquare[square] = NO_PIECE;
+}
+
+void movePieceOnBoard(CBoard *board, Square from, Square to, Color side)
+{
+    PieceType movingPiece = getPieceAtSquare(board, from);
+    if (movingPiece == NO_PIECE)
+    {
+        return;
+    }
+
+    removePieceFromBoard(board, from, side, movingPiece);
+    addPieceToBoard(board, to, side, movingPiece);
+}
+
+PieceType removeCapturedPiece(CBoard *board, Square square, Color capturingColor)
+{
+    Color capturedColor = (capturingColor == WHITE) ? BLACK : WHITE;
+
+    PieceType capturedPiece = getPieceAtSquare(board, square);
+    if (capturedPiece == NO_PIECE)
+    {
+        return NO_PIECE;
+    }
+
+    removePieceFromBoard(board, square, capturedColor, capturedPiece);
+    return capturedPiece;
+}
+
+void updateOccupanciesForMove(CBoard *board, Square from, Square to, Color color)
+{
+    if (color == WHITE)
+    {
+        bitboardClearSquareBit(&board->whitePieces, from);
+        bitboardSetSquareBit(&board->whitePieces, to);
+    }
+    else
+    {
+        bitboardClearSquareBit(&board->blackPieces, from);
+        bitboardSetSquareBit(&board->blackPieces, to);
+    }
+    bitboardClearSquareBit(&board->allPieces, from);
+    bitboardSetSquareBit(&board->allPieces, to);
+}
+
+void updateOccupanciesForCapture(CBoard *board, Square square, Color capturedColor)
+{
+    if (capturedColor == WHITE)
+    {
+        bitboardClearSquareBit(&board->whitePieces, square);
+    }
+    else
+    {
+        bitboardClearSquareBit(&board->blackPieces, square);
+    }
+    bitboardClearSquareBit(&board->allPieces, square);
+}
+
+void updateOccupanciesForPromotion(CBoard *board, Square from, Square to, Color color)
+{
+    updateOccupanciesForMove(board, from, to, color);
+}
+
+void updateOccupanciesForCastling(CBoard *board, Square kingFrom, Square kingTo,
+                                  Square rookFrom, Square rookTo, Color color)
+{
+    if (color == WHITE)
+    {
+        bitboardClearSquareBit(&board->whitePieces, kingFrom);
+        bitboardClearSquareBit(&board->whitePieces, rookFrom);
+        bitboardSetSquareBit(&board->whitePieces, kingTo);
+        bitboardSetSquareBit(&board->whitePieces, rookTo);
+    }
+    else
+    {
+        bitboardClearSquareBit(&board->blackPieces, kingFrom);
+        bitboardClearSquareBit(&board->blackPieces, rookFrom);
+        bitboardSetSquareBit(&board->blackPieces, kingTo);
+        bitboardSetSquareBit(&board->blackPieces, rookTo);
+    }
+    bitboardClearSquareBit(&board->allPieces, kingFrom);
+    bitboardClearSquareBit(&board->allPieces, rookFrom);
+    bitboardSetSquareBit(&board->allPieces, kingTo);
+    bitboardSetSquareBit(&board->allPieces, rookTo);
+}
+
+void updateCastlingRights(CBoard *board, Square from, Square to)
+{
+    // If king moved, lose all castling
+    if (bitboardIsBitSet(board->whiteKing, to))
+    {
+        CLEAR_BIT(board->castlingRights, 3);
+        CLEAR_BIT(board->castlingRights, 2);
+        // board->whiteCanCastleQueenside = false;
+    }
+    else if (bitboardIsBitSet(board->blackKing, to))
+    {
+        CLEAR_BIT(board->castlingRights, 1);
+        CLEAR_BIT(board->castlingRights, 0);
+        // board->blackCanCastleKingside = false;
+        // board->blackCanCastleQueenside = false;
+    }
+
+    // If rook moved from corner, lose that side's castling
+    if (from == H1)
+        CLEAR_BIT(board->castlingRights, 3);
+    if (from == A1)
+        CLEAR_BIT(board->castlingRights, 2);
+    if (from == H8)
+        CLEAR_BIT(board->castlingRights, 1);
+    if (from == A8)
+        CLEAR_BIT(board->castlingRights, 0);
+
+    // If rook was captured on corner square, lose that side's castling
+    if (to == H1)
+        CLEAR_BIT(board->castlingRights, 3);
+    if (to == A1)
+        CLEAR_BIT(board->castlingRights, 2);
+    if (to == H8)
+        CLEAR_BIT(board->castlingRights, 1);
+    if (to == A8)
+        CLEAR_BIT(board->castlingRights, 0);
+}

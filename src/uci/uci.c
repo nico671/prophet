@@ -153,7 +153,7 @@ Move parseLongAlgebraicMove(const CBoard *board, const char *moveStr)
     if (strlen(moveStr) < 4)
     {
         printf("info string Invalid move format: %s\n", moveStr);
-        return (Move){.from = NO_SQUARE, .to = NO_SQUARE, .flag = 0};
+        return createMove(NO_SQUARE, NO_SQUARE, NORMAL, NO_PIECE);
     }
 
     Square from = algebraicToSquare(moveStr);
@@ -161,7 +161,7 @@ Move parseLongAlgebraicMove(const CBoard *board, const char *moveStr)
     if (from == NO_SQUARE || to == NO_SQUARE)
     {
         printf("info string Invalid move format: %s\n", moveStr);
-        return (Move){.from = NO_SQUARE, .to = NO_SQUARE, .flag = 0};
+        return createMove(NO_SQUARE, NO_SQUARE, NORMAL, NO_PIECE);
     }
 
     // generateLegalMoves() temporarily makes/unmakes moves internally.
@@ -179,7 +179,7 @@ Move parseLongAlgebraicMove(const CBoard *board, const char *moveStr)
 
     for (int i = 0; i < moveList.count; i++)
     {
-        if (moveList.moves[i].from == from && moveList.moves[i].to == to)
+        if (getFromSquare(moveList.moves[i]) == from && getToSquare(moveList.moves[i]) == to)
         {
             if (promotionChar == '\0')
             {
@@ -206,7 +206,7 @@ Move parseLongAlgebraicMove(const CBoard *board, const char *moveStr)
         }
     }
     printf("info string Move not in legal moves list: %s\n", moveStr);
-    return (Move){.from = NO_SQUARE, .to = NO_SQUARE, .flag = 0};
+    return createMove(NO_SQUARE, NO_SQUARE, NORMAL, NO_PIECE);
 }
 
 void handleGoCommand(UCIState *state, const char *command)
@@ -238,7 +238,7 @@ void handleGoCommand(UCIState *state, const char *command)
                 }
 
                 Move move = parseLongAlgebraicMove(&state->board, moveToken);
-                if (move.from != NO_SQUARE && move.to != NO_SQUARE)
+                if (getFromSquare(move) != NO_SQUARE && getToSquare(move) != NO_SQUARE)
                 {
                     if (goCmd.searchMoves.count < 256)
                     {
@@ -398,7 +398,7 @@ void handlePositionCommand(UCIState *state, const char *command)
             strncpy(move_str, command, move_length);
             move_str[move_length] = '\0';
             Move move = parseLongAlgebraicMove(&state->board, move_str);
-            if (move.from != NO_SQUARE && move.to != NO_SQUARE)
+            if (getFromSquare(move) != NO_SQUARE && getToSquare(move) != NO_SQUARE)
             {
                 makeMove(&state->board, move);
             }
@@ -456,11 +456,13 @@ void uciLoop(void)
             printf("id name Prophet\n");
             printf("id author Nicolas Carbone\n");
             printf("uciok\n");
+            fflush(stdout);
             state.initialized = true;
         }
         else if (!strncmp(p, "setoption", 9) && (p[9] == '\0' || isspace((unsigned char)p[9])))
         {
             printf("info string No options available\n");
+            fflush(stdout);
         }
         else if (!strncmp(p, "ucinewgame", 10) && (p[10] == '\0' || isspace((unsigned char)p[10])))
         {
@@ -469,6 +471,7 @@ void uciLoop(void)
             if (!success)
             {
                 printf("info string Failed to reset board to start position\n");
+                fflush(stdout);
             }
         }
         else if (!strncmp(p, "position", 8) && (p[8] == '\0' || isspace((unsigned char)p[8])))
@@ -512,15 +515,22 @@ void uciLoop(void)
         else if (!strncmp(p, "printboard", 10) && (p[10] == '\0' || isspace((unsigned char)p[10])))
         {
             if (state.debugMode)
+            {
                 printBoard(&state.board);
+                fflush(stdout);
+            }
             else
+            {
                 printf("info string 'printboard' command only works in debug mode\n");
+                fflush(stdout);
+            }
         }
         else
         {
             if (state.debugMode)
             {
                 printf("info string Ignoring unknown command: %s\n", p);
+                fflush(stdout);
             }
         }
     }
