@@ -1,5 +1,5 @@
-#ifndef PROPHET_ENGINE_H
-#define PROPHET_ENGINE_H
+#ifndef ENGINE_H
+#define ENGINE_H
 #include "board/cboard.h"
 #include "movegen/move.h"
 #include <pthread.h>
@@ -32,23 +32,8 @@ typedef struct
     SearchLimits limits; // The parsed go parameters
 } SearchThreadData;
 
-// Updated UCI state
-typedef struct UCIState
-{
-    bool initialized;
-    bool debugMode;
-    bool ready;
-    bool quitting;
-
-    CBoard board; // The "root" board managed by UCI
-
-    // Thread management
-    pthread_t searchThread;
-    bool isSearching; // Tracks if the thread is currently active
-} UCIState;
-
 // Initializes global engine state (attack tables, zobrist keys, eval function helpers).
 // Safe to call multiple times.
 void initEngine(void);
 
-#endif // PROPHET_ENGINE_H
+#endif // ENGINE_H

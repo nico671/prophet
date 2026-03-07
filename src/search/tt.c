@@ -3,9 +3,9 @@
 #include <stdlib.h>
 #include <math.h>
 #include "board/cboard.h"
-#include "board/undo.h"
 #include "movegen/move.h"
 #include "movegen/move_make.h"
+
 TTEntry *tt_table = NULL;
 size_t tt_size = 0;
 

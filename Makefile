@@ -22,7 +22,7 @@ $(TARGET): $(MAIN_OBJECTS)
 $(MAGIC_TARGET): $(BUILDDIR)/attacks/magic_gen.o $(BUILDDIR)/attacks/sliding_attacks.o
 	$(CC) $(CFLAGS) $^ -o $@
 
-$(PERFT_TARGET): $(BUILDDIR)/tests/perft_test.o $(BUILDDIR)/tests/testing_utils.o $(BUILDDIR)/movegen/move.o $(BUILDDIR)/hcevaluation/hceval.o $(BUILDDIR)/search/tt.o $(BUILDDIR)/engine/engine.o $(BUILDDIR)/movegen/movegen.o $(BUILDDIR)/movegen/pawn_moves.o $(BUILDDIR)/movegen/knight_moves.o $(BUILDDIR)/movegen/sliding_moves.o $(BUILDDIR)/movegen/king_moves.o $(BUILDDIR)/movegen/move_make.o $(BUILDDIR)/board/cboard.o $(BUILDDIR)/board/zobrist.o $(BUILDDIR)/engine/engine.o $(BUILDDIR)/utils/prng.o $(BUILDDIR)/attacks/constant_attacks.o $(BUILDDIR)/attacks/sliding_attacks.o
+$(PERFT_TARGET): $(BUILDDIR)/tests/perft_test.o $(BUILDDIR)/tests/testing_utils.o $(BUILDDIR)/movegen/move.o $(BUILDDIR)/eval/hceval.o $(BUILDDIR)/search/tt.o $(BUILDDIR)/engine/engine.o $(BUILDDIR)/movegen/movegen.o $(BUILDDIR)/movegen/pawn_moves.o $(BUILDDIR)/movegen/knight_moves.o $(BUILDDIR)/movegen/sliding_moves.o $(BUILDDIR)/movegen/king_moves.o $(BUILDDIR)/movegen/move_make.o $(BUILDDIR)/board/cboard.o $(BUILDDIR)/board/zobrist.o $(BUILDDIR)/engine/engine.o $(BUILDDIR)/utils/prng.o $(BUILDDIR)/attacks/constant_attacks.o $(BUILDDIR)/attacks/sliding_attacks.o
 	$(CC) $(CFLAGS) $^ -o $@
 
 $(BUILDDIR)/%.o: $(SRCDIR)/%.c

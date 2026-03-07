@@ -3,7 +3,6 @@
 #include "engine/engine.h"
 #include "movegen/move_make.h"
 #include "movegen/movegen.h"
-#include "board/undo.h"
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
@@ -75,38 +74,6 @@ static bool parseNextIntToken(const char **command, int *out)
     *out = atoi(token);
     return true;
 }
-
-// static void moveToUciString(Move move, char *out)
-// {
-//     if (move.from == NO_SQUARE || move.to == NO_SQUARE)
-//     {
-//         strcpy(out, "0000");
-//         return;
-//     }
-
-//     out[0] = (char)('a' + (move.from % 8));
-//     out[1] = (char)('1' + (move.from / 8));
-//     out[2] = (char)('a' + (move.to % 8));
-//     out[3] = (char)('1' + (move.to / 8));
-
-//     if (move_is_promotion(move))
-//     {
-//         PieceType promo = getPromotionPieceType(move);
-//         char promoChar = 'q';
-//         if (promo == KNIGHT)
-//             promoChar = 'n';
-//         else if (promo == BISHOP)
-//             promoChar = 'b';
-//         else if (promo == ROOK)
-//             promoChar = 'r';
-
-//         out[4] = promoChar;
-//         out[5] = '\0';
-//         return;
-//     }
-
-//     out[4] = '\0';
-// }
 
 int safeLineRead(char *line_input)
 {

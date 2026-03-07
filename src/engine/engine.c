@@ -2,8 +2,9 @@
 
 #include "attacks/sliding_attacks.h"
 #include "board/zobrist.h"
-#include "hcevaluation/hceval.h"
+#include "eval/hceval.h"
 #include "search/tt.h"
+
 void initEngine(void)
 {
     // all of these functions are idempotent

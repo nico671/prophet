@@ -2,7 +2,7 @@
 #define SEARCH_H
 #include "movegen/move.h"
 #include "engine/engine.h"
-
+#include "uci/uci.h"
 typedef struct
 {
     Move move;

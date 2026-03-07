@@ -1,7 +1,6 @@
 #ifndef MOVE_MAKE_H
 #define MOVE_MAKE_H
 
-#include "board/undo.h"
 #include "movegen/move.h"
 
 typedef struct CBoard CBoard;
@@ -14,7 +13,7 @@ void unmakeMove(CBoard *board, Move move, UndoInfo undoInfo);
 UndoInfo makeQuietMove(CBoard *board, Move move);
 UndoInfo makeCaptureMove(CBoard *board, Move move);
 UndoInfo makeDoublePawnPushMove(CBoard *board, Move move);
-UndoInfo makeEnPassantMove(CBoard *board, Move move);
+UndoInfo makeEnPassantCapture(CBoard *board, Move move);
 UndoInfo makePromotionMove(CBoard *board, Move move);
 UndoInfo makeCastlingMove(CBoard *board, Move move);
 

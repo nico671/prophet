@@ -70,16 +70,17 @@ typedef struct CBoard
 } CBoard;
 
 /**
- * Prints a human-readable representation of a chess board to standard output, displaying the piece layout from rank 8 to rank 1 using standard chess notation characters (uppercase for white, lowercase for black, '.' for empty squares), followed by game state information including side to move, en passant square, halfmove clock, fullmove number, castling rights, and the Zobrist hash key.
+ * @brief Prints a human-readable representation of a chess board to standard output, displaying the piece layout from rank 8 to rank 1 using standard chess notation characters (uppercase for white, lowercase for black, '.' for empty squares), followed by game state information including side to move, en passant square, halfmove clock, fullmove number, castling rights, and the Zobrist hash key.
  *
  * Returns early with an error message if the provided CBoard pointer is NULL.
+ *
+ * @param board Pointer to the CBoard struct to print.
  */
 void printBoard(CBoard *board);
 
 /**
  * @brief Parses a FEN string and initializes a CBoard struct with the corresponding piece placements, game state information (side to move, castling rights, en passant square, halfmove clock, fullmove number), and computes the Zobrist hash key for the resulting board state.
- *
- * @note Assumes the input FEN string is well-formed and valid. Error handling for invalid FEN strings is a TODO item.
+ * The function validates the FEN string format and returns false if the string is invalid (e.g., incorrect piece placement, missing sections, invalid characters). On success, it populates the provided CBoard struct with the parsed information and returns true.
  *
  * @param fenString A null-terminated string in Forsyth-Edwards Notation representing a chess position, including piece placements, side to move, castling rights, en passant square, halfmove clock, and fullmove number.
  * @param board Pointer to a CBoard struct that will be initialized based on the provided FEN string. The function will populate all fields of the CBoard struct according to the information encoded in the FEN string.
