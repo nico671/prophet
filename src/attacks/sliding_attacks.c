@@ -480,6 +480,10 @@ Bitboard generateBishopAttacks(Square square, Bitboard blockers)
 
 Bitboard getRookAttacks(Square square, Bitboard occupancy)
 {
+    if (square < A1 || square >= NO_SQUARE)
+    {
+        return 0ULL;
+    }
     occupancy &= rook_occupancy_maps[square];
     int index = magicIndex(occupancy, RMagic[square], RBits[square]);
     return rook_attacks[square][index];
@@ -487,6 +491,10 @@ Bitboard getRookAttacks(Square square, Bitboard occupancy)
 
 Bitboard getBishopAttacks(Square square, Bitboard occupancy)
 {
+    if (square < A1 || square >= NO_SQUARE)
+    {
+        return 0ULL;
+    }
     occupancy &= bishop_occupancy_maps[square];
     int index = magicIndex(occupancy, BMagic[square], BBits[square]);
     return bishop_attacks[square][index];
@@ -494,6 +502,10 @@ Bitboard getBishopAttacks(Square square, Bitboard occupancy)
 
 Bitboard getQueenAttacks(Square square, Bitboard occupancy)
 {
+    if (square < A1 || square >= NO_SQUARE)
+    {
+        return 0ULL;
+    }
     return getRookAttacks(square, occupancy) | getBishopAttacks(square, occupancy);
 }
 

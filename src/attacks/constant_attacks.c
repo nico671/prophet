@@ -69,6 +69,10 @@ const Bitboard knightAttacksTable[64] = {
 
 Bitboard getKnightAttacks(Square square)
 {
+    if (square < A1 || square >= NO_SQUARE)
+    {
+        return 0ULL;
+    }
     return knightAttacksTable[square];
 }
 
@@ -141,10 +145,13 @@ const Bitboard kingAttacksTable[64] = {
 
 Bitboard getKingAttacks(Square square)
 {
+    if (square < A1 || square >= NO_SQUARE)
+    {
+        return 0ULL;
+    }
     return kingAttacksTable[square];
 }
 
-// can probably remove the first rank and last rank entries as they are all 0
 const Bitboard whitePawnAttacksTable[64] = {
     0x0000000000000200ULL,
     0x0000000000000500ULL,
@@ -212,7 +219,6 @@ const Bitboard whitePawnAttacksTable[64] = {
     0x0000000000000000ULL,
 };
 
-// can probably remove the first rank and last rank entries as they are all 0
 const Bitboard blackPawnAttacksTable[64] = {
     0x0000000000000000ULL,
     0x0000000000000000ULL,
@@ -288,9 +294,13 @@ Bitboard getPawnAttacks(Square square, Color color)
     }
 
     if (color == WHITE)
+    {
         return whitePawnAttacksTable[square];
+    }
     else
+    {
         return blackPawnAttacksTable[square];
+    }
 }
 // FUNCTIONS USED TO GENERATE THE ABOVE ATTACK TABLES, KEPT FOR REFERENCE
 // void initKnightAttacks()

@@ -11,7 +11,7 @@ extern const Bitboard knightAttacksTable[64];
 
 /**
  * @brief Returns the attack bitboard for a knight on the given square
- *
+ * @note Returns 0 if the square is invalid (less than A1 or greater than H8)
  * @param square The square for which to get the knight attacks (0-63 corresponding to A1-H8)
  * @return Bitboard
  */
@@ -25,7 +25,7 @@ extern const Bitboard kingAttacksTable[64];
 
 /**
  * @brief Returns the attack bitboard for a king on the given square
- *
+ * @note Returns 0 if the square is invalid (less than A1 or greater than H8)
  * @param square The square for which to get the king attacks (0-63 corresponding to A1-H8)
  * @return Bitboard
  */
@@ -38,7 +38,7 @@ Bitboard getKingAttacks(Square square);
 extern const Bitboard whitePawnAttacksTable[64];
 /**
  * @brief Returns the attack bitboard for a pawn of the given color on the given square
- *
+ * @note Returns 0 if the square is invalid (less than A1 or greater than H8)
  * @param square The square for which to get the pawn attacks (0-63 corresponding to A1-H8)
  * @param color The color of the pawn (WHITE or BLACK)
  * @return Bitboard
