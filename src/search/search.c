@@ -224,7 +224,7 @@ static int searchRootBestMove(CBoard *board, int depth, Move *outBestMove)
         *outBestMove = createMove(NO_SQUARE, NO_SQUARE, 0, 0);
         return -200000000;
     }
-
+    storeTT(board->zobristKey, depth, bestScore, TT_PV, bestMove);
     *outBestMove = bestMove;
     return bestScore;
 }
@@ -440,7 +440,7 @@ int negamax(CBoard *node, int depth, int alpha, int beta, Color color)
     {
         return 0; // Draw score for stalemate
     }
-
+    Move bestMoveAtNode = createMove(NO_SQUARE, NO_SQUARE, 0, 0);
     int maxEval = -200000000;
     for (int i = 0; i < moveList.count; i++)
     {
@@ -462,6 +462,7 @@ int negamax(CBoard *node, int depth, int alpha, int beta, Color color)
         if (eval > maxEval)
         {
             maxEval = eval;
+            bestMoveAtNode = move;
         }
         if (maxEval > alpha)
         {
@@ -481,6 +482,6 @@ int negamax(CBoard *node, int depth, int alpha, int beta, Color color)
     {
         bound = TT_CUT;
     }
-    storeTT(node->zobristKey, depth, maxEval, bound, ttBestMove);
+    storeTT(node->zobristKey, depth, maxEval, bound, bestMoveAtNode);
     return maxEval;
 }

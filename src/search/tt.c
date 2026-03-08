@@ -5,9 +5,27 @@
 #include "board/cboard.h"
 #include "movegen/move.h"
 #include "movegen/move_make.h"
+#include "movegen/movegen.h"
 
 TTEntry *tt_table = NULL;
 size_t tt_size = 0;
+
+static bool isMoveLegalInPosition(CBoard *board, Move move)
+{
+    MoveList moveList;
+    initMoveList(&moveList);
+    generateLegalMoves(board, &moveList);
+
+    for (int i = 0; i < moveList.count; i++)
+    {
+        if (moveList.moves[i] == move)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
 
 static size_t floor_pow2(size_t x)
 {
@@ -53,11 +71,19 @@ void clearTT()
 
 void storeTT(uint64_t key, int depth, int score, TTBound bound, Move bestMove)
 {
+    if (key == 0 || tt_size == 0 || tt_table == NULL)
+    {
+        return;
+    }
+
     size_t index = key & (tt_size - 1); // Equivalent to key % tt_size when tt_size is a power of 2
     TTEntry *entry = &tt_table[index];
 
-    // Always replace if the new entry has greater depth or is an exact score
-    if (depth > entry->depth || bound == TT_PV)
+    bool sameKey = (entry->zobristKey == key);
+    bool emptySlot = (entry->zobristKey == 0);
+
+    // Replace if slot is empty, if we're refreshing same position, or if this entry is more valuable
+    if (emptySlot || sameKey || depth > entry->depth || bound == TT_PV)
     {
         entry->zobristKey = key;
         entry->score = score;
@@ -69,6 +95,10 @@ void storeTT(uint64_t key, int depth, int score, TTBound bound, Move bestMove)
 
 TTEntry *probeTT(uint64_t key)
 {
+    if (key == 0 || tt_size == 0 || tt_table == NULL)
+    {
+        return NULL; // TT not initialized or invalid key
+    }
     size_t index = key & (tt_size - 1); // Equivalent to key % tt_size when tt_size is a power of 2
     TTEntry *entry = &tt_table[index];
     if (entry->zobristKey == key)
@@ -94,6 +124,13 @@ int extractPVLine(CBoard *board, Move *pvArray, int maxDepth)
         }
 
         Move pvMove = entry->bestMove;
+
+        // Defensive safety: TT entries can be stale/colliding; only follow legal moves.
+        if (!isMoveLegalInPosition(board, pvMove))
+        {
+            break;
+        }
+
         pvArray[count] = pvMove;
 
         // Make the move on the board to update the Zobrist key for the next lookup
@@ -101,7 +138,7 @@ int extractPVLine(CBoard *board, Move *pvArray, int maxDepth)
         count++;
     }
 
-    // Unmake all moves to restore the root board state!
+    // Unmake all moves to restore the root board state
     for (int i = count - 1; i >= 0; i--)
     {
         unmakeMove(board, pvArray[i], undoStack[i]);

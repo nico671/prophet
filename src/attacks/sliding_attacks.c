@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdatomic.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define ROOK_TABLE_SIZE 4096
@@ -325,7 +326,11 @@ static int extractMaskBitPositions(Bitboard mask, int *positions, int maxPositio
     int count = 0;
     while (mask)
     {
-        assert(count < maxPositions);
+        if (count >= maxPositions)
+        {
+            assert(count < maxPositions);
+            break;
+        }
         positions[count++] = bitboardLSBIndex(mask);
         mask &= mask - 1;
     }
@@ -364,10 +369,15 @@ static void initializeAttackTable(
         const int bits = bitsPerSquare[square];
         const int permutations = 1 << bits;
         int bitPositions[ROOK_TABLE_BITS] = {0};
+        const int extractedBits = extractMaskBitPositions(occupancyMaps[square], bitPositions, ROOK_TABLE_BITS);
 
         assert(bits <= ROOK_TABLE_BITS);
         assert(permutations <= tableSize);
-        assert(extractMaskBitPositions(occupancyMaps[square], bitPositions, ROOK_TABLE_BITS) == bits);
+        assert(extractedBits == bits);
+        if (bits > ROOK_TABLE_BITS || permutations > tableSize || extractedBits != bits)
+        {
+            abort();
+        }
 
         memset(used, 0, (size_t)tableSize * sizeof(used[0]));
 
