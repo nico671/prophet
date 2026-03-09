@@ -162,7 +162,7 @@ static void moveToUciString(Move move, char *out)
     out[4] = '\0';
 }
 
-static int searchRootBestMove(CBoard *board, int depth, Move *outBestMove)
+static int searchRootBestMove(CBoard *board, int depth, Move *prevBestMove)
 {
     MoveList moveList;
     initMoveList(&moveList);
@@ -170,12 +170,40 @@ static int searchRootBestMove(CBoard *board, int depth, Move *outBestMove)
 
     if (moveList.count == 0)
     {
-        *outBestMove = createMove(NO_SQUARE, NO_SQUARE, 0, 0);
+        *prevBestMove = createMove(NO_SQUARE, NO_SQUARE, 0, 0);
         return isKingInCheck(board, board->sideToMove) ? -200000000 : 0;
     }
 
+    // check if prev best move is valid / legal in this position, if so prioritize it
+    // if not fall back to probing the TT for a move to prioritize
+    Move ttMove = createMove(NO_SQUARE, NO_SQUARE, 0, 0);
+    if (getFromSquare(*prevBestMove) != NO_SQUARE)
+    {
+        bool found = false;
+        for (int i = 0; i < moveList.count; i++)
+        {
+            if (moveList.moves[i] == *prevBestMove)
+            {
+                found = true;
+                break;
+            }
+        }
+        if (found)
+        {
+            ttMove = *prevBestMove;
+        }
+    }
+    else
+    {
+        TTEntry *ttEntry = probeTT(board->zobristKey);
+        if (ttEntry && ttEntry->zobristKey == board->zobristKey)
+        {
+            ttMove = ttEntry->bestMove;
+        }
+    }
+
     ScoredMove scoredMoves[256];
-    scoreMoves(board, &moveList, scoredMoves, createMove(NO_SQUARE, NO_SQUARE, 0, 0));
+    scoreMoves(board, &moveList, scoredMoves, ttMove);
     sortScoredMoves(scoredMoves, moveList.count);
 
     int alpha = -200000000;
@@ -221,11 +249,11 @@ static int searchRootBestMove(CBoard *board, int depth, Move *outBestMove)
 
     if (!searchedAtLeastOneMove)
     {
-        *outBestMove = createMove(NO_SQUARE, NO_SQUARE, 0, 0);
+        *prevBestMove = createMove(NO_SQUARE, NO_SQUARE, 0, 0);
         return -200000000;
     }
     storeTT(board->zobristKey, depth, bestScore, TT_PV, bestMove);
-    *outBestMove = bestMove;
+    *prevBestMove = bestMove;
     return bestScore;
 }
 
@@ -235,7 +263,7 @@ atomic_bool engine_stop_search = false;
 // The entry point for the search thread
 void *search_worker(void *arg)
 {
-    // 1. Cast and extract the data
+    // Cast and extract the data
     SearchThreadData *data = (SearchThreadData *)arg;
     CBoard searchBoard = data->board;
     SearchLimits limits = data->limits;
@@ -255,14 +283,12 @@ void *search_worker(void *arg)
 
     int maxDepth = limits.searchDepthLimit > 0 ? limits.searchDepthLimit : 100;
 
-    // 2. The Iterative Deepening Loop
+    // The Iterative Deepening Loop
     while (currentDepth <= maxDepth)
     {
-
-        // 3. Check the stop flag periodically!
         if (shouldStopSearch())
         {
-            break; // Break out of iterative deepening immediately
+            break;
         }
 
         Move depthBestMove = bestMove;
@@ -325,12 +351,11 @@ void searchOnGoCommand(UCIState *state, SearchLimits goCmd)
         return;
     }
 
-    // 4. SNAPSHOT the board state. This prevents race conditions if the GUI
+    // snapshot of the board state. This prevents race conditions if the GUI
     // suddenly sends another "position" command while pondering.
     threadData->board = state->board;
     threadData->limits = goCmd;
 
-    // 5. Kick off the background thread!
     if (pthread_create(&state->searchThread, NULL, search_worker, threadData) != 0)
     {
         printf("info string failed to create search thread\n");
