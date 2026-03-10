@@ -1,8 +1,10 @@
 #ifndef CHESS_TYPES_H
 #define CHESS_TYPES_H
 
-// squares enum
-// aligns with bitboard indexing
+/**
+ * @brief Enum for chess squares, representing each square on the board with a unique integer value. Consistent with little-endian rank-file mapping used in bitboards.
+ *
+ */
 typedef enum
 {
     A1,
@@ -72,14 +74,20 @@ typedef enum
 } Square;
 #define NO_SQUARE 64
 
-// color enum
+/**
+ * @brief Enum for player colors in chess. WHITE is represented by 0 and BLACK by 1.
+ *
+ */
 typedef enum
 {
     WHITE = 0,
     BLACK = 1
 } Color;
 
-// piece types enum
+/**
+ * @brief Enum for chess piece types. The piece types are assigned integer values starting from 0 for NO_PIECE up to 6 for KING.
+ *
+ */
 typedef enum
 {
     NO_PIECE = 0,

@@ -35,20 +35,18 @@ void genAllPseudoLegalKingNonCastlingMoves(CBoard *board, MoveList *moveList)
 
 void genAllPseudoLegalKingCastlingMoves(CBoard *board, MoveList *moveList)
 {
-    Bitboard whiteKing = board->whiteKing;
-    Bitboard blackKing = board->blackKing;
 
     // handle white castling
     if (board->sideToMove == WHITE)
     {
-        if (!whiteKing)
+        if (!board->whiteKing)
         {
             return;
         }
 
         if (CHECK_BIT(board->castlingRights, 3))
         {
-            if ((bitboardLSBIndex(whiteKing) == E1) &&
+            if ((bitboardLSBIndex(board->whiteKing) == E1) &&
                 (bitboardIsBitSet(board->whiteRooks, H1)) &&
                 !(bitboardIsBitSet(board->allPieces, F1)) &&
                 !(bitboardIsBitSet(board->allPieces, G1)))
@@ -60,7 +58,7 @@ void genAllPseudoLegalKingCastlingMoves(CBoard *board, MoveList *moveList)
         }
         if (CHECK_BIT(board->castlingRights, 2))
         {
-            if ((bitboardLSBIndex(whiteKing) == E1) &&
+            if ((bitboardLSBIndex(board->whiteKing) == E1) &&
                 (bitboardIsBitSet(board->whiteRooks, A1)) &&
                 !(bitboardIsBitSet(board->allPieces, D1)) &&
                 !(bitboardIsBitSet(board->allPieces, C1)) &&
@@ -75,14 +73,14 @@ void genAllPseudoLegalKingCastlingMoves(CBoard *board, MoveList *moveList)
     // handle black castling
     else
     {
-        if (!blackKing)
+        if (!board->blackKing)
         {
             return;
         }
 
         if (CHECK_BIT(board->castlingRights, 1))
         {
-            if ((bitboardLSBIndex(blackKing) == E8) &&
+            if ((bitboardLSBIndex(board->blackKing) == E8) &&
                 (bitboardIsBitSet(board->blackRooks, H8)) &&
                 !(bitboardIsBitSet(board->allPieces, F8)) &&
                 !(bitboardIsBitSet(board->allPieces, G8)))
@@ -94,7 +92,7 @@ void genAllPseudoLegalKingCastlingMoves(CBoard *board, MoveList *moveList)
         }
         if (CHECK_BIT(board->castlingRights, 0))
         {
-            if ((bitboardLSBIndex(blackKing) == E8) &&
+            if ((bitboardLSBIndex(board->blackKing) == E8) &&
                 (bitboardIsBitSet(board->blackRooks, A8)) &&
                 !(bitboardIsBitSet(board->allPieces, D8)) &&
                 !(bitboardIsBitSet(board->allPieces, C8)) &&

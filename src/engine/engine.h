@@ -9,31 +9,10 @@
 // Global, thread-safe flag to interrupt the search
 extern atomic_bool engine_stop_search;
 
-typedef struct SearchLimits
-{
-    bool ponder;
-    bool infiniteSearch;
-    int timeForWhiteMs;
-    int timeForBlackMs;
-    int incrementForWhiteMs;
-    int incrementForBlackMs;
-    int movesUntilNextTimeControl;
-    int searchDepthLimit;
-    int searchNodeLimit;
-    int searchForMateInNMoves;
-    int searchMoveTimeLimitMs;
-    MoveList searchMoves;
-} SearchLimits;
-
-// The payload we send to the search thread
-typedef struct
-{
-    CBoard board;        // A COPY of the board, safe from UCI mutations
-    SearchLimits limits; // The parsed go parameters
-} SearchThreadData;
-
-// Initializes global engine state (attack tables, zobrist keys, eval function helpers).
-// Safe to call multiple times.
+/**
+ * @brief Initializes the chess engine, setting up global state and data structures including sliding attack tables, Zobrist hashing keys, evaluation parameters, and the transposition table. This function is idempotent and can be safely called multiple times without adverse effects. It must be called before any search or move generation functions are used to ensure that all necessary data structures are properly initialized.
+ *
+ */
 void initEngine(void);
 
 #endif // ENGINE_H

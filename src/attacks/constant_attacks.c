@@ -69,10 +69,7 @@ const Bitboard knightAttacksTable[64] = {
 
 Bitboard getKnightAttacks(Square square)
 {
-    if (square < A1 || square >= NO_SQUARE)
-    {
-        return 0ULL;
-    }
+
     return knightAttacksTable[square];
 }
 
@@ -145,10 +142,6 @@ const Bitboard kingAttacksTable[64] = {
 
 Bitboard getKingAttacks(Square square)
 {
-    if (square < A1 || square >= NO_SQUARE)
-    {
-        return 0ULL;
-    }
     return kingAttacksTable[square];
 }
 
@@ -288,10 +281,6 @@ const Bitboard blackPawnAttacksTable[64] = {
 
 Bitboard getPawnAttacks(Square square, Color color)
 {
-    if (square < A1 || square >= NO_SQUARE)
-    {
-        return 0ULL;
-    }
 
     if (color == WHITE)
     {

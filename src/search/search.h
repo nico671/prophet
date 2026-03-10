@@ -3,6 +3,30 @@
 #include "movegen/move.h"
 #include "engine/engine.h"
 #include "uci/uci.h"
+
+typedef struct SearchLimits
+{
+    bool ponder;
+    bool infiniteSearch;
+    int timeForWhiteMs;
+    int timeForBlackMs;
+    int incrementForWhiteMs;
+    int incrementForBlackMs;
+    int movesUntilNextTimeControl;
+    int searchDepthLimit;
+    int searchNodeLimit;
+    int searchForMateInNMoves;
+    int searchMoveTimeLimitMs;
+    MoveList searchMoves;
+} SearchLimits;
+
+// The payload we send to the search thread
+typedef struct
+{
+    CBoard board;        // A COPY of the board, safe from UCI mutations
+    SearchLimits limits; // The parsed go parameters
+} SearchThreadData;
+
 typedef struct
 {
     Move move;

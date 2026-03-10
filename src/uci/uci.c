@@ -435,12 +435,14 @@ void uciLoop(void)
         {
             stopSearchIfRunning(&state);
             bool success = fenToCBoard(START_FEN, &state.board);
+
             if (!success)
             {
                 printf("info string Failed to reset board to start position\n");
                 fflush(stdout);
             }
-        }
+            // clear TT, reset clocks, all game state that should be cleared on a new game would be reset in fenToCBoard when we load the startpos FEN, so no additional clearing needed here.
+                }
         else if (!strncmp(p, "position", 8) && (p[8] == '\0' || isspace((unsigned char)p[8])))
         {
             handlePositionCommand(&state, p);

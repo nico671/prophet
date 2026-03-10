@@ -32,7 +32,7 @@ void initSlidingAttacks(void);
 
 /**
  * @brief Fast lookup functions for rook attacks using magic bitboard indexing.
- *
+ * @note Expects valid inputs
  * @param square The square of the rook (0-63 corresponding to A1-H8)
  * @param occupancy The occupancy bitboard of the current position, which will be masked and transformed to index into the attack table
  * @return Bitboard
@@ -40,7 +40,7 @@ void initSlidingAttacks(void);
 Bitboard getRookAttacks(Square square, Bitboard occupancy);
 /**
  * @brief Fast lookup functions for bishop attacks using magic bitboard indexing.
- * @note Returns 0 if the square is invalid (less than A1 or greater than H8)
+ * @note Expects valid inputs
  * @param square The square of the bishop (0-63 corresponding to A1-H8)
  * @param occupancy The occupancy bitboard of the current position, which will be masked and transformed to index into the attack table
  * @return Bitboard
@@ -49,7 +49,7 @@ Bitboard getBishopAttacks(Square square, Bitboard occupancy);
 
 /**
  * @brief Fast lookup function for queen attacks, which combines rook and bishop attacks.
- * @note Returns 0 if the square is invalid (less than A1 or greater than H8)
+ * @note Expects valid inputs
  * @note This function computes the queen attacks by performing a bitwise OR of the rook and bishop attacks for the given square and occupancy. It is not a separate entry in the attack tables, since queen attacks can be derived from the existing rook and bishop tables.
  * @param square The square of the queen (0-63 corresponding to A1-H8)
  * @param occupancy The occupancy bitboard of the current position, which will be masked and transformed to index into the rook and bishop attack tables
