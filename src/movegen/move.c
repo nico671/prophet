@@ -1,5 +1,4 @@
 #include "movegen/move.h"
-
 Move createMove(Square from, Square to, MoveType type, PieceType promoPiece)
 {
     if (from >= NO_SQUARE || to >= NO_SQUARE)
@@ -63,4 +62,25 @@ bool move_is_promotion(Move move)
 bool move_is_castling(Move move)
 {
     return (getMoveType(move) == CASTLE);
+}
+
+bool move_is_capture(CBoard *board, Move move)
+{
+    if (move == MOVE_NONE)
+        return false;
+
+    Square to = getToSquare(move);
+    if (board->sideToMove == WHITE)
+    {
+        return bitboardCheckSquareBit(board->blackPieces, to) && !move_is_enpassant(move) && !move_is_castling(move) && !move_is_promotion(move);
+    }
+    else
+    {
+        return bitboardCheckSquareBit(board->whitePieces, to) && !move_is_enpassant(move) && !move_is_castling(move) && !move_is_promotion(move);
+    }
+}
+
+bool move_is_quiet(CBoard *board, Move move)
+{
+    return !move_is_capture(board, move) && !move_is_enpassant(move) && !move_is_castling(move) && !move_is_promotion(move);
 }

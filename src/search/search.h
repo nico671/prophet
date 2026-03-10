@@ -9,12 +9,18 @@ typedef struct
     int score;
 } ScoredMove;
 
+// killer moves storage
+#define MAX_KILLER_MOVES 2
+#define MAX_PLY 64
+extern Move killerMoves[MAX_PLY][MAX_KILLER_MOVES]; // [depth][idx] where 0 is newest killer, 1 is previous killer
+
+extern int historyHeuristic[2][64][64]; // [color][from][to]
+
 void *search_worker(void *arg);
 
 void searchOnGoCommand(UCIState *state, SearchLimits goCmd);
 
-void scoreMoves(CBoard *board, MoveList *moveList, ScoredMove *scoredMoves, Move ttMove);
-void sortScoredMoves(ScoredMove *scoredMoves, int count);
-int negamax(CBoard *node, int depth, int alpha, int beta, Color color);
-
+void scoreMoves(CBoard *board, MoveList *moveList, ScoredMove *scoredMoves, Move ttMove, int ply);
+int negamax(CBoard *node, int depth, int alpha, int beta, Color color, int ply);
+void pickNextBestMove(ScoredMove *scoredMoves, int start, int count);
 #endif // SEARCH_H

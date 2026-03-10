@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "core/chess_types.h"
-
+#include "board/cboard.h"
 // Move flag encoding.
 // typedef enum
 // {
@@ -80,7 +80,8 @@ PieceType getPromotionPieceType(Move move);
 bool move_is_enpassant(Move move);
 bool move_is_promotion(Move move);
 bool move_is_castling(Move move);
-
+bool move_is_capture(CBoard *board, Move move);
+bool move_is_quiet(CBoard *board, Move move);
 /**
  * @brief Structure to store information needed to undo a move on the chess board.
  * This includes the:

@@ -2,6 +2,7 @@
 #include "movegen/move.h"
 #include <stddef.h>
 #include "board/cboard.h"
+
 typedef enum
 {
     TT_PV,  // PV-nodes (Knuth's Type 1) are nodes that have a score that ends up being inside the window. So if the bounds passed are [a,b], with the score returned s, a<s<b. These nodes have all moves searched, and the value returned is exact (i.e., not a bound), which propagates up to the root along with a principal variation.
