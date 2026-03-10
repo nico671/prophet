@@ -10,6 +10,7 @@
 #include <errno.h>
 #include "movegen/move.h"
 #include "search/search.h"
+#include "search/tt.h"
 
 #define START_FEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
@@ -25,6 +26,7 @@ static void stopSearchIfRunning(UCIState *state)
     atomic_store(&engine_stop_search, true);
     pthread_join(state->searchThread, NULL);
     state->isSearching = false;
+    atomic_store(&engine_is_pondering, false);
 }
 
 static bool nextToken(const char **command, char *out, size_t outSize)
@@ -73,6 +75,121 @@ static bool parseNextIntToken(const char **command, int *out)
 
     *out = atoi(token);
     return true;
+}
+
+static bool equalsIgnoreCase(const char *a, const char *b)
+{
+    while (*a && *b)
+    {
+        if (tolower((unsigned char)*a) != tolower((unsigned char)*b))
+        {
+            return false;
+        }
+        a++;
+        b++;
+    }
+    return *a == '\0' && *b == '\0';
+}
+
+static void handleSetOptionCommand(UCIState *state, const char *command)
+{
+    command += 9; // Skip "setoption"
+
+    char token[64];
+    char name[128] = "";
+    char value[128] = "";
+    bool readingName = false;
+    bool readingValue = false;
+
+    while (nextToken(&command, token, sizeof(token)))
+    {
+        if (equalsIgnoreCase(token, "name"))
+        {
+            readingName = true;
+            readingValue = false;
+            name[0] = '\0';
+            continue;
+        }
+
+        if (equalsIgnoreCase(token, "value"))
+        {
+            readingValue = true;
+            readingName = false;
+            value[0] = '\0';
+            continue;
+        }
+
+        if (readingName)
+        {
+            if (name[0] != '\0' && strlen(name) + 1 < sizeof(name))
+            {
+                strncat(name, " ", sizeof(name) - strlen(name) - 1);
+            }
+            if (strlen(name) + strlen(token) < sizeof(name))
+            {
+                strncat(name, token, sizeof(name) - strlen(name) - 1);
+            }
+        }
+        else if (readingValue)
+        {
+            if (value[0] != '\0' && strlen(value) + 1 < sizeof(value))
+            {
+                strncat(value, " ", sizeof(value) - strlen(value) - 1);
+            }
+            if (strlen(value) + strlen(token) < sizeof(value))
+            {
+                strncat(value, token, sizeof(value) - strlen(value) - 1);
+            }
+        }
+    }
+
+    if (equalsIgnoreCase(name, "Hash"))
+    {
+        stopSearchIfRunning(state);
+
+        if (value[0] == '\0')
+        {
+            printf("info string setoption Hash requires a value\n");
+            fflush(stdout);
+            return;
+        }
+
+        char *endptr = NULL;
+        errno = 0;
+        long mb = strtol(value, &endptr, 10);
+        if (errno != 0 || endptr == value || *endptr != '\0')
+        {
+            printf("info string Invalid Hash value: %s\n", value);
+            fflush(stdout);
+            return;
+        }
+
+        if (mb < 1)
+        {
+            mb = 1;
+        }
+        else if (mb > 1024)
+        {
+            mb = 1024;
+        }
+
+        initTT((size_t)mb);
+        printf("info string Hash set to %ld MB\n", mb);
+        fflush(stdout);
+        return;
+    }
+
+    if (equalsIgnoreCase(name, "Clear Hash"))
+    {
+        stopSearchIfRunning(state);
+        clearTT();
+        printf("info string Hash cleared\n");
+        fflush(stdout);
+        return;
+    }
+
+    printf("info string Unsupported option: %s\n", name[0] ? name : "(none)");
+    fflush(stdout);
 }
 
 int safeLineRead(char *line_input)
@@ -271,6 +388,7 @@ void handleGoCommand(UCIState *state, const char *command)
     if (searchmovesSpecified && goCmd.searchMoves.count == 0)
     {
         printf("bestmove 0000\n");
+        fflush(stdout);
         return;
     }
 
@@ -415,6 +533,7 @@ void uciLoop(void)
         else if (!strncmp(p, "isready", 7) && (p[7] == '\0' || isspace((unsigned char)p[7])))
         {
             printf("readyok\n");
+            fflush(stdout);
             state.ready = true;
         }
         else if (!strncmp(p, "uci", 3) && (p[3] == '\0' || isspace((unsigned char)p[3])))
@@ -422,14 +541,15 @@ void uciLoop(void)
             initEngine();
             printf("id name Prophet\n");
             printf("id author Nicolas Carbone\n");
+            printf("option name Hash type spin default 64 min 1 max 1024\n");
+            printf("option name Clear Hash type button\n");
             printf("uciok\n");
             fflush(stdout);
             state.initialized = true;
         }
         else if (!strncmp(p, "setoption", 9) && (p[9] == '\0' || isspace((unsigned char)p[9])))
         {
-            printf("info string No options available\n");
-            fflush(stdout);
+            handleSetOptionCommand(&state, p);
         }
         else if (!strncmp(p, "ucinewgame", 10) && (p[10] == '\0' || isspace((unsigned char)p[10])))
         {
@@ -441,8 +561,10 @@ void uciLoop(void)
                 printf("info string Failed to reset board to start position\n");
                 fflush(stdout);
             }
-            // clear TT, reset clocks, all game state that should be cleared on a new game would be reset in fenToCBoard when we load the startpos FEN, so no additional clearing needed here.
-                }
+            clearTT();
+            clearSearchHeuristics();
+            // Board/game state is reset via START_FEN, and search state via TT/heuristic clears.
+        }
         else if (!strncmp(p, "position", 8) && (p[8] == '\0' || isspace((unsigned char)p[8])))
         {
             handlePositionCommand(&state, p);
@@ -457,6 +579,7 @@ void uciLoop(void)
         }
         else if (!strncmp(p, "ponderhit", 9) && (p[9] == '\0' || isspace((unsigned char)p[9])))
         {
+            atomic_store(&engine_is_pondering, false);
             if (state.debugMode)
             {
                 printf("info string ponderhit received\n");

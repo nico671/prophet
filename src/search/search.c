@@ -247,7 +247,7 @@ static bool shouldStopSearch(void)
         return true;
     }
 
-    if (searchDeadlineMs >= 0 && nowMs() >= searchDeadlineMs)
+    if (!atomic_load(&engine_is_pondering) && searchDeadlineMs >= 0 && nowMs() >= searchDeadlineMs)
     {
         atomic_store(&engine_stop_search, true);
         return true;
@@ -263,7 +263,7 @@ static long long computeTimeBudgetMs(const CBoard *board, SearchLimits limits)
         return limits.searchMoveTimeLimitMs;
     }
 
-    if (limits.infiniteSearch || limits.ponder)
+    if (limits.infiniteSearch)
     {
         return -1;
     }
@@ -427,6 +427,10 @@ static int searchRootBestMove(CBoard *board, int depth, Move *prevBestMove)
 
         Move move = scoredMoves[i].move;
 
+        char currMoveUci[6];
+        moveToUciString(move, currMoveUci);
+        printf("info depth %d currmove %s currmovenumber %d\n", depth, currMoveUci, i + 1);
+
         // Skip moves that aren't in the searchMoves list (if searchMoves is non-empty)
         if (!moveAllowedBySearchMoves(move, &activeSearchLimits.searchMoves))
         {
@@ -467,6 +471,7 @@ static int searchRootBestMove(CBoard *board, int depth, Move *prevBestMove)
 
 // Define the global atomic flag here
 atomic_bool engine_stop_search = false;
+atomic_bool engine_is_pondering = false;
 
 // The entry point for the search thread
 void *search_worker(void *arg)
@@ -490,7 +495,19 @@ void *search_worker(void *arg)
     int bestScore = 0;
     Move bestMove = createMove(NO_SQUARE, NO_SQUARE, 0, 0);
 
-    int maxDepth = limits.searchDepthLimit > 0 ? limits.searchDepthLimit : 100;
+    int maxDepth;
+    if (limits.searchDepthLimit > 0)
+    {
+        maxDepth = limits.searchDepthLimit;
+    }
+    else if (limits.infiniteSearch || limits.ponder)
+    {
+        maxDepth = INT_MAX;
+    }
+    else
+    {
+        maxDepth = 100;
+    }
 
     // The Iterative Deepening Loop
     while (currentDepth <= maxDepth)
@@ -521,8 +538,18 @@ void *search_worker(void *arg)
             strcat(pvString, moveStr);
             strcat(pvString, " ");
         }
-        printf("info depth %d score cp %d nodes %lld time %lld nps %lld pv %s\n",
-               currentDepth, bestScore, nodes, elapsed, nps, pvString);
+        if (abs(bestScore) > 100000000)
+        {
+            int mateMoves = (MATE_SCORE - abs(bestScore)) / 2;
+            int mateScore = bestScore >= 0 ? mateMoves : -mateMoves;
+            printf("info depth %d score mate %d nodes %lld time %lld nps %lld pv %s\n",
+                   currentDepth, mateScore, nodes, elapsed, nps, pvString);
+        }
+        else
+        {
+            printf("info depth %d score cp %d nodes %lld time %lld nps %lld pv %s\n",
+                   currentDepth, bestScore, nodes, elapsed, nps, pvString);
+        }
 
         ageHistory();
 
@@ -531,6 +558,15 @@ void *search_worker(void *arg)
         if (limits.searchMoveTimeLimitMs > 0 && shouldStopSearch())
         {
             break;
+        }
+
+        if (!limits.ponder && limits.searchForMateInNMoves > 0 && abs(bestScore) > 100000000)
+        {
+            int mateMoves = (MATE_SCORE - abs(bestScore)) / 2;
+            if (mateMoves <= limits.searchForMateInNMoves)
+            {
+                break;
+            }
         }
     }
 
@@ -553,6 +589,7 @@ void searchOnGoCommand(UCIState *state, SearchLimits goCmd)
 
     // Prepare for the new search
     atomic_store(&engine_stop_search, false);
+    atomic_store(&engine_is_pondering, goCmd.ponder);
     state->isSearching = true;
     // 3. Allocate the thread payload. (Using malloc so it safely survives the thread launch)
     SearchThreadData *threadData = malloc(sizeof(SearchThreadData));

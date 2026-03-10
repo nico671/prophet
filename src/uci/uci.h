@@ -4,7 +4,7 @@
 #include "movegen/move.h"
 #include <pthread.h>
 
-// Updated UCI state
+// UCI state structure to track initialization, readiness, quitting, and the current board position. Also manages the search thread and whether a search is active.
 typedef struct UCIState
 {
     bool initialized;

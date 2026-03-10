@@ -41,6 +41,13 @@ static size_t floor_pow2(size_t x)
 
 void initTT(size_t megabytes)
 {
+    if (tt_table != NULL)
+    {
+        free(tt_table);
+        tt_table = NULL;
+        tt_size = 0;
+    }
+
     size_t entries = (megabytes * 1024 * 1024) / sizeof(TTEntry);
     tt_size = floor_pow2(entries);
     if (tt_size == 0)
