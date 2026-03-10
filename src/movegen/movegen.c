@@ -25,6 +25,32 @@ void initMoveList(MoveList *moveList)
     moveList->count = 0;
 }
 
+void generateCaptureMoves(CBoard *board, MoveList *out)
+{
+    MoveList pseudoLegalMoves;
+    initMoveList(&pseudoLegalMoves);
+    initMoveList(out);
+    genAllPseudoLegalMoves(board, &pseudoLegalMoves);
+
+    Color side = board->sideToMove;
+    for (int i = 0; i < pseudoLegalMoves.count; i++)
+    {
+        Move move = pseudoLegalMoves.moves[i];
+        bool tactical = move_is_capture(board, move) || move_is_enpassant(move) || move_is_promotion(move);
+        if (!tactical)
+        {
+            continue;
+        }
+
+        UndoInfo undoInfo = makeMove(board, move);
+        if (!isKingInCheck(board, side))
+        {
+            out->moves[out->count++] = move;
+        }
+        unmakeMove(board, move, undoInfo);
+    }
+}
+
 bool isSquareAttacked(CBoard *board, Square square, Color attackerColor)
 {
     // Check for pawn attacks

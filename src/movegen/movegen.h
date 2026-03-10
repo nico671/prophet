@@ -11,6 +11,7 @@
 typedef struct CBoard CBoard;
 
 void genAllPseudoLegalMoves(CBoard *board, MoveList *moveList);
+void generateCaptureMoves(CBoard *board, MoveList *out);
 void initMoveList(MoveList *moveList);
 
 bool isSquareAttacked(CBoard *board, Square square, Color attackerColor);

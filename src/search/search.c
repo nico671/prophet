@@ -5,6 +5,7 @@
 #include "movegen/movegen.h"
 #include "movegen/move_make.h"
 #include "search/tt.h"
+#include "board/zobrist.h"
 #include "engine/engine.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,6 +24,8 @@ static const int KILLER_1_SCORE = 900000;
 static const int KILLER_2_SCORE = 800000;
 static const int BAD_CAPTURE_BASE_SCORE = 100000;
 static const int HISTORY_MAX = 200000;
+static const int MATE_SCORE = 200000000;
+static const int MATE_THRESHOLD = 199999000;
 
 static PieceType capturedPieceForMove(const CBoard *board, Move move)
 {
@@ -69,40 +72,35 @@ static bool isQuietMove(CBoard *board, Move move)
     return !move_is_capture(board, move) && !move_is_enpassant(move) && !move_is_promotion(move);
 }
 
-static int staticExchangeEvalLite(CBoard *board, Move move)
+static bool isMateScore(int score)
 {
-    PieceType attacker = getPieceAtSquare(board, getFromSquare(move));
-    PieceType captured = capturedPieceForMove(board, move);
+    return score >= MATE_THRESHOLD || score <= -MATE_THRESHOLD;
+}
 
-    if (attacker == NO_PIECE)
+static int toTTScore(int score, int ply)
+{
+    if (score >= MATE_THRESHOLD)
     {
-        return 0;
+        return score + ply;
     }
-
-    int see = 0;
-    if (captured != NO_PIECE)
+    if (score <= -MATE_THRESHOLD)
     {
-        see += pieceValue(captured) - pieceValue(attacker);
+        return score - ply;
     }
+    return score;
+}
 
-    if (move_is_promotion(move))
+static int fromTTScore(int score, int ply)
+{
+    if (score >= MATE_THRESHOLD)
     {
-        see += pieceValue(getPromotionPieceType(move)) - pieceValue(PAWN);
+        return score - ply;
     }
-
-    UndoInfo undoInfo = makeMove(board, move);
-    Square target = getToSquare(move);
-    Color sideToMoveNow = board->sideToMove;
-    bool recaptured = isSquareAttacked(board, target, sideToMoveNow);
-    unmakeMove(board, move, undoInfo);
-
-    if (recaptured)
+    if (score <= -MATE_THRESHOLD)
     {
-        PieceType movedPieceAfterMove = move_is_promotion(move) ? getPromotionPieceType(move) : attacker;
-        see -= pieceValue(movedPieceAfterMove);
+        return score + ply;
     }
-
-    return see;
+    return score;
 }
 
 static void updateHistory(Color side, Move move, int depth)
@@ -122,6 +120,34 @@ static void updateHistory(Color side, Move move, int depth)
     int bonus = depth * depth;
     int *entry = &historyHeuristic[(int)side][(int)from][(int)to];
     long long updated = (long long)(*entry) + bonus;
+    if (updated > HISTORY_MAX)
+    {
+        updated = HISTORY_MAX;
+    }
+    else if (updated < -HISTORY_MAX)
+    {
+        updated = -HISTORY_MAX;
+    }
+    *entry = (int)updated;
+}
+
+static void penalizeHistory(Color side, Move move, int depth)
+{
+    if (side != WHITE && side != BLACK)
+    {
+        return;
+    }
+
+    Square from = getFromSquare(move);
+    Square to = getToSquare(move);
+    if (from == NO_SQUARE || to == NO_SQUARE)
+    {
+        return;
+    }
+
+    int malus = depth * depth;
+    int *entry = &historyHeuristic[(int)side][(int)from][(int)to];
+    long long updated = (long long)(*entry) - malus;
     if (updated > HISTORY_MAX)
     {
         updated = HISTORY_MAX;
@@ -266,6 +292,48 @@ static long long computeTimeBudgetMs(const CBoard *board, SearchLimits limits)
     return budget;
 }
 
+typedef struct
+{
+    uint8_t previousEpSquare;
+    uint16_t previousHalfmoveClock;
+    uint16_t previousFullmoveNumber;
+    Color previousSideToMove;
+    uint64_t previousZobristKey;
+} NullMoveUndo;
+
+static NullMoveUndo makeNullMove(CBoard *board)
+{
+    NullMoveUndo undo;
+    undo.previousEpSquare = board->epSquare;
+    undo.previousHalfmoveClock = board->halfmoveClock;
+    undo.previousFullmoveNumber = board->fullmoveNumber;
+    undo.previousSideToMove = board->sideToMove;
+    undo.previousZobristKey = board->zobristKey;
+
+    zobristToggleEnPassant(&board->zobristKey, board, board->epSquare);
+    board->epSquare = NO_SQUARE;
+    board->halfmoveClock++;
+
+    board->sideToMove = (board->sideToMove == WHITE) ? BLACK : WHITE;
+    if (board->sideToMove == WHITE)
+    {
+        board->fullmoveNumber++;
+    }
+
+    zobristToggleSide(&board->zobristKey);
+
+    return undo;
+}
+
+static void unmakeNullMove(CBoard *board, NullMoveUndo undo)
+{
+    board->epSquare = undo.previousEpSquare;
+    board->halfmoveClock = undo.previousHalfmoveClock;
+    board->fullmoveNumber = undo.previousFullmoveNumber;
+    board->sideToMove = undo.previousSideToMove;
+    board->zobristKey = undo.previousZobristKey;
+}
+
 static void moveToUciString(Move move, char *out)
 {
     if (getFromSquare(move) == NO_SQUARE || getToSquare(move) == NO_SQUARE)
@@ -309,7 +377,7 @@ static int searchRootBestMove(CBoard *board, int depth, Move *prevBestMove)
     if (moveList.count == 0)
     {
         *prevBestMove = createMove(NO_SQUARE, NO_SQUARE, 0, 0);
-        return isKingInCheck(board, board->sideToMove) ? -200000000 : 0;
+        return isKingInCheck(board, board->sideToMove) ? -MATE_SCORE : 0;
     }
 
     // check if prev best move is valid / legal in this position, if so prioritize it
@@ -346,7 +414,7 @@ static int searchRootBestMove(CBoard *board, int depth, Move *prevBestMove)
 
     int alpha = -200000000;
     int beta = 200000000;
-    int bestScore = -200000000;
+    int bestScore = -MATE_SCORE;
     Move bestMove = createMove(NO_SQUARE, NO_SQUARE, 0, 0);
     bool searchedAtLeastOneMove = false;
     for (int i = 0; i < moveList.count; i++)
@@ -390,9 +458,9 @@ static int searchRootBestMove(CBoard *board, int depth, Move *prevBestMove)
     if (!searchedAtLeastOneMove)
     {
         *prevBestMove = createMove(NO_SQUARE, NO_SQUARE, 0, 0);
-        return -200000000;
+        return -MATE_SCORE;
     }
-    storeTT(board->zobristKey, depth, bestScore, TT_PV, bestMove);
+    storeTT(board->zobristKey, depth, toTTScore(bestScore, 0), TT_PV, bestMove);
     *prevBestMove = bestMove;
     return bestScore;
 }
@@ -537,8 +605,7 @@ void scoreMoves(CBoard *board, MoveList *moveList, ScoredMove *scoredMoves, Move
                 promoBonus = pieceValue(getPromotionPieceType(currMove));
             }
 
-            int see = staticExchangeEvalLite(board, currMove);
-            if (see >= 0)
+            if (mvvLva >= 0 || move_is_promotion(currMove))
             {
                 score = GOOD_CAPTURE_BASE_SCORE + mvvLva + promoBonus;
             }
@@ -603,7 +670,7 @@ int quiescence(CBoard *node, int alpha, int beta, int ply)
         return evaluateBoard(node);
     }
 
-    if (ply >= MAX_PLY)
+    if (ply >= MAX_PLY - 1)
     {
         return evaluateBoard(node);
     }
@@ -624,13 +691,20 @@ int quiescence(CBoard *node, int alpha, int beta, int ply)
 
     MoveList moveList;
     initMoveList(&moveList);
-    generateLegalMoves(node, &moveList);
+    if (inCheck)
+    {
+        generateLegalMoves(node, &moveList);
+    }
+    else
+    {
+        generateCaptureMoves(node, &moveList);
+    }
 
     if (moveList.count == 0)
     {
         if (inCheck)
         {
-            return -200000000 + ply;
+            return -MATE_SCORE + ply;
         }
         return evaluateBoard(node);
     }
@@ -686,55 +760,72 @@ int negamax(CBoard *node, int depth, int alpha, int beta, Color color, int ply)
         return evaluateBoard(node);
     }
 
+    if (ply >= MAX_PLY - 1)
+    {
+        return quiescence(node, alpha, beta, ply);
+    }
+
+    Color side = color;
     int originalAlpha = alpha;
+    bool inCheck = isKingInCheck(node, side);
+
     TTEntry *ttEntry = probeTT(node->zobristKey);
-    Move ttBestMove = createMove(NO_SQUARE, NO_SQUARE, 0, 0);
+    Move ttBestMove = MOVE_NONE;
     if (ttEntry && ttEntry->zobristKey == node->zobristKey)
     {
         ttBestMove = ttEntry->bestMove;
+        int ttScore = fromTTScore(ttEntry->score, ply);
         if (ttEntry->depth >= depth)
         {
             if (ttEntry->bound == TT_PV)
             {
-                return ttEntry->score;
+                return ttScore;
             }
-            else if (ttEntry->bound == TT_CUT && ttEntry->score >= beta)
+            else if (ttEntry->bound == TT_CUT && ttScore >= beta)
             {
-                return ttEntry->score;
+                return ttScore;
             }
-            else if (ttEntry->bound == TT_ALL && ttEntry->score <= alpha)
+            else if (ttEntry->bound == TT_ALL && ttScore <= alpha)
             {
-                return ttEntry->score;
+                return ttScore;
             }
             if (alpha >= beta)
             {
-                return ttEntry->score;
+                return ttScore;
             }
         }
     }
+
     if (depth == 0)
     {
         return quiescence(node, alpha, beta, ply);
     }
 
+    // Null-move pruning (skip in check or near-mate windows)
+    if (!inCheck && depth >= 3 && !isMateScore(alpha) && !isMateScore(beta))
+    {
+        int reduction = 2 + (depth >= 6 ? 1 : 0);
+        NullMoveUndo nullUndo = makeNullMove(node);
+        Color nextSide = (side == WHITE) ? BLACK : WHITE;
+        int nullScore = -negamax(node, depth - 1 - reduction, -beta, -beta + 1, nextSide, ply + 1);
+        unmakeNullMove(node, nullUndo);
+
+        if (nullScore >= beta)
+        {
+            return nullScore;
+        }
+    }
+
     MoveList moveList;
     initMoveList(&moveList);
-    generateLegalMoves(node, &moveList);
+    genAllPseudoLegalMoves(node, &moveList);
     ScoredMove scoredMoves[256];
     scoreMoves(node, &moveList, scoredMoves, ttBestMove, ply);
-    // sortScoredMoves(scoredMoves, moveList.count);
 
-    // check for checkmate or stalemate
-    if (isKingInCheck(node, color) && moveList.count == 0)
-    {
-        return -200000000 + depth; // Large negative value for checkmate
-    }
-    if (!isKingInCheck(node, color) && moveList.count == 0)
-    {
-        return 0; // Draw score for stalemate
-    }
     Move bestMoveAtNode = createMove(NO_SQUARE, NO_SQUARE, 0, 0);
-    int maxEval = -200000000;
+    int maxEval = -MATE_SCORE;
+    int legalMovesSearched = 0;
+
     for (int i = 0; i < moveList.count; i++)
     {
         if (i % 32 == 0 && shouldStopSearch())
@@ -744,14 +835,48 @@ int negamax(CBoard *node, int depth, int alpha, int beta, Color color, int ply)
         pickNextBestMove(scoredMoves, i, moveList.count);
         Move move = scoredMoves[i].move;
 
+        bool quiet = isQuietMove(node, move);
+
         // Make the move
         UndoInfo undoInfo = makeMove(node, move);
 
-        // Recurse
-        int eval = -negamax(node, depth - 1, -beta, -alpha, color == WHITE ? BLACK : WHITE, ply + 1);
+        if (isKingInCheck(node, side))
+        {
+            unmakeMove(node, move, undoInfo);
+            continue;
+        }
+
+        legalMovesSearched++;
+        Color nextSide = (side == WHITE) ? BLACK : WHITE;
+        int eval;
+
+        if (legalMovesSearched == 1)
+        {
+            eval = -negamax(node, depth - 1, -beta, -alpha, nextSide, ply + 1);
+        }
+        else
+        {
+            int reducedDepth = depth - 1;
+            bool canReduce = depth >= 3 && legalMovesSearched >= 4 && !inCheck && quiet;
+            if (canReduce)
+            {
+                reducedDepth = depth - 2;
+            }
+
+            // PVS scout search
+            eval = -negamax(node, reducedDepth, -alpha - 1, -alpha, nextSide, ply + 1);
+
+            // Re-search if scout failed high
+            if (eval > alpha)
+            {
+                eval = -negamax(node, depth - 1, -beta, -alpha, nextSide, ply + 1);
+            }
+        }
 
         // Unmake the move
         unmakeMove(node, move, undoInfo);
+
+        int alphaBefore = alpha;
 
         if (eval > maxEval)
         {
@@ -762,21 +887,36 @@ int negamax(CBoard *node, int depth, int alpha, int beta, Color color, int ply)
         {
             alpha = maxEval;
         }
+        else if (quiet && eval <= alphaBefore)
+        {
+            penalizeHistory(side, move, depth);
+        }
+
         if (alpha >= beta)
         {
             // Store killer move
-            if (ply < MAX_PLY && isQuietMove(node, move))
+            if (ply < MAX_PLY && quiet)
             {
                 if (killerMoves[ply][0] != move)
                 {
                     killerMoves[ply][1] = killerMoves[ply][0];
                     killerMoves[ply][0] = move;
                 }
-                updateHistory(node->sideToMove, move, depth);
+                updateHistory(side, move, depth);
             }
             break; // beta cutoff
         }
     }
+
+    if (legalMovesSearched == 0)
+    {
+        if (inCheck)
+        {
+            return -MATE_SCORE + ply;
+        }
+        return 0;
+    }
+
     TTBound bound = TT_PV;
     if (maxEval <= originalAlpha)
     {
@@ -786,6 +926,6 @@ int negamax(CBoard *node, int depth, int alpha, int beta, Color color, int ply)
     {
         bound = TT_CUT;
     }
-    storeTT(node->zobristKey, depth, maxEval, bound, bestMoveAtNode);
+    storeTT(node->zobristKey, depth, toTTScore(maxEval, ply), bound, bestMoveAtNode);
     return maxEval;
 }
