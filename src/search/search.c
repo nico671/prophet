@@ -594,6 +594,89 @@ void pickNextBestMove(ScoredMove *scoredMoves, int start, int count)
     }
 }
 
+int quiescence(CBoard *node, int alpha, int beta, int ply)
+{
+    atomic_fetch_add(&searchedNodes, 1);
+
+    if (shouldStopSearch())
+    {
+        return evaluateBoard(node);
+    }
+
+    if (ply >= MAX_PLY)
+    {
+        return evaluateBoard(node);
+    }
+
+    bool inCheck = isKingInCheck(node, node->sideToMove);
+    if (!inCheck)
+    {
+        int standPat = evaluateBoard(node);
+        if (standPat >= beta)
+        {
+            return standPat;
+        }
+        if (standPat > alpha)
+        {
+            alpha = standPat;
+        }
+    }
+
+    MoveList moveList;
+    initMoveList(&moveList);
+    generateLegalMoves(node, &moveList);
+
+    if (moveList.count == 0)
+    {
+        if (inCheck)
+        {
+            return -200000000 + ply;
+        }
+        return evaluateBoard(node);
+    }
+
+    TTEntry *ttEntry = probeTT(node->zobristKey);
+    Move ttBestMove = MOVE_NONE;
+    if (ttEntry && ttEntry->zobristKey == node->zobristKey)
+    {
+        ttBestMove = ttEntry->bestMove;
+    }
+
+    ScoredMove scoredMoves[256];
+    scoreMoves(node, &moveList, scoredMoves, ttBestMove, ply);
+
+    for (int i = 0; i < moveList.count; i++)
+    {
+        if (i % 32 == 0 && shouldStopSearch())
+        {
+            break;
+        }
+
+        pickNextBestMove(scoredMoves, i, moveList.count);
+        Move move = scoredMoves[i].move;
+
+        if (!inCheck && !isCaptureLike(node, move) && !move_is_promotion(move))
+        {
+            continue;
+        }
+
+        UndoInfo undoInfo = makeMove(node, move);
+        int eval = -quiescence(node, -beta, -alpha, ply + 1);
+        unmakeMove(node, move, undoInfo);
+
+        if (eval >= beta)
+        {
+            return eval;
+        }
+        if (eval > alpha)
+        {
+            alpha = eval;
+        }
+    }
+
+    return alpha;
+}
+
 int negamax(CBoard *node, int depth, int alpha, int beta, Color color, int ply)
 {
     atomic_fetch_add(&searchedNodes, 1);
@@ -631,7 +714,7 @@ int negamax(CBoard *node, int depth, int alpha, int beta, Color color, int ply)
     }
     if (depth == 0)
     {
-        return evaluateBoard(node);
+        return quiescence(node, alpha, beta, ply);
     }
 
     MoveList moveList;

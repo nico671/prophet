@@ -21,6 +21,7 @@ void *search_worker(void *arg);
 void searchOnGoCommand(UCIState *state, SearchLimits goCmd);
 
 void scoreMoves(CBoard *board, MoveList *moveList, ScoredMove *scoredMoves, Move ttMove, int ply);
+int quiescence(CBoard *node, int alpha, int beta, int ply);
 int negamax(CBoard *node, int depth, int alpha, int beta, Color color, int ply);
 void pickNextBestMove(ScoredMove *scoredMoves, int start, int count);
 #endif // SEARCH_H
