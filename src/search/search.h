@@ -49,4 +49,5 @@ int quiescence(CBoard *node, int alpha, int beta, int ply);
 int negamax(CBoard *node, int depth, int alpha, int beta, Color color, int ply);
 void pickNextBestMove(ScoredMove *scoredMoves, int start, int count);
 void clearSearchHeuristics(void);
+void onPonderHit(void);
 #endif // SEARCH_H

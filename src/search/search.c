@@ -17,6 +17,7 @@ Move killerMoves[MAX_PLY][MAX_KILLER_MOVES]; // [depth][idx] where 0 is newest k
 int historyHeuristic[2][64][64];             // [color][from][to]
 
 static int pieceValue(PieceType piece);
+static long long computeTimeBudgetMs(const CBoard *board, SearchLimits limits);
 
 static const int TT_MOVE_SCORE = 2000000;
 static const int GOOD_CAPTURE_BASE_SCORE = 1200000;
@@ -207,7 +208,8 @@ static int pieceValue(PieceType piece)
 static SearchLimits activeSearchLimits;
 static atomic_llong searchedNodes = 0;
 static long long searchStartMs = 0;
-static long long searchDeadlineMs = -1;
+static atomic_llong searchDeadlineMs = -1;
+static atomic_int activeSearchSideToMove = WHITE;
 
 static long long nowMs(void)
 {
@@ -247,13 +249,33 @@ static bool shouldStopSearch(void)
         return true;
     }
 
-    if (!atomic_load(&engine_is_pondering) && searchDeadlineMs >= 0 && nowMs() >= searchDeadlineMs)
+    long long deadline = atomic_load(&searchDeadlineMs);
+    if (!atomic_load(&engine_is_pondering) && deadline >= 0 && nowMs() >= deadline)
     {
         atomic_store(&engine_stop_search, true);
         return true;
     }
 
     return false;
+}
+
+void onPonderHit(void)
+{
+    atomic_store(&engine_is_pondering, false);
+
+    Color side = (Color)atomic_load(&activeSearchSideToMove);
+    if (side != WHITE && side != BLACK)
+    {
+        atomic_store(&searchDeadlineMs, -1);
+        return;
+    }
+
+    CBoard budgetBoard = {0};
+    budgetBoard.sideToMove = side;
+
+    long long budgetMs = computeTimeBudgetMs(&budgetBoard, activeSearchLimits);
+    long long deadlineMs = (budgetMs > 0) ? (nowMs() + budgetMs) : -1;
+    atomic_store(&searchDeadlineMs, deadlineMs);
 }
 
 static long long computeTimeBudgetMs(const CBoard *board, SearchLimits limits)
@@ -483,10 +505,16 @@ void *search_worker(void *arg)
     // clear all killer moves
     clearSearchHeuristics();
     activeSearchLimits = limits;
+    atomic_store(&activeSearchSideToMove, (int)searchBoard.sideToMove);
     atomic_store(&searchedNodes, 0);
     searchStartMs = nowMs();
-    long long budgetMs = computeTimeBudgetMs(&searchBoard, limits);
-    searchDeadlineMs = (budgetMs > 0) ? (searchStartMs + budgetMs) : -1;
+    long long deadlineMs = -1;
+    if (!limits.ponder)
+    {
+        long long budgetMs = computeTimeBudgetMs(&searchBoard, limits);
+        deadlineMs = (budgetMs > 0) ? (searchStartMs + budgetMs) : -1;
+    }
+    atomic_store(&searchDeadlineMs, deadlineMs);
 
     // We copied the data to local stack variables, so free the allocated payload
     free(data);
@@ -560,7 +588,7 @@ void *search_worker(void *arg)
             break;
         }
 
-        if (!limits.ponder && limits.searchForMateInNMoves > 0 && abs(bestScore) > 100000000)
+        if (!atomic_load(&engine_is_pondering) && limits.searchForMateInNMoves > 0 && abs(bestScore) > 100000000)
         {
             int mateMoves = (MATE_SCORE - abs(bestScore)) / 2;
             if (mateMoves <= limits.searchForMateInNMoves)

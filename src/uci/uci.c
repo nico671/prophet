@@ -579,7 +579,7 @@ void uciLoop(void)
         }
         else if (!strncmp(p, "ponderhit", 9) && (p[9] == '\0' || isspace((unsigned char)p[9])))
         {
-            atomic_store(&engine_is_pondering, false);
+            onPonderHit();
             if (state.debugMode)
             {
                 printf("info string ponderhit received\n");
