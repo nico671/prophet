@@ -5,11 +5,24 @@
 
 typedef struct CBoard CBoard;
 
-// Main move making and unmaking functions
+/**
+ * @brief Makes the given move on the board, updating all relevant state and returning an UndoInfo struct that can be used to unmake the move later.
+ *
+ * @param board The current game board.
+ * @param move The move to make.
+ * @return UndoInfo
+ */
 UndoInfo makeMove(CBoard *board, Move move);
+
+/**
+ * @brief Unmakes the given move on the board, restoring all relevant state using the provided UndoInfo.
+ *
+ * @param board The current game board.
+ * @param move The move to unmake (must be the same move that was made).
+ * @param undoInfo The UndoInfo returned by makeMove when the move was made.
+ */
 void unmakeMove(CBoard *board, Move move, UndoInfo undoInfo);
 
-// Individual move type functions
 UndoInfo makeQuietMove(CBoard *board, Move move);
 UndoInfo makeCaptureMove(CBoard *board, Move move);
 UndoInfo makeDoublePawnPushMove(CBoard *board, Move move);

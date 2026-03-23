@@ -1,4 +1,5 @@
 #include "movegen/move.h"
+
 Move createMove(Square from, Square to, MoveType type, PieceType promoPiece)
 {
     if (from >= NO_SQUARE || to >= NO_SQUARE)

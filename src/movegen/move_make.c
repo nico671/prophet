@@ -538,6 +538,7 @@ UndoInfo makeMove(CBoard *board, Move move)
         }
         return makeQuietMove(board, move);
     }
+    return (UndoInfo){0}; // Should never reach here
 }
 
 void unmakeCastlingMove(CBoard *board, Move move)
@@ -578,40 +579,6 @@ void unmakeCastlingMove(CBoard *board, Move move)
             updateOccupanciesForCastling(board, C8, E8, D8, A8, BLACK);
         }
     }
-    // if (flag == KINGSIDE_CASTLE)
-    // {
-    //     if (board->sideToMove == WHITE)
-    //     {
-    //         // Move king back from g1 to e1 and rook from f1 to h1
-    //         movePieceOnBoard(board, G1, E1, WHITE);
-    //         movePieceOnBoard(board, F1, H1, WHITE);
-    //         updateOccupanciesForCastling(board, G1, E1, F1, H1, WHITE);
-    //     }
-    //     else
-    //     {
-    //         // Move king back from g8 to e8 and rook from f8 to h8
-    //         movePieceOnBoard(board, G8, E8, BLACK);
-    //         movePieceOnBoard(board, F8, H8, BLACK);
-    //         updateOccupanciesForCastling(board, G8, E8, F8, H8, BLACK);
-    //     }
-    // }
-    // else // QUEENSIDE_CASTLE
-    // {
-    //     if (board->sideToMove == WHITE)
-    //     {
-    //         // Move king back from c1 to e1 and rook from d1 to a1
-    //         movePieceOnBoard(board, C1, E1, WHITE);
-    //         movePieceOnBoard(board, D1, A1, WHITE);
-    //         updateOccupanciesForCastling(board, C1, E1, D1, A1, WHITE);
-    //     }
-    //     else
-    //     {
-    //         // Move king back from c8 to e8 and rook from d8 to a8
-    //         movePieceOnBoard(board, C8, E8, BLACK);
-    //         movePieceOnBoard(board, D8, A8, BLACK);
-    //         updateOccupanciesForCastling(board, C8, E8, D8, A8, BLACK);
-    //     }
-    // }
 }
 void unmakeMove(CBoard *board, Move move, UndoInfo undoInfo)
 {
