@@ -1,171 +1,137 @@
 # Prophet
 
-Prophet is a chess engine written from scratch in C (C17). It uses a bitboard representation and fast move generation techniques. Currently, it serves as a robust foundation with a working search, evaluation, and perft testing suite—ready for further expansion into a fully UCI-compatible engine.
+Prophet is a chess engine written from scratch in C (C17). It uses bitboards, incremental state updates, and a modern alpha-beta search stack, and currently runs as a UCI engine.
 
 ## Features
 
 ### Board representation
 
 - **Bitboards (64-bit)** with Little-Endian Rank-File (LERF) mapping
-- **Incremental game-state tracking** (side to move, castling rights, en passant square, etc.)
-- **Zobrist hashing** maintained incrementally during make/unmake
+- **Incremental game-state tracking** (side to move, castling rights, en passant square, clocks)
+- **Incremental Zobrist hashing** maintained through make/unmake
 
 ### Move generation
 
-- **Magic bitboards** for sliding piece attacks (rook, bishop, queen)
-- **Lookup tables** for leapers (knight, king)
-- **Pawns** via bitwise shifts for pushes and bitwise attack masks (including en passant)
-- **Legality filtering** via pseudo-legal generation + make/unmake verification
+- **Magic bitboards** for sliding attacks (rook, bishop, queen)
+- **Precomputed attack tables** for leapers (knight, king)
+- **Pawn handling** with push/capture masks, promotions, and en passant
+- **Legal move generation** via pseudo-legal generation + make/unmake king safety filtering
 
 ### Search
 
-- **Negamax** (simplified minimax for zero-sum games)
-- **Alpha-beta pruning** to cut irrelevant branches
-- **Iterative deepening** (framework in place)
-- **Quiescence search**: planned (see roadmap)
+- **Iterative deepening** root search
+- **Negamax + alpha-beta pruning**
+- **Quiescence search** at leaf nodes
+- **Transposition table (TT)** with PV/CUT/ALL bounds
+- **Move ordering** using:
+  - TT move priority
+  - MVV-LVA-style capture scoring
+  - killer moves
+  - history heuristic
+- **PVS (Principal Variation Search)**
+- **Null-move pruning**
+- **LMR-style late move reductions**
+- **Time/node/depth/mate/movetime constraints** parsed from UCI `go`
 
 ### Evaluation
 
-- **Hand-Crafted Evaluation (HCE)** using material weights + piece-square tables (PST)
-- **Tapered evaluation**: smoothly interpolates between middlegame and endgame using PeSTO-style tables
+- **Hand-Crafted Evaluation (HCE)** with material and piece-square tables
+- **Tapered evaluation** (middlegame/endgame interpolation, PeSTO-inspired)
 
-### Testing
+### UCI support
 
-- **Perft suite** to validate move generation correctness on standard positions (initial, Kiwipete, etc.)
+Implemented core commands include:
 
-## Build & usage
+- `uci`, `isready`, `ucinewgame`, `quit`
+- `position startpos ...` and `position fen ...`
+- `go` with standard limits (`wtime`, `btime`, `winc`, `binc`, `movestogo`, `depth`, `nodes`, `mate`, `movetime`, `infinite`, `ponder`, `searchmoves`)
+- `stop`, `ponderhit`
+- `setoption name Hash value <mb>` (1–1024)
+- `setoption name Clear Hash`
+- `debug on|off` and debug-only `printboard`
 
-Prophet uses a `Makefile` for compilation.
+## Build and run
+
+Prophet uses a `Makefile`.
 
 ### Requirements
 
 - macOS/Linux
-- `gcc` (C17)
+- a C17 compiler (`cc`/`gcc`/`clang`)
 
-### Compilation
+### Build targets
 
-Build the main engine executable:
+- `make` → builds the engine executable: `./prophet`
+- `make perft_test` → builds and runs perft tests: `./perft`
+- `make magic` → builds and runs magic generator utility: `./magic_gen`
 
-```bash
-make
-```
+Build modes:
 
-Build the Perft test suite:
+- `make debug` (`-O0 -g3`)
+- `make dev` (`-O3 -g1 -DNDEBUG`, default)
+- `make release` (`-O3 -DNDEBUG -flto`)
 
-```bash
-make perft_test
-```
+Clean artifacts:
 
-Build the magic-number generator (utility):
-
-```bash
-make magic
-```
+- `make clean`
 
 ### Running
 
-Run the engine:
+Run the engine (UCI mode):
 
 ```bash
-./chess
+./prophet
 ```
 
-At the moment, `src/main.c` runs a hardcoded search on a set of positions.
-
-Run the perft tests:
+Run the perft suite:
 
 ```bash
 ./perft
 ```
 
-## Technical implementation details
+## Technical notes
 
-### 1) Board representation (`src/board`)
+### Tapered evaluation
 
-The engine uses bitboards (64-bit integers) to represent piece placement and occupancy.
-
-- **`CBoard` struct**: maintains bitboards for piece types/colors and game-state metadata.
-- **Zobrist hashing**: an incrementally updated key used to identify positions (and to support a future transposition table).
-
-### 2) Move generation (`src/movegen`, `src/attacks`)
-
-- **Sliding pieces**: magic bitboards provide $O(1)$ attack lookup for rooks and bishops (queens combine both), based on occupancy.
-- **Leapers**: king/knight attacks come from precomputed lookup tables.
-- **Pawns**:
-  - pushes via bitwise shifts
-  - captures via precomputed/derived attack masks
-  - en passant handled in move generation + make/unmake
-
-The generator produces **pseudo-legal** moves; the search filters illegal moves by making/unmaking and verifying king safety.
-
-### 3) Evaluation (`src/hcevaluation`)
-
-Prophet uses a tapered evaluation inspired by PeSTO.
-
-- **Game phase** is computed from remaining material.
-- The final score interpolates between middlegame and endgame terms:
+The final score interpolates between middlegame and endgame terms:
 
 $$
-  ext{Score} = \frac{\text{MG} \times \text{Phase} + \text{EG} \times (24 - \text{Phase})}{24}
+\mathrm{Score} = \frac{\mathrm{MG} \times \mathrm{Phase} + \mathrm{EG} \times (24 - \mathrm{Phase})}{24}
 $$
-
-### 4) Search (`src/search`)
-
-The current search is a standard negamax with alpha-beta pruning.
-
-- Leaf nodes stop at depth 0 (no quiescence yet), which can lead to the *horizon effect* in sharp tactical positions.
 
 ## Roadmap
 
-Prophet is functional, but it’s missing several standard features needed for competitive play and GUI integration.
+Current major priorities:
 
-### High priority
-
-- [ ] **UCI protocol**: implement the UCI loop so Prophet can run in GUIs (Arena, CuteChess, etc.). See `engine-interface.txt`.
-- [ ] **Time management**: allocate time per move from `wtime`, `btime`, `movestogo`, increments, etc.
-- [ ] **Quiescence search**: extend leaf evaluation to resolve capture sequences and reduce tactical blunders.
-
-### Search enhancements
-
-- [ ] **Transposition table (TT)**: cache results using the existing Zobrist keys.
-- [ ] **Move ordering**:
-  - [ ] MVV-LVA (Most Valuable Victim / Least Valuable Attacker)
-  - [ ] Killer heuristic
-  - [ ] History heuristic
-- [ ] **Selectivity**:
-  - [ ] Null-move pruning
-  - [ ] Late move reductions (LMR)
-  - [ ] Principal variation search (PVS)
-
-### Evaluation improvements
-
-- [ ] Mobility
-- [ ] Pawn structure (backward, doubled, isolated pawns)
-- [ ] King safety (more advanced patterns)
+- Improve time management quality and tuning
+- Continue UCI robustness/compliance hardening
+- Add richer evaluation terms (mobility, pawn structure, king safety)
+- Keep improving search strength and move-ordering quality
 
 ## Project structure
 
 ```text
 prophet/
 ├── src/
-│   ├── attacks/      # Magic bitboards and precomputed attack tables
-│   ├── board/        # Board representation, bitboards, Zobrist hashing
-│   ├── core/         # Typedefs and bit manipulation helpers
-│   ├── engine/       # Engine initialization / plumbing
-│   ├── hcevaluation/ # Static evaluation (PeSTO-style tapered eval)
-│   ├── movegen/      # Move generation + make/unmake
-│   ├── search/       # Negamax + alpha-beta search
-│   ├── tests/        # Perft testing suite
-│   ├── utils/        # PRNG and helpers
-│   └── main.c        # Entry point
-├── Makefile          # Build configuration
-└── README.md         # Documentation
+│   ├── attacks/   # Magic bitboards + attack generation utilities
+│   ├── board/     # Board state, FEN, and Zobrist hashing
+│   ├── core/      # Core chess types and bitboard helpers
+│   ├── engine/    # Engine initialization
+│   ├── eval/      # Hand-crafted tapered evaluation
+│   ├── movegen/   # Move representation, generation, make/unmake
+│   ├── search/    # Search, TT, move ordering, pruning
+│   ├── tests/     # Perft and test utilities
+│   ├── uci/       # UCI loop and command handling
+│   ├── utils/     # Misc helpers (e.g., PRNG)
+│   └── main.c     # Entry point (starts UCI loop)
+├── Makefile
+└── README.md
 ```
 
 ## Credits
-All from [The Chess Programming Wiki](https://www.chessprogramming.org/Main_Page)
-- **PeSTO evaluation**: piece-square tables adapted from the PeSTO-style tapered evaluation approach.
-- **Magic bitboards**: standard magic bitboard techniques for sliding attacks.
-- **PRNG**: Bob Jenkins’ RKISS-style PRNG for generating Zobrist keys.
 
+Inspired by resources from [Chess Programming Wiki](https://www.chessprogramming.org/Main_Page):
 
+- PeSTO-style tapered evaluation ideas
+- Magic bitboard techniques for sliding attacks
+- RKISS-style PRNG concepts for key generation

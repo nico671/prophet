@@ -5,33 +5,6 @@
 #include <stdint.h>
 #include "core/chess_types.h"
 #include "board/cboard.h"
-// Move flag encoding.
-// typedef enum
-// {
-// QUIET = 0,
-// DOUBLE_PAWN_PUSH = 1,
-// KINGSIDE_CASTLE = 2,
-// QUEENSIDE_CASTLE = 3,
-// CAPTURE = 4,
-// EP_CAPTURE = 5,
-
-//     KNIGHT_PROMO_QUIET = 8,
-//     BISHOP_PROMO_QUIET = 9,
-//     ROOK_PROMO_QUIET = 10,
-//     QUEEN_PROMO_QUIET = 11,
-
-//     KNIGHT_PROMO_CAPTURE = 12,
-//     BISHOP_PROMO_CAPTURE = 13,
-//     ROOK_PROMO_CAPTURE = 14,
-//     QUEEN_PROMO_CAPTURE = 15,
-// } MoveFlag;
-
-// typedef struct
-// {
-//     Square from;
-//     Square to;
-//     MoveFlag flag;
-// } Move;
 
 /**
  * @brief Move representation using a compact 16-bit encoding. The move is represented as a uint16_t where:
@@ -42,8 +15,6 @@
  */
 typedef uint16_t Move;
 #define MOVE_NONE ((Move)0xFFFF)
-// TODO: use stockfish move representation
-// https://github.com/official-stockfish/Stockfish/blob/master/src/types.h#L428
 
 // Move list structure
 typedef struct
