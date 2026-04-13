@@ -539,7 +539,13 @@ void uciLoop(void)
         else if (!strncmp(p, "uci", 3) && (p[3] == '\0' || isspace((unsigned char)p[3])))
         {
             initEngine();
-            printf("id name Prophet\n");
+
+            // Fallback if VERSION is not defined by the build system.
+#ifndef VERSION
+#define VERSION "dev"
+#endif
+
+            printf("id name Prophet %s\n", VERSION);
             printf("id author Nicolas Carbone\n");
             printf("option name Hash type spin default 64 min 1 max 1024\n");
             printf("option name Clear Hash type button\n");
