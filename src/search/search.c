@@ -451,7 +451,7 @@ static int searchRootBestMove(CBoard *board, int depth, Move *prevBestMove)
 
         char currMoveUci[6];
         moveToUciString(move, currMoveUci);
-        printf("info depth %d currmove %s currmovenumber %d\n", depth, currMoveUci, i + 1);
+        // printf("info depth %d currmove %s currmovenumber %d\n", depth, currMoveUci, i + 1);
 
         // Skip moves that aren't in the searchMoves list (if searchMoves is non-empty)
         if (!moveAllowedBySearchMoves(move, &activeSearchLimits.searchMoves))
