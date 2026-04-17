@@ -1,109 +1,91 @@
 # Prophet Branching & Release Workflow
 
-This project uses a three-lane branch strategy:
+This repo follows a Git-first workflow:
 
-- `main`: release branch (stable, tagged versions only)
-- `dev`: integration branch (day-to-day accumulation)
-- `feature/*`: short-lived feature branches
+- use classic Git commands for day-to-day branch management,
+- use the VS Code GitHub Pull Requests UI for review/merge,
+- use `just` mainly for build/test/release helpers.
 
-The `justfile` automates most branch/release actions.
+## 1) Branching strategy
 
-## Branch model
+- `main` (protected release branch)
+  - Stable, tagged releases only.
+  - No direct development commits.
+  - Receives release-ready state from `dev`.
+- `dev` (active integration branch)
+  - Default branch for ongoing engineering work.
+  - All feature/fix PRs target `dev`.
+- `feature/*` or `fix/*` (short-lived work branches)
+  - Branch from `dev`.
+  - Merge back to `dev` via PR.
 
-### `main`
+## 2) Daily feature/fix workflow (Git + VS Code PR UI)
 
-- Contains release-ready code only.
-- Receives changes from `dev` through fast-forward promotion.
-- Tagged with semantic versions (`v0.1.0`, `v0.2.0`, ...).
+1. Update `dev` locally:
+   - `git checkout dev`
+   - `git pull --ff-only origin dev`
+2. Create branch:
+   - `git checkout -b feature/<name>` (or `fix/<name>`)
+3. Build/test locally while iterating:
+   - `just all`
+   - `just perft_test` (required for movegen/search changes)
+4. Commit and push:
+   - `git add -A`
+   - `git commit -m "<scope>: <summary>"`
+   - `git push -u origin feature/<name>`
+5. Open PR in VS Code Pull Requests view:
+   - Head: `feature/<name>`
+   - Base: `dev`
+6. Merge after review and required checks.
 
-### `dev`
+## 3) Required checks for `feature/* -> dev`
 
-- Default integration branch for active work.
-- Feature branches are merged into `dev`.
-- `dev` is promoted to `main` at release time.
+All merges from feature/fix branches into `dev` must pass perft validation.
 
-### `feature/*`
+- Local requirement before opening/merging PR:
+  - `just perft_test`
+- Repository policy recommendation:
+  - Add a required CI status check for perft on PRs targeting `dev`.
+- Local `just` guard:
+  - `just finish-feature <name>` runs `just verify-perft` before merge.
 
-- One branch per change.
-- Typically branched from `dev`.
-- Merged back into `dev` using `--no-ff` for clear history.
+> Note: local checks are not a substitute for protected-branch required status checks.
 
-## Local automation commands
+## 4) Release workflow (maintainers)
 
-### Bootstrap / branch setup
+Releases are performed from a clean working tree.
 
-- `just ensure-dev`
-  - Create `dev` from `main` if missing and switch to it.
-- `just publish-dev`
-  - Push `dev` to `origin` and set upstream.
+1. Ensure `dev` is ready and synced.
+2. Promote `dev` to `main` (fast-forward policy applies in `just promote-dev-to-main`).
+3. Build and archive release artifacts under explicit version directory.
+4. Tag and push release tag.
 
-### Feature lifecycle
+Primary command:
 
-- `just start-feature <name>`
-  - Start or switch to `feature/<name>` from `dev`.
+- `just release <x.y.z>`
+
+This now archives all key binaries under `artifacts/v<x.y.z>/`:
+
+- `prophet-release`
+- `perft-release`
+- `magic_gen-release`
+
+## 5) Artifact/version behavior
+
+- Normal dev builds use `git describe --tags --always --dirty`.
+- Release archiving uses explicit version override `v<x.y.z>` to avoid dirty-derived naming.
+- UCI version string during release builds is also set to `v<x.y.z>`.
+
+## 6) Fast-forward-only convention
+
+- `git pull --ff-only ...` and `git merge --ff-only ...` are used to prevent accidental merge commits on protected flow branches.
+- If branches diverge, promotion fails and maintainers must reconcile branches first.
+
+## 7) Optional helper recipes
+
+Use these as convenience wrappers (not as a replacement for understanding Git):
+
+- `just start-feature <name> [base]`
 - `just publish-feature <name>`
-  - Push feature branch and set upstream.
-- `just finish-feature <name>`
-  - Merge `feature/<name>` into `dev`, push `dev`, and delete local feature branch (default behavior).
-
-Example:
-
-- `just start-feature nmp-improvements`
-- `just publish-feature nmp-improvements`
-- `just finish-feature nmp-improvements`
-
-### Release lifecycle
-
+- `just finish-feature <name> [delete_local]`
 - `just release <ver>`
-  - Verifies clean tree
-  - Promotes `dev` to `main` (fast-forward only)
-  - Builds+archives release binary
-  - Creates annotated tag `v<ver>`
-  - Pushes the tag
-
-Example:
-
-- `just release 0.1.0`
-
-### Build/version helpers
-
-- `just version`
-- `just archive <build>`
-- `just archive-perft <build>`
-- `just archive-magic <build>`
-- `just list-artifacts`
-
-## Artifact layout
-
-Artifacts are stored by resolved git version:
-
-- `artifacts/<version>/prophet-<build>`
-- `artifacts/<version>/perft-<build>`
-- `artifacts/<version>/magic_gen-<build>`
-
-Example:
-
-- `artifacts/v0.1.0/prophet-release`
-- `artifacts/v0.1.0-dirty/prophet-dev`
-
-## Versioning behavior
-
-- Build-time version is injected from:
-  - `git describe --tags --always --dirty`
-- If unavailable, fallback is:
-  - `dev`
-- UCI advertises:
-  - `id name Prophet <version>`
-
-## Recommended pull request flow
-
-1. Branch from `dev` with `just start-feature <name>`
-2. Commit and push feature branch
-3. Open PR: `feature/<name>` -> `dev`
-4. Merge PR into `dev`
-5. Periodically release from `dev` to `main` with `just release <ver>`
-
-## Safety expectations
-
-- `just require-clean` is used by workflow recipes to avoid accidental releases/merges with uncommitted work.
-- `promote-dev-to-main` uses `--ff-only`, preventing accidental merge commits on `main`.
