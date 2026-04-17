@@ -1,137 +1,110 @@
 # Prophet
 
-Prophet is a chess engine written from scratch in C (C17). It uses bitboards, incremental state updates, and a modern alpha-beta search stack, and currently runs as a UCI engine.
+Prophet is a UCI chess engine written in C17. It uses bitboards, incremental board state, and a modern alpha-beta search pipeline with iterative deepening.
 
-## Features
+## Current engine status
 
-### Board representation
+The engine currently includes:
 
-- **Bitboards (64-bit)** with Little-Endian Rank-File (LERF) mapping
-- **Incremental game-state tracking** (side to move, castling rights, en passant square, clocks)
-- **Incremental Zobrist hashing** maintained through make/unmake
+- **Bitboard board model** with incremental make/unmake and Zobrist hashing.
+- **Move generation** with precomputed leaper attacks + magic-bitboard sliding attacks.
+- **Search stack** with iterative deepening, negamax + alpha-beta, quiescence, transposition table, PVS, null-move pruning, and LMR-style reductions.
+- **Move ordering** using TT move, capture scoring, killer moves, and history heuristic.
+- **Evaluation** via tapered PeSTO-style hand-crafted evaluation.
+- **UCI interface** with practical options/limits for GUI play and testing.
 
-### Move generation
+## UCI support
 
-- **Magic bitboards** for sliding attacks (rook, bishop, queen)
-- **Precomputed attack tables** for leapers (knight, king)
-- **Pawn handling** with push/capture masks, promotions, and en passant
-- **Legal move generation** via pseudo-legal generation + make/unmake king safety filtering
+Implemented commands/options:
 
-### Search
-
-- **Iterative deepening** root search
-- **Negamax + alpha-beta pruning**
-- **Quiescence search** at leaf nodes
-- **Transposition table (TT)** with PV/CUT/ALL bounds
-- **Move ordering** using:
-  - TT move priority
-  - MVV-LVA-style capture scoring
-  - killer moves
-  - history heuristic
-- **PVS (Principal Variation Search)**
-- **Null-move pruning**
-- **LMR-style late move reductions**
-- **Time/node/depth/mate/movetime constraints** parsed from UCI `go`
-
-### Evaluation
-
-- **Hand-Crafted Evaluation (HCE)** with material and piece-square tables
-- **Tapered evaluation** (middlegame/endgame interpolation, PeSTO-inspired)
-
-### UCI support
-
-Implemented core commands include:
-
-- `uci`, `isready`, `ucinewgame`, `quit`
+- Commands: `uci`, `isready`, `ucinewgame`, `position`, `go`, `stop`, `ponderhit`, `debug`, `quit`
 - `position startpos ...` and `position fen ...`
-- `go` with standard limits (`wtime`, `btime`, `winc`, `binc`, `movestogo`, `depth`, `nodes`, `mate`, `movetime`, `infinite`, `ponder`, `searchmoves`)
-- `stop`, `ponderhit`
-- `setoption name Hash value <mb>` (1–1024)
-- `setoption name Clear Hash`
-- `debug on|off` and debug-only `printboard`
+- `go` tokens: `searchmoves`, `ponder`, `wtime`, `btime`, `winc`, `binc`, `movestogo`, `depth`, `nodes`, `mate`, `movetime`, `infinite`
+- Options:
+  - `setoption name Hash value <mb>` (clamped to `1..1024`)
+  - `setoption name Clear Hash`
+- Debug helper: `printboard` (when `debug on`)
 
-## Build and run
+## Build & run (justfile-based)
 
-Prophet uses a `Makefile`.
+This repo is driven by `just` recipes (not a Makefile).
 
 ### Requirements
 
-- macOS/Linux
-- a C17 compiler (`cc`/`gcc`/`clang`)
+- macOS or Linux
+- C17 compiler (`cc`, `clang`, or `gcc`)
+- [`just`](https://github.com/casey/just)
 
-### Build targets
+### Common commands
 
-- `make` → builds the engine executable: `./prophet`
-- `make perft_test` → builds and runs perft tests: `./perft`
-- `make magic` → builds and runs magic generator utility: `./magic_gen`
+- `just all [build]` — build engine (`build`: `debug`, `dev` (default), `release`)
+- `just run [build]` — build and run `./prophet`
+- `just perft_test [build]` — build and run perft harness (`./perft`)
+- `just magic [build]` — build and run magic-number generator (`./magic_gen`)
+- `just debug` — clean + debug build
+- `just dev` — clean + dev build
+- `just release-build` — clean + release build
+- `just clean` — remove build outputs
 
-Build modes:
+### Artifacts and versioning
 
-- `make debug` (`-O0 -g3`)
-- `make dev` (`-O3 -g1 -DNDEBUG`, default)
-- `make release` (`-O3 -DNDEBUG -flto`)
+- `just version` resolves version via `git describe --tags --always --dirty`.
+- `just archive [build]`, `just archive-perft [build]`, `just archive-magic [build]` archive binaries under `artifacts/<version>/`.
+- `just list-artifacts` lists all archived binaries.
 
-Clean artifacts:
+## Development strategy
 
-- `make clean`
+Branching model:
 
-### Running
+- `main` = stable releases only
+- `dev` = integration branch
+- `feature/*` = short-lived branches for focused work
 
-Run the engine (UCI mode):
+Helper recipes exist for lifecycle operations:
 
-```bash
-./prophet
+- `just start-feature <name> [base]`
+- `just publish-feature <name>`
+- `just finish-feature <name> [delete_local]`
+- `just release <ver>`
+
+See `docs/workflow.md` for the full branch/release flow.
+
+## Project layout
+
+```text
+prophet/
+├── src/
+│   ├── attacks/   # Attack generation (constant + sliding/magic)
+│   ├── board/     # Board state, FEN loading, Zobrist
+│   ├── core/      # Core chess types and bitboard helpers
+│   ├── engine/    # Engine initialization
+│   ├── eval/      # Hand-crafted tapered evaluation
+│   ├── movegen/   # Move representation, generation, make/unmake
+│   ├── search/    # Search, move ordering, pruning, TT
+│   ├── tests/     # Perft harness and test helpers
+│   ├── uci/       # UCI parsing and command loop
+│   ├── utils/     # Utility modules (PRNG, etc.)
+│   └── main.c     # Program entry point
+├── docs/
+│   └── workflow.md
+├── justfile
+└── README.md
 ```
 
-Run the perft suite:
+## Technical note: tapered evaluation
 
-```bash
-./perft
-```
-
-## Technical notes
-
-### Tapered evaluation
-
-The final score interpolates between middlegame and endgame terms:
+The interpolation form is:
 
 $$
 \mathrm{Score} = \frac{\mathrm{MG} \times \mathrm{Phase} + \mathrm{EG} \times (24 - \mathrm{Phase})}{24}
 $$
 
-## Roadmap
+## Near-term focus
 
-Current major priorities:
-
-- Improve time management quality and tuning
-- Continue UCI robustness/compliance hardening
-- Add richer evaluation terms (mobility, pawn structure, king safety)
-- Keep improving search strength and move-ordering quality
-
-## Project structure
-
-```text
-prophet/
-├── src/
-│   ├── attacks/   # Magic bitboards + attack generation utilities
-│   ├── board/     # Board state, FEN, and Zobrist hashing
-│   ├── core/      # Core chess types and bitboard helpers
-│   ├── engine/    # Engine initialization
-│   ├── eval/      # Hand-crafted tapered evaluation
-│   ├── movegen/   # Move representation, generation, make/unmake
-│   ├── search/    # Search, TT, move ordering, pruning
-│   ├── tests/     # Perft and test utilities
-│   ├── uci/       # UCI loop and command handling
-│   ├── utils/     # Misc helpers (e.g., PRNG)
-│   └── main.c     # Entry point (starts UCI loop)
-├── Makefile
-└── README.md
-```
+- Strength/tuning work in search and move ordering
+- Evaluation improvements (mobility, pawn/king structure, etc.)
+- UCI robustness and testing coverage
 
 ## Credits
 
-Inspired by resources from [Chess Programming Wiki](https://www.chessprogramming.org/Main_Page):
-
-- PeSTO-style tapered evaluation ideas
-- Magic bitboard techniques for sliding attacks
-- RKISS-style PRNG concepts for key generation
+Influenced by [Chess Programming Wiki](https://www.chessprogramming.org/Main_Page) patterns and references (PeSTO-style evaluation, magic bitboards, Zobrist workflows).

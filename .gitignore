@@ -4,3 +4,5 @@ chess
 .github/
 .vscode/
 perft
+artifacts/other_engines/
+dev.md
