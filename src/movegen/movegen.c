@@ -93,7 +93,7 @@ bool isKingInCheck(CBoard* board, Color side)
     if (king == 0) {
         return true;
     }
-    Square kingSquare = bitboardLSBIndex(king);
+    Square kingSquare = bitboard_lsb_index(king);
     Color opponentColor = (side == WHITE) ? BLACK : WHITE;
     return isSquareAttacked(board, kingSquare, opponentColor);
 }

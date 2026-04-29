@@ -69,9 +69,9 @@ bool move_is_capture(CBoard* board, Move move)
 
     Square to = getToSquare(move);
     if (board->sideToMove == WHITE) {
-        return bitboardCheckSquareBit(board->blackPieces, to) && !move_is_enpassant(move) && !move_is_castling(move) && !move_is_promotion(move);
+        return bitboard_is_bit_set(board->blackPieces, to) && !move_is_enpassant(move) && !move_is_castling(move) && !move_is_promotion(move);
     } else {
-        return bitboardCheckSquareBit(board->whitePieces, to) && !move_is_enpassant(move) && !move_is_castling(move) && !move_is_promotion(move);
+        return bitboard_is_bit_set(board->whitePieces, to) && !move_is_enpassant(move) && !move_is_castling(move) && !move_is_promotion(move);
     }
 }
 

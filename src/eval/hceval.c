@@ -877,8 +877,8 @@ void hcEvalInit(void)
 
 static inline void accumulate_piece(Bitboard bb, int pc, int mg[2], int eg[2], int* gamePhase)
 {
-    while (!bitboardIsEmpty(bb)) {
-        int sq = bitboardPopLSB(&bb);
+    while (!bitboard_is_empty(bb)) {
+        int sq = bitboard_pop_lsb(&bb);
         mg[PCOLOR(pc)] += mg_table[pc][sq];
         eg[PCOLOR(pc)] += eg_table[pc][sq];
         *gamePhase += gamephaseInc[pc];

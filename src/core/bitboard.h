@@ -15,12 +15,12 @@ typedef uint64_t Bitboard;
  * @param bb The bitboard to check.
  * @return true if the bitboard is empty, false otherwise.
  */
-static inline bool bitboardIsEmpty(Bitboard bb)
+static inline bool bitboard_is_empty(Bitboard bb)
 {
     return bb == 0ULL;
 }
 
-static inline int bitBoardPopcount(Bitboard bb)
+static inline int bitboard_popcount(Bitboard bb)
 {
     return __builtin_popcountll(bb);
 }
@@ -31,7 +31,7 @@ static inline int bitBoardPopcount(Bitboard bb)
  * @param bb The bitboard to analyze.
  * @return int The index of the least significant 1 bit.
  */
-static inline int bitboardLSBIndex(Bitboard bb)
+static inline int bitboard_lsb_index(Bitboard bb)
 {
     return __builtin_ctzll(bb);
 }
@@ -43,9 +43,9 @@ static inline int bitboardLSBIndex(Bitboard bb)
  * @param bb The bitboard to pop from.
  * @return int The index of the least significant 1 bit, or NO_SQUARE if the bitboard is empty.
  */
-static inline int bitboardPopLSB(Bitboard* bb)
+static inline int bitboard_pop_lsb(Bitboard* bb)
 {
-    if (bitboardIsEmpty(*bb))
+    if (bitboard_is_empty(*bb))
         return NO_SQUARE;
     int idx = __builtin_ctzll(*bb); // count trailing zeros, built-in function
     *bb &= *bb - 1;
@@ -58,7 +58,7 @@ static inline int bitboardPopLSB(Bitboard* bb)
  * @param sq The square index (0-63).
  * @return Bitboard The resulting bitboard.
  */
-static inline Bitboard bitboardSquareMask(Square sq)
+static inline Bitboard bitboard_square_mask(Square sq)
 {
     return (Bitboard)1ULL << sq;
 }
@@ -69,9 +69,9 @@ static inline Bitboard bitboardSquareMask(Square sq)
  * @param bb The bitboard to modify.
  * @param sq The square index (0-63) to set.
  */
-static inline void bitboardSetSquareBit(Bitboard* bb, Square sq)
+static inline void bitboard_set_square_bit(Bitboard* bb, Square sq)
 {
-    *bb |= bitboardSquareMask(sq);
+    *bb |= bitboard_square_mask(sq);
 }
 
 /**
@@ -80,21 +80,9 @@ static inline void bitboardSetSquareBit(Bitboard* bb, Square sq)
  * @param bb The bitboard to modify.
  * @param sq The square index (0-63) to clear.
  */
-static inline void bitboardClearSquareBit(Bitboard* bb, int sq)
+static inline void bitboard_clear_square_bit(Bitboard* bb, int sq)
 {
-    *bb &= ~bitboardSquareMask(sq);
-}
-
-/**
- * @brief Checks if the bit corresponding to a square is set in a bitboard.
- *
- * @param bb The bitboard to check.
- * @param sq The square index (0-63) to check.
- * @return true if the bit is set, false otherwise.
- */
-static inline bool bitboardCheckSquareBit(Bitboard bb, int sq)
-{
-    return (bb & bitboardSquareMask(sq)) != 0;
+    *bb &= ~bitboard_square_mask(sq);
 }
 
 /* rank masks (1..8) */
@@ -110,7 +98,7 @@ static const Bitboard RANK_8 = RANK_1 << 56;
  * @param sq The square index (0-63) to test.
  * @return int 1 if the bit is set, 0 otherwise.
  */
-static inline int bitboardIsBitSet(Bitboard bb, int sq)
+static inline int bitboard_is_bit_set(Bitboard bb, int sq)
 {
     return (int)((bb >> sq) & 1ULL);
 }
@@ -121,7 +109,7 @@ static inline int bitboardIsBitSet(Bitboard bb, int sq)
  * @param bb The bitboard to shift.
  * @return Bitboard The shifted bitboard.
  */
-static inline Bitboard bitboardShiftNorth(Bitboard bb)
+static inline Bitboard bitboard_shift_north(Bitboard bb)
 {
     return bb << 8;
 }
@@ -132,12 +120,6 @@ static inline Bitboard bitboardShiftNorth(Bitboard bb)
  * @param bb The bitboard to shift.
  * @return Bitboard The shifted bitboard.
  */
-static inline Bitboard bitboardShiftSouth(Bitboard bb) { return bb >> 8; }
-
-// generic bitfield ops, not for bitboards but useful for other bitfield manipulations
-#define BIT_MASK(pos) (1ULL << (pos))
-#define SET_BIT(var, pos) ((var) |= BIT_MASK(pos))
-#define CLEAR_BIT(var, pos) ((var) &= ~BIT_MASK(pos))
-#define CHECK_BIT(var, pos) (!!((var) & BIT_MASK(pos)))
+static inline Bitboard bitboard_shift_south(Bitboard bb) { return bb >> 8; }
 
 #endif // BITBOARD_H

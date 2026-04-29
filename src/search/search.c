@@ -55,9 +55,9 @@ static bool isPromotionCapture(const CBoard* board, Move move)
     }
 
     if (board->sideToMove == WHITE) {
-        return bitboardCheckSquareBit(board->blackPieces, to);
+        return bitboard_is_bit_set(board->blackPieces, to);
     }
-    return bitboardCheckSquareBit(board->whitePieces, to);
+    return bitboard_is_bit_set(board->whitePieces, to);
 }
 
 static bool isCaptureLike(CBoard* board, Move move)

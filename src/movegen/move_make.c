@@ -22,7 +22,7 @@ static UndoInfo saveUndoInfo(CBoard* board, PieceType captured, Move move)
 static void updateGameState(CBoard* board, Square to, bool isCapture)
 {
     // Update halfmove clock
-    bool isPawnMove = bitboardIsBitSet(board->whitePawns, to) || bitboardIsBitSet(board->blackPawns, to);
+    bool isPawnMove = bitboard_is_bit_set(board->whitePawns, to) || bitboard_is_bit_set(board->blackPawns, to);
     if (isPawnMove || isCapture) {
         board->halfmoveClock = 0;
     } else {
@@ -245,9 +245,9 @@ UndoInfo makePromotionMove(CBoard* board, Move move)
     // Determine if it's a promotion capture
     bool isPromotionCapture;
     if (board->sideToMove == WHITE) {
-        isPromotionCapture = bitboardIsBitSet(board->blackPieces, to);
+        isPromotionCapture = bitboard_is_bit_set(board->blackPieces, to);
     } else {
-        isPromotionCapture = bitboardIsBitSet(board->whitePieces, to);
+        isPromotionCapture = bitboard_is_bit_set(board->whitePieces, to);
     }
 
     // If capture, remove the captured piece first and save its type
@@ -468,11 +468,11 @@ UndoInfo makeMove(CBoard* board, Move move)
     {
         // check for captures
         if (board->sideToMove == WHITE) {
-            if (bitboardIsBitSet(board->blackPieces, to)) {
+            if (bitboard_is_bit_set(board->blackPieces, to)) {
                 return makeCaptureMove(board, move);
             }
         } else {
-            if (bitboardIsBitSet(board->whitePieces, to)) {
+            if (bitboard_is_bit_set(board->whitePieces, to)) {
                 return makeCaptureMove(board, move);
             }
         }
@@ -559,10 +559,10 @@ void unmakeMove(CBoard* board, Move move, UndoInfo undoInfo)
             Color opponentColor = (board->sideToMove == WHITE) ? BLACK : WHITE;
             addPieceToBoard(board, to, opponentColor, undoInfo.capturedPiece);
             if (opponentColor == WHITE)
-                bitboardSetSquareBit(&board->whitePieces, to);
+                bitboard_set_square_bit(&board->whitePieces, to);
             else
-                bitboardSetSquareBit(&board->blackPieces, to);
-            bitboardSetSquareBit(&board->allPieces, to);
+                bitboard_set_square_bit(&board->blackPieces, to);
+            bitboard_set_square_bit(&board->allPieces, to);
         }
     } else if (move_is_enpassant(move)) {
         if (undoInfo.capturedPiece != PAWN) {
@@ -582,10 +582,10 @@ void unmakeMove(CBoard* board, Move move, UndoInfo undoInfo)
         Color opponentColor = (board->sideToMove == WHITE) ? BLACK : WHITE;
         addPieceToBoard(board, capturedPawnSquare, opponentColor, PAWN);
         if (opponentColor == WHITE)
-            bitboardSetSquareBit(&board->whitePieces, capturedPawnSquare);
+            bitboard_set_square_bit(&board->whitePieces, capturedPawnSquare);
         else
-            bitboardSetSquareBit(&board->blackPieces, capturedPawnSquare);
-        bitboardSetSquareBit(&board->allPieces, capturedPawnSquare);
+            bitboard_set_square_bit(&board->blackPieces, capturedPawnSquare);
+        bitboard_set_square_bit(&board->allPieces, capturedPawnSquare);
     } else {
         // Unmake regular move (quiet, capture, double pawn push)
         // Move piece back from destination to source
@@ -597,10 +597,10 @@ void unmakeMove(CBoard* board, Move move, UndoInfo undoInfo)
             Color opponentColor = (board->sideToMove == WHITE) ? BLACK : WHITE;
             addPieceToBoard(board, to, opponentColor, undoInfo.capturedPiece);
             if (opponentColor == WHITE)
-                bitboardSetSquareBit(&board->whitePieces, to);
+                bitboard_set_square_bit(&board->whitePieces, to);
             else
-                bitboardSetSquareBit(&board->blackPieces, to);
-            bitboardSetSquareBit(&board->allPieces, to);
+                bitboard_set_square_bit(&board->blackPieces, to);
+            bitboard_set_square_bit(&board->allPieces, to);
         }
     }
 }

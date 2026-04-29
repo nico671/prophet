@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #include "core/bitboard.h"
+#include "core/bitops.h"
 #include "core/chess_types.h"
 
 /**

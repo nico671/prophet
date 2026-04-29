@@ -331,7 +331,7 @@ static int extractMaskBitPositions(Bitboard mask, int* positions, int maxPositio
             assert(count < maxPositions);
             break;
         }
-        positions[count++] = bitboardLSBIndex(mask);
+        positions[count++] = bitboard_lsb_index(mask);
         mask &= mask - 1;
     }
     return count;
@@ -344,7 +344,7 @@ static Bitboard occupancyFromIndex(int occupancyIndex, const int* positions, int
     Bitboard occupancy = 0ULL;
     for (int bit = 0; bit < relevantBits; ++bit) {
         if (occupancyIndex & (1 << bit)) {
-            bitboardSetSquareBit(&occupancy, positions[bit]);
+            bitboard_set_square_bit(&occupancy, positions[bit]);
         }
     }
     return occupancy;
@@ -404,31 +404,31 @@ Bitboard generateRookAttacks(Square square, Bitboard blockers)
 
     // north direction check
     for (int r = rank + 1; r <= 7; r++) {
-        bitboardSetSquareBit(&attacks, file + r * 8);
-        if (bitboardIsBitSet(blockers, file + r * 8)) {
+        bitboard_set_square_bit(&attacks, file + r * 8);
+        if (bitboard_is_bit_set(blockers, file + r * 8)) {
             break;
         }
     }
 
     // south direction check
     for (int r = rank - 1; r >= 0; r--) {
-        bitboardSetSquareBit(&attacks, file + r * 8);
-        if (bitboardIsBitSet(blockers, file + r * 8)) {
+        bitboard_set_square_bit(&attacks, file + r * 8);
+        if (bitboard_is_bit_set(blockers, file + r * 8)) {
             break;
         }
     }
 
     // east direction check
     for (int f = file + 1; f <= 7; f++) {
-        bitboardSetSquareBit(&attacks, f + rank * 8);
-        if (bitboardIsBitSet(blockers, f + rank * 8)) {
+        bitboard_set_square_bit(&attacks, f + rank * 8);
+        if (bitboard_is_bit_set(blockers, f + rank * 8)) {
             break;
         }
     }
     // west direction check
     for (int f = file - 1; f >= 0; f--) {
-        bitboardSetSquareBit(&attacks, f + rank * 8);
-        if (bitboardIsBitSet(blockers, f + rank * 8)) {
+        bitboard_set_square_bit(&attacks, f + rank * 8);
+        if (bitboard_is_bit_set(blockers, f + rank * 8)) {
             break;
         }
     }
@@ -444,26 +444,26 @@ Bitboard generateBishopAttacks(Square square, Bitboard blockers)
 
     // NE
     for (int r = rank + 1, f = file + 1; r <= 7 && f <= 7; r++, f++) {
-        bitboardSetSquareBit(&attacks, r * 8 + f);
-        if (bitboardIsBitSet(blockers, r * 8 + f))
+        bitboard_set_square_bit(&attacks, r * 8 + f);
+        if (bitboard_is_bit_set(blockers, r * 8 + f))
             break;
     }
     // NW
     for (int r = rank + 1, f = file - 1; r <= 7 && f >= 0; r++, f--) {
-        bitboardSetSquareBit(&attacks, r * 8 + f);
-        if (bitboardIsBitSet(blockers, r * 8 + f))
+        bitboard_set_square_bit(&attacks, r * 8 + f);
+        if (bitboard_is_bit_set(blockers, r * 8 + f))
             break;
     }
     // SE
     for (int r = rank - 1, f = file + 1; r >= 0 && f <= 7; r--, f++) {
-        bitboardSetSquareBit(&attacks, r * 8 + f);
-        if (bitboardIsBitSet(blockers, r * 8 + f))
+        bitboard_set_square_bit(&attacks, r * 8 + f);
+        if (bitboard_is_bit_set(blockers, r * 8 + f))
             break;
     }
     // SW
     for (int r = rank - 1, f = file - 1; r >= 0 && f >= 0; r--, f--) {
-        bitboardSetSquareBit(&attacks, r * 8 + f);
-        if (bitboardIsBitSet(blockers, r * 8 + f))
+        bitboard_set_square_bit(&attacks, r * 8 + f);
+        if (bitboard_is_bit_set(blockers, r * 8 + f))
             break;
     }
 

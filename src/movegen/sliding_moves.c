@@ -11,19 +11,19 @@ void genAllPseudoLegalBishopMoves(CBoard* board, MoveList* moveList)
         ? (board->blackPieces & ~board->blackKing)
         : (board->whitePieces & ~board->whiteKing);
     while (bishops) {
-        Square from = bitboardPopLSB(&bishops);
+        Square from = bitboard_pop_lsb(&bishops);
         Bitboard attacks = getBishopAttacks(from, board->allPieces);
 
         Bitboard captures = attacks & opponentPieces;
         while (captures) {
-            Square to = bitboardPopLSB(&captures);
+            Square to = bitboard_pop_lsb(&captures);
             Move move = createMove(from, to, NORMAL, NO_PIECE);
             moveList->moves[moveList->count++] = move;
         }
 
         Bitboard quietMoves = attacks & ~board->allPieces;
         while (quietMoves) {
-            Square to = bitboardPopLSB(&quietMoves);
+            Square to = bitboard_pop_lsb(&quietMoves);
             Move move = createMove(from, to, NORMAL, NO_PIECE);
             moveList->moves[moveList->count++] = move;
         }
@@ -38,19 +38,19 @@ void genAllPseudoLegalRookMoves(CBoard* board, MoveList* moveList)
         ? (board->blackPieces & ~board->blackKing)
         : (board->whitePieces & ~board->whiteKing);
     while (rooks) {
-        Square from = bitboardPopLSB(&rooks);
+        Square from = bitboard_pop_lsb(&rooks);
         Bitboard attacks = getRookAttacks(from, board->allPieces);
 
         Bitboard captures = attacks & opponentPieces;
         while (captures) {
-            Square to = bitboardPopLSB(&captures);
+            Square to = bitboard_pop_lsb(&captures);
             Move move = createMove(from, to, NORMAL, NO_PIECE);
             moveList->moves[moveList->count++] = move;
         }
 
         Bitboard quietMoves = attacks & ~board->allPieces;
         while (quietMoves) {
-            Square to = bitboardPopLSB(&quietMoves);
+            Square to = bitboard_pop_lsb(&quietMoves);
             Move move = createMove(from, to, NORMAL, NO_PIECE);
             moveList->moves[moveList->count++] = move;
         }
@@ -65,19 +65,19 @@ void genAllPseudoLegalQueenMoves(CBoard* board, MoveList* moveList)
         ? (board->blackPieces & ~board->blackKing)
         : (board->whitePieces & ~board->whiteKing);
     while (queens) {
-        Square from = bitboardPopLSB(&queens);
+        Square from = bitboard_pop_lsb(&queens);
         Bitboard attacks = getQueenAttacks(from, board->allPieces);
 
         Bitboard captures = attacks & opponentPieces;
         while (captures) {
-            Square to = bitboardPopLSB(&captures);
+            Square to = bitboard_pop_lsb(&captures);
             Move move = createMove(from, to, NORMAL, NO_PIECE);
             moveList->moves[moveList->count++] = move;
         }
 
         Bitboard quietMoves = attacks & ~board->allPieces;
         while (quietMoves) {
-            Square to = bitboardPopLSB(&quietMoves);
+            Square to = bitboard_pop_lsb(&quietMoves);
             Move move = createMove(from, to, NORMAL, NO_PIECE);
             moveList->moves[moveList->count++] = move;
         }

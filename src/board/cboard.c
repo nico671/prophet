@@ -19,7 +19,7 @@ void printBoard(CBoard* board)
         for (int file = 0; file < 8; file++) {
             int squareIndex = rank * 8 + file; // Fixed calculation
             char pieceChar = '.';
-            Bitboard squareMask = bitboardSquareMask(squareIndex);
+            Bitboard squareMask = bitboard_square_mask(squareIndex);
             if (board->whitePawns & squareMask)
                 pieceChar = 'P';
             else if (board->whiteKnights & squareMask)
@@ -93,7 +93,7 @@ bool fenToCBoard(const char* fenString, CBoard* board)
             continue;
         }
         int squareIndex = rank * 8 + file;
-        Bitboard squareMask = bitboardSquareMask(squareIndex);
+        Bitboard squareMask = bitboard_square_mask(squareIndex);
         switch (ch) {
         case 'P':
             board->whitePawns |= squareMask;
@@ -245,7 +245,7 @@ bool fenToCBoard(const char* fenString, CBoard* board)
         }
     }
     // ensure exactly one white king and one black king on board
-    if (bitBoardPopcount(board->whiteKing) != 1 || bitBoardPopcount(board->blackKing) != 1) {
+    if (bitboard_popcount(board->whiteKing) != 1 || bitboard_popcount(board->blackKing) != 1) {
         return false; // Invalid number of kings
     }
     // ensure no pawns on first or last rank
@@ -266,7 +266,7 @@ char* CBoardToFen(CBoard* board)
         int emptyCount = 0; // reset per rank
         for (int file = 0; file < 8; ++file) {
             int squareIndex = rank * 8 + file;
-            Bitboard squareMask = bitboardSquareMask(squareIndex);
+            Bitboard squareMask = bitboard_square_mask(squareIndex);
             char pieceChar = '\0';
             if (board->whitePawns & squareMask)
                 pieceChar = 'P';
@@ -364,7 +364,7 @@ PieceType getPieceAtSquare(const CBoard* board, Square square)
     }
 
     // Mailbox-backed lookup with occupancy validation.
-    if (!bitboardIsBitSet(board->allPieces, square)) {
+    if (!bitboard_is_bit_set(board->allPieces, square)) {
         return NO_PIECE;
     }
 
@@ -417,7 +417,7 @@ void addPieceToBoard(CBoard* board, Square square, Color color, PieceType piece)
         return;
     }
 
-    bitboardSetSquareBit(bb, square);
+    bitboard_set_square_bit(bb, square);
     board->pieceAtSquare[square] = piece;
 }
 
@@ -428,7 +428,7 @@ void removePieceFromBoard(CBoard* board, Square square, Color color, PieceType p
         return;
     }
 
-    bitboardClearSquareBit(bb, square);
+    bitboard_clear_square_bit(bb, square);
     board->pieceAtSquare[square] = NO_PIECE;
 }
 
@@ -459,24 +459,24 @@ PieceType removeCapturedPiece(CBoard* board, Square square, Color capturingColor
 void updateOccupanciesForMove(CBoard* board, Square from, Square to, Color color)
 {
     if (color == WHITE) {
-        bitboardClearSquareBit(&board->whitePieces, from);
-        bitboardSetSquareBit(&board->whitePieces, to);
+        bitboard_clear_square_bit(&board->whitePieces, from);
+        bitboard_set_square_bit(&board->whitePieces, to);
     } else {
-        bitboardClearSquareBit(&board->blackPieces, from);
-        bitboardSetSquareBit(&board->blackPieces, to);
+        bitboard_clear_square_bit(&board->blackPieces, from);
+        bitboard_set_square_bit(&board->blackPieces, to);
     }
-    bitboardClearSquareBit(&board->allPieces, from);
-    bitboardSetSquareBit(&board->allPieces, to);
+    bitboard_clear_square_bit(&board->allPieces, from);
+    bitboard_set_square_bit(&board->allPieces, to);
 }
 
 void updateOccupanciesForCapture(CBoard* board, Square square, Color capturedColor)
 {
     if (capturedColor == WHITE) {
-        bitboardClearSquareBit(&board->whitePieces, square);
+        bitboard_clear_square_bit(&board->whitePieces, square);
     } else {
-        bitboardClearSquareBit(&board->blackPieces, square);
+        bitboard_clear_square_bit(&board->blackPieces, square);
     }
-    bitboardClearSquareBit(&board->allPieces, square);
+    bitboard_clear_square_bit(&board->allPieces, square);
 }
 
 void updateOccupanciesForPromotion(CBoard* board, Square from, Square to, Color color)
@@ -488,30 +488,30 @@ void updateOccupanciesForCastling(CBoard* board, Square kingFrom, Square kingTo,
     Square rookFrom, Square rookTo, Color color)
 {
     if (color == WHITE) {
-        bitboardClearSquareBit(&board->whitePieces, kingFrom);
-        bitboardClearSquareBit(&board->whitePieces, rookFrom);
-        bitboardSetSquareBit(&board->whitePieces, kingTo);
-        bitboardSetSquareBit(&board->whitePieces, rookTo);
+        bitboard_clear_square_bit(&board->whitePieces, kingFrom);
+        bitboard_clear_square_bit(&board->whitePieces, rookFrom);
+        bitboard_set_square_bit(&board->whitePieces, kingTo);
+        bitboard_set_square_bit(&board->whitePieces, rookTo);
     } else {
-        bitboardClearSquareBit(&board->blackPieces, kingFrom);
-        bitboardClearSquareBit(&board->blackPieces, rookFrom);
-        bitboardSetSquareBit(&board->blackPieces, kingTo);
-        bitboardSetSquareBit(&board->blackPieces, rookTo);
+        bitboard_clear_square_bit(&board->blackPieces, kingFrom);
+        bitboard_clear_square_bit(&board->blackPieces, rookFrom);
+        bitboard_set_square_bit(&board->blackPieces, kingTo);
+        bitboard_set_square_bit(&board->blackPieces, rookTo);
     }
-    bitboardClearSquareBit(&board->allPieces, kingFrom);
-    bitboardClearSquareBit(&board->allPieces, rookFrom);
-    bitboardSetSquareBit(&board->allPieces, kingTo);
-    bitboardSetSquareBit(&board->allPieces, rookTo);
+    bitboard_clear_square_bit(&board->allPieces, kingFrom);
+    bitboard_clear_square_bit(&board->allPieces, rookFrom);
+    bitboard_set_square_bit(&board->allPieces, kingTo);
+    bitboard_set_square_bit(&board->allPieces, rookTo);
 }
 
 void updateCastlingRights(CBoard* board, Square from, Square to)
 {
     // If king moved, lose all castling
-    if (bitboardIsBitSet(board->whiteKing, to)) {
+    if (bitboard_is_bit_set(board->whiteKing, to)) {
         CLEAR_BIT(board->castlingRights, 3);
         CLEAR_BIT(board->castlingRights, 2);
         // board->whiteCanCastleQueenside = false;
-    } else if (bitboardIsBitSet(board->blackKing, to)) {
+    } else if (bitboard_is_bit_set(board->blackKing, to)) {
         CLEAR_BIT(board->castlingRights, 1);
         CLEAR_BIT(board->castlingRights, 0);
         // board->blackCanCastleKingside = false;
