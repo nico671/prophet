@@ -28,27 +28,26 @@
  *
  * - Hash: zobristKey
  */
-typedef struct CBoard
-{
+typedef struct CBoard {
     // --- Piece Placements ---
-    Bitboard whitePawns;   /**< Bitboard: White pawns */
+    Bitboard whitePawns; /**< Bitboard: White pawns */
     Bitboard whiteKnights; /**< Bitboard: White knights */
     Bitboard whiteBishops; /**< Bitboard: White bishops */
-    Bitboard whiteRooks;   /**< Bitboard: White rooks */
-    Bitboard whiteQueens;  /**< Bitboard: White queens */
-    Bitboard whiteKing;    /**< Bitboard: White king */
+    Bitboard whiteRooks; /**< Bitboard: White rooks */
+    Bitboard whiteQueens; /**< Bitboard: White queens */
+    Bitboard whiteKing; /**< Bitboard: White king */
 
-    Bitboard blackPawns;   /**< Bitboard: Black pawns */
+    Bitboard blackPawns; /**< Bitboard: Black pawns */
     Bitboard blackKnights; /**< Bitboard: Black knights */
     Bitboard blackBishops; /**< Bitboard: Black bishops */
-    Bitboard blackRooks;   /**< Bitboard: Black rooks */
-    Bitboard blackQueens;  /**< Bitboard: Black queens */
-    Bitboard blackKing;    /**< Bitboard: Black king */
+    Bitboard blackRooks; /**< Bitboard: Black rooks */
+    Bitboard blackQueens; /**< Bitboard: Black queens */
+    Bitboard blackKing; /**< Bitboard: Black king */
 
     // --- Occupancy Cache ---
     Bitboard whitePieces; /**< Combined bitboard of all white pieces */
     Bitboard blackPieces; /**< Combined bitboard of all black pieces */
-    Bitboard allPieces;   /**< Combined bitboard of every piece on board */
+    Bitboard allPieces; /**< Combined bitboard of every piece on board */
 
     PieceType pieceAtSquare[64]; /**< Array mapping each square index to the piece type occupying it, or NONE if empty */
 
@@ -61,8 +60,8 @@ typedef struct CBoard
      */
     uint8_t castlingRights;
 
-    uint8_t epSquare;        /**< Index (0-63) or 64 if none available */
-    uint16_t halfmoveClock;  /**< Counter for the fifty-move rule */
+    uint8_t epSquare; /**< Index (0-63) or 64 if none available */
+    uint16_t halfmoveClock; /**< Counter for the fifty-move rule */
     uint16_t fullmoveNumber; /**< Incremented after every Black move */
 
     // --- Optimization ---
@@ -76,7 +75,7 @@ typedef struct CBoard
  *
  * @param board Pointer to the CBoard struct to print.
  */
-void printBoard(CBoard *board);
+void printBoard(CBoard* board);
 
 /**
  * @brief Parses a FEN string and initializes a CBoard struct with the corresponding piece placements, game state information (side to move, castling rights, en passant square, halfmove clock, fullmove number), and computes the Zobrist hash key for the resulting board state.
@@ -86,7 +85,7 @@ void printBoard(CBoard *board);
  * @param board Pointer to a CBoard struct that will be initialized based on the provided FEN string. The function will populate all fields of the CBoard struct according to the information encoded in the FEN string.
  * @return bool True if the FEN string was successfully parsed and the CBoard struct was initialized, false otherwise.
  */
-bool fenToCBoard(const char *fenString, CBoard *board);
+bool fenToCBoard(const char* fenString, CBoard* board);
 
 /**
  * @brief Converts a CBoard struct back into a FEN string representation, including piece placements, side to move, castling rights, en passant square, halfmove clock, and fullmove number. The returned string is dynamically allocated and should be freed by the caller.
@@ -94,7 +93,7 @@ bool fenToCBoard(const char *fenString, CBoard *board);
  * @param board Pointer to the CBoard struct to convert to FEN.
  * @return char* Dynamically allocated null-terminated string in FEN format representing the given CBoard position. Caller is responsible for freeing this memory.
  */
-char *CBoardToFen(CBoard *board);
+char* CBoardToFen(CBoard* board);
 
 /**
  * @brief Returns the piece type occupying the given square on the board, or NO_PIECE if the square is empty. The function uses the pieceAtSquare array in the CBoard struct, which is indexed by the square (0-63 corresponding to A1-H8) and contains the piece type for each square. This allows for O(1) retrieval of the piece type at any given square without needing to check individual bitboards.
@@ -103,7 +102,7 @@ char *CBoardToFen(CBoard *board);
  * @param square The square for which to retrieve the piece type.
  * @return PieceType The piece type occupying the given square, or NO_PIECE if the square is empty.
  */
-PieceType getPieceAtSquare(const CBoard *board, Square square);
+PieceType getPieceAtSquare(const CBoard* board, Square square);
 
 /**
  * @brief Returns a pointer to the bitboard representing the specified piece for the given color.
@@ -113,7 +112,7 @@ PieceType getPieceAtSquare(const CBoard *board, Square square);
  * @param piece The type of piece to retrieve.
  * @return Bitboard* Pointer to the bitboard representing the specified piece for the given color, or NULL if not found.
  */
-Bitboard *pieceBitboard(CBoard *board, Color color, PieceType piece);
+Bitboard* pieceBitboard(CBoard* board, Color color, PieceType piece);
 
 /**
  * @brief Adds a piece to the board at the specified square.
@@ -123,7 +122,7 @@ Bitboard *pieceBitboard(CBoard *board, Color color, PieceType piece);
  * @param color The color of the piece to add.
  * @param piece The type of piece to add.
  */
-void addPieceToBoard(CBoard *board, Square square, Color color, PieceType piece);
+void addPieceToBoard(CBoard* board, Square square, Color color, PieceType piece);
 
 /**
  * @brief Removes a piece from the board at the specified square.
@@ -133,7 +132,7 @@ void addPieceToBoard(CBoard *board, Square square, Color color, PieceType piece)
  * @param color The color of the piece to remove.
  * @param piece The type of piece to remove.
  */
-void removePieceFromBoard(CBoard *board, Square square, Color color, PieceType piece);
+void removePieceFromBoard(CBoard* board, Square square, Color color, PieceType piece);
 
 /**
  * @brief Moves a piece from one square to another on the board.
@@ -144,7 +143,7 @@ void removePieceFromBoard(CBoard *board, Square square, Color color, PieceType p
  * @param side The color of the piece being moved.
 
 */
-void movePieceOnBoard(CBoard *board, Square from, Square to, Color side);
+void movePieceOnBoard(CBoard* board, Square from, Square to, Color side);
 
 /**
  * @brief Removes a captured piece from the board and returns its type.
@@ -155,7 +154,7 @@ void movePieceOnBoard(CBoard *board, Square from, Square to, Color side);
  * @return PieceType The type of the captured piece, or NO_PIECE if no piece was captured.
 
  */
-PieceType removeCapturedPiece(CBoard *board, Square square, Color capturingColor);
+PieceType removeCapturedPiece(CBoard* board, Square square, Color capturingColor);
 
 /**
  * @brief Updates the occupancy bitboards when moving a piece from one square to another.
@@ -165,7 +164,7 @@ PieceType removeCapturedPiece(CBoard *board, Square square, Color capturingColor
  * @param to The square to which the piece will be moved.
  * @param color The color of the piece being moved.
  */
-void updateOccupanciesForMove(CBoard *board, Square from, Square to, Color color);
+void updateOccupanciesForMove(CBoard* board, Square from, Square to, Color color);
 
 /**
  * @brief Updates the occupancy bitboards when capturing a piece.
@@ -174,7 +173,7 @@ void updateOccupanciesForMove(CBoard *board, Square from, Square to, Color color
  * @param square The square from which the piece will be captured.
  * @param capturedColor The color of the piece being captured.
  */
-void updateOccupanciesForCapture(CBoard *board, Square square, Color capturedColor);
+void updateOccupanciesForCapture(CBoard* board, Square square, Color capturedColor);
 
 /**
  * @brief Updates the occupancy bitboards when promoting a pawn. Same as a regular move - color occupancy changes from 'from' to 'to'
@@ -184,7 +183,7 @@ void updateOccupanciesForCapture(CBoard *board, Square square, Color capturedCol
  * @param to The square to which the pawn will be moved.
  * @param color The color of the piece being moved.
  */
-void updateOccupanciesForPromotion(CBoard *board, Square from, Square to, Color color);
+void updateOccupanciesForPromotion(CBoard* board, Square from, Square to, Color color);
 
 /**
  * @brief Updates the occupancy bitboards when castling.
@@ -196,7 +195,7 @@ void updateOccupanciesForPromotion(CBoard *board, Square from, Square to, Color 
  * @param rookTo The square to which the rook will be moved.
  * @param color The color of the pieces being moved.
  */
-void updateOccupanciesForCastling(CBoard *board, Square kingFrom, Square kingTo, Square rookFrom, Square rookTo, Color color);
+void updateOccupanciesForCastling(CBoard* board, Square kingFrom, Square kingTo, Square rookFrom, Square rookTo, Color color);
 
 /**
  * @brief Updates the castling rights when a rook or king moves.
@@ -205,5 +204,5 @@ void updateOccupanciesForCastling(CBoard *board, Square kingFrom, Square kingTo,
  * @param from The square from which the piece will be moved.
  * @param to The square to which the piece will be moved.
  */
-void updateCastlingRights(CBoard *board, Square from, Square to);
+void updateCastlingRights(CBoard* board, Square from, Square to);
 #endif // CBOARD_H

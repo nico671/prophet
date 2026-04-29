@@ -1,8 +1,8 @@
 #ifndef BITBOARD_H
 #define BITBOARD_H
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "chess_types.h"
 
@@ -43,7 +43,7 @@ static inline int bitboardLSBIndex(Bitboard bb)
  * @param bb The bitboard to pop from.
  * @return int The index of the least significant 1 bit, or NO_SQUARE if the bitboard is empty.
  */
-static inline int bitboardPopLSB(Bitboard *bb)
+static inline int bitboardPopLSB(Bitboard* bb)
 {
     if (bitboardIsEmpty(*bb))
         return NO_SQUARE;
@@ -69,7 +69,7 @@ static inline Bitboard bitboardSquareMask(Square sq)
  * @param bb The bitboard to modify.
  * @param sq The square index (0-63) to set.
  */
-static inline void bitboardSetSquareBit(Bitboard *bb, Square sq)
+static inline void bitboardSetSquareBit(Bitboard* bb, Square sq)
 {
     *bb |= bitboardSquareMask(sq);
 }
@@ -80,7 +80,7 @@ static inline void bitboardSetSquareBit(Bitboard *bb, Square sq)
  * @param bb The bitboard to modify.
  * @param sq The square index (0-63) to clear.
  */
-static inline void bitboardClearSquareBit(Bitboard *bb, int sq)
+static inline void bitboardClearSquareBit(Bitboard* bb, int sq)
 {
     *bb &= ~bitboardSquareMask(sq);
 }

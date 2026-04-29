@@ -12,7 +12,7 @@ typedef struct CBoard CBoard;
  * @param move The move to make.
  * @return UndoInfo
  */
-UndoInfo makeMove(CBoard *board, Move move);
+UndoInfo makeMove(CBoard* board, Move move);
 
 /**
  * @brief Unmakes the given move on the board, restoring all relevant state using the provided UndoInfo.
@@ -21,13 +21,13 @@ UndoInfo makeMove(CBoard *board, Move move);
  * @param move The move to unmake (must be the same move that was made).
  * @param undoInfo The UndoInfo returned by makeMove when the move was made.
  */
-void unmakeMove(CBoard *board, Move move, UndoInfo undoInfo);
+void unmakeMove(CBoard* board, Move move, UndoInfo undoInfo);
 
-UndoInfo makeQuietMove(CBoard *board, Move move);
-UndoInfo makeCaptureMove(CBoard *board, Move move);
-UndoInfo makeDoublePawnPushMove(CBoard *board, Move move);
-UndoInfo makeEnPassantCapture(CBoard *board, Move move);
-UndoInfo makePromotionMove(CBoard *board, Move move);
-UndoInfo makeCastlingMove(CBoard *board, Move move);
+UndoInfo makeQuietMove(CBoard* board, Move move);
+UndoInfo makeCaptureMove(CBoard* board, Move move);
+UndoInfo makeDoublePawnPushMove(CBoard* board, Move move);
+UndoInfo makeEnPassantCapture(CBoard* board, Move move);
+UndoInfo makePromotionMove(CBoard* board, Move move);
+UndoInfo makeCastlingMove(CBoard* board, Move move);
 
 #endif // MOVE_MAKE_H

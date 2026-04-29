@@ -1,14 +1,14 @@
-#include "movegen/movegen.h"
-#include "movegen/sliding_moves.h"
-#include "movegen/constant_moves.h"
-#include "movegen/move_make.h"
 #include "attacks/constant_attacks.h"
 #include "attacks/sliding_attacks.h"
-#include "core/bitboard.h"
 #include "board/cboard.h"
+#include "core/bitboard.h"
+#include "movegen/constant_moves.h"
+#include "movegen/move_make.h"
+#include "movegen/movegen.h"
+#include "movegen/sliding_moves.h"
 #include <stdbool.h>
 
-void genAllPseudoLegalMoves(CBoard *board, MoveList *moveList) // TODO: refactor movegen to have less reused code everywhere, all individual piece gen is abt the same minus pawns and kings
+void genAllPseudoLegalMoves(CBoard* board, MoveList* moveList) // TODO: refactor movegen to have less reused code everywhere, all individual piece gen is abt the same minus pawns and kings
 {
     genAllPseudoLegalPawnMoves(board, moveList);
     genAllPseudoLegalKnightMoves(board, moveList);
@@ -18,12 +18,12 @@ void genAllPseudoLegalMoves(CBoard *board, MoveList *moveList) // TODO: refactor
     genAllPseudoLegalKingMoves(board, moveList);
 }
 
-void initMoveList(MoveList *moveList)
+void initMoveList(MoveList* moveList)
 {
     moveList->count = 0;
 }
 
-void generateCaptureMoves(CBoard *board, MoveList *out)
+void generateCaptureMoves(CBoard* board, MoveList* out)
 {
     MoveList pseudoLegalMoves;
     initMoveList(&pseudoLegalMoves);
@@ -31,33 +31,30 @@ void generateCaptureMoves(CBoard *board, MoveList *out)
     genAllPseudoLegalMoves(board, &pseudoLegalMoves);
 
     Color side = board->sideToMove;
-    for (int i = 0; i < pseudoLegalMoves.count; i++)
-    {
+    for (int i = 0; i < pseudoLegalMoves.count; i++) {
         Move move = pseudoLegalMoves.moves[i];
         bool tactical = move_is_capture(board, move) || move_is_enpassant(move) || move_is_promotion(move);
-        if (!tactical)
-        {
+        if (!tactical) {
             continue;
         }
 
         UndoInfo undoInfo = makeMove(board, move);
-        if (!isKingInCheck(board, side))
-        {
+        if (!isKingInCheck(board, side)) {
             out->moves[out->count++] = move;
         }
         unmakeMove(board, move, undoInfo);
     }
 }
 
-bool isSquareAttacked(CBoard *board, Square square, Color attackerColor)
+bool isSquareAttacked(CBoard* board, Square square, Color attackerColor)
 {
     // Check for pawn attacks
     // We need to check if pawns of attackerColor can attack this square
     // If white pawns attack diagonally upward, we need to check squares diagonally downward
     // So we use the OPPOSITE color's attack pattern (FLIPPED, like in genEnPassantPawnMoves)
     Bitboard pawnAttacks = (attackerColor == WHITE)
-                               ? getPawnAttacks(square, BLACK)  // FLIPPED
-                               : getPawnAttacks(square, WHITE); // FLIPPED
+        ? getPawnAttacks(square, BLACK) // FLIPPED
+        : getPawnAttacks(square, WHITE); // FLIPPED
     Bitboard attackerPawns = (attackerColor == WHITE) ? board->whitePawns : board->blackPawns;
     if (pawnAttacks & attackerPawns)
         return true;
@@ -90,11 +87,10 @@ bool isSquareAttacked(CBoard *board, Square square, Color attackerColor)
     return false;
 }
 
-bool isKingInCheck(CBoard *board, Color side)
+bool isKingInCheck(CBoard* board, Color side)
 {
     Bitboard king = (side == WHITE) ? board->whiteKing : board->blackKing;
-    if (king == 0)
-    {
+    if (king == 0) {
         return true;
     }
     Square kingSquare = bitboardLSBIndex(king);
@@ -102,44 +98,37 @@ bool isKingInCheck(CBoard *board, Color side)
     return isSquareAttacked(board, kingSquare, opponentColor);
 }
 
-void generateLegalMoves(CBoard *board, MoveList *out)
+void generateLegalMoves(CBoard* board, MoveList* out)
 {
     MoveList pseudoLegalMoves;
     initMoveList(&pseudoLegalMoves);
     genAllPseudoLegalMoves(board, &pseudoLegalMoves);
 
-    for (int i = 0; i < pseudoLegalMoves.count; i++)
-    {
+    for (int i = 0; i < pseudoLegalMoves.count; i++) {
         Move move = pseudoLegalMoves.moves[i];
 
         // Special handling for castling
-        if (move_is_castling(move))
-        {
+        if (move_is_castling(move)) {
             Color side = board->sideToMove;
             Color opponent = (side == WHITE) ? BLACK : WHITE;
             // Square kingFrom = FROM_SQ(move);
 
             // Cannot castle if in check
-            if (isKingInCheck(board, side))
-            {
+            if (isKingInCheck(board, side)) {
                 continue;
             }
 
             // Check squares the king moves through
-            if ((side == WHITE && getFromSquare(move) == E1 && getToSquare(move) == G1) ||
-                (side == BLACK && getFromSquare(move) == E8 && getToSquare(move) == G8)) // KINGSIDE_CASTLE
+            if ((side == WHITE && getFromSquare(move) == E1 && getToSquare(move) == G1) || (side == BLACK && getFromSquare(move) == E8 && getToSquare(move) == G8)) // KINGSIDE_CASTLE
             {
                 Square throughSquare = (side == WHITE) ? F1 : F8;
-                if (isSquareAttacked(board, throughSquare, opponent))
-                {
+                if (isSquareAttacked(board, throughSquare, opponent)) {
                     continue;
                 }
-            }
-            else // QUEENSIDE_CASTLE
+            } else // QUEENSIDE_CASTLE
             {
                 Square throughSquare = (side == WHITE) ? D1 : D8;
-                if (isSquareAttacked(board, throughSquare, opponent))
-                {
+                if (isSquareAttacked(board, throughSquare, opponent)) {
                     continue;
                 }
             }
@@ -147,8 +136,7 @@ void generateLegalMoves(CBoard *board, MoveList *out)
 
         // Normal legality check for all moves (including castling destination)
         UndoInfo undoInfo = makeMove(board, move);
-        if (!isKingInCheck(board, (board->sideToMove == WHITE) ? BLACK : WHITE))
-        {
+        if (!isKingInCheck(board, (board->sideToMove == WHITE) ? BLACK : WHITE)) {
             out->moves[out->count++] = move;
         }
         unmakeMove(board, move, undoInfo);

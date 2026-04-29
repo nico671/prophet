@@ -2,18 +2,15 @@
 
 Move createMove(Square from, Square to, MoveType type, PieceType promoPiece)
 {
-    if (from >= NO_SQUARE || to >= NO_SQUARE)
-    {
+    if (from >= NO_SQUARE || to >= NO_SQUARE) {
         return MOVE_NONE;
     }
 
     Move move = (Move)(((from & 0x3F) << 6) | (to & 0x3F) | type);
 
-    if (type == PROMO)
-    {
+    if (type == PROMO) {
         uint16_t promoBits = 0;
-        if (promoPiece >= KNIGHT && promoPiece <= QUEEN)
-        {
+        if (promoPiece >= KNIGHT && promoPiece <= QUEEN) {
             promoBits = (uint16_t)(promoPiece - KNIGHT);
         }
         move = (Move)(move | (Move)(promoBits << 12));
@@ -65,23 +62,20 @@ bool move_is_castling(Move move)
     return (getMoveType(move) == CASTLE);
 }
 
-bool move_is_capture(CBoard *board, Move move)
+bool move_is_capture(CBoard* board, Move move)
 {
     if (move == MOVE_NONE)
         return false;
 
     Square to = getToSquare(move);
-    if (board->sideToMove == WHITE)
-    {
+    if (board->sideToMove == WHITE) {
         return bitboardCheckSquareBit(board->blackPieces, to) && !move_is_enpassant(move) && !move_is_castling(move) && !move_is_promotion(move);
-    }
-    else
-    {
+    } else {
         return bitboardCheckSquareBit(board->whitePieces, to) && !move_is_enpassant(move) && !move_is_castling(move) && !move_is_promotion(move);
     }
 }
 
-bool move_is_quiet(CBoard *board, Move move)
+bool move_is_quiet(CBoard* board, Move move)
 {
     return !move_is_capture(board, move) && !move_is_enpassant(move) && !move_is_castling(move) && !move_is_promotion(move);
 }

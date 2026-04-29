@@ -1,4 +1,4 @@
-CC ?= cc
+CC ?= gcc
 
 UNAME_S := $(shell uname -s)
 UNAME_M := $(shell uname -m)
@@ -17,7 +17,7 @@ ARCHFLAGS += -mcpu=native
 endif
 endif
 
-DEBUG_CFLAGS := -O0 -g3 -fno-omit-frame-pointer
+DEBUG_CFLAGS := -O0 -g3 -fno-omit-frame-pointer -Wall -Wextra -Wpedantic -Wshadow -O3 -flto
 DEV_CFLAGS := -O3 -g1 -DNDEBUG
 RELEASE_CFLAGS := -O3 -DNDEBUG -flto
 
@@ -60,7 +60,7 @@ $(TARGET): $(MAIN_OBJECTS)
 $(MAGIC_TARGET): $(BUILDDIR)/attacks/magic_gen.o $(BUILDDIR)/attacks/sliding_attacks.o
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $^ -o $@
 
-$(PERFT_TARGET): $(BUILDDIR)/tests/perft_test.o $(BUILDDIR)/tests/testing_utils.o $(BUILDDIR)/movegen/move.o $(BUILDDIR)/eval/hceval.o $(BUILDDIR)/search/tt.o $(BUILDDIR)/engine/engine.o $(BUILDDIR)/movegen/movegen.o $(BUILDDIR)/movegen/pawn_moves.o $(BUILDDIR)/movegen/knight_moves.o $(BUILDDIR)/movegen/sliding_moves.o $(BUILDDIR)/movegen/king_moves.o $(BUILDDIR)/movegen/move_make.o $(BUILDDIR)/board/cboard.o $(BUILDDIR)/board/zobrist.o $(BUILDDIR)/engine/engine.o $(BUILDDIR)/utils/prng.o $(BUILDDIR)/attacks/constant_attacks.o $(BUILDDIR)/attacks/sliding_attacks.o
+$(PERFT_TARGET): $(BUILDDIR)/tests/perft_test.o $(BUILDDIR)/tests/testing_utils.o $(BUILDDIR)/movegen/move.o $(BUILDDIR)/eval/hceval.o $(BUILDDIR)/search/tt.o $(BUILDDIR)/engine/engine.o $(BUILDDIR)/movegen/movegen.o $(BUILDDIR)/movegen/constant_moves.o $(BUILDDIR)/movegen/sliding_moves.o $(BUILDDIR)/movegen/move_make.o $(BUILDDIR)/board/cboard.o $(BUILDDIR)/board/zobrist.o $(BUILDDIR)/engine/engine.o $(BUILDDIR)/utils/prng.o $(BUILDDIR)/attacks/constant_attacks.o $(BUILDDIR)/attacks/sliding_attacks.o
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) $^ -o $@
 
 $(BUILDDIR)/%.o: $(SRCDIR)/%.c

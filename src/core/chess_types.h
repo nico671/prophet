@@ -5,8 +5,7 @@
  * @brief Enum for chess squares, representing each square on the board with a unique integer value. Consistent with little-endian rank-file mapping used in bitboards.
  *
  */
-typedef enum
-{
+typedef enum {
     A1,
     B1,
     C1,
@@ -78,8 +77,7 @@ typedef enum
  * @brief Enum for player colors in chess. WHITE is represented by 0 and BLACK by 1.
  *
  */
-typedef enum
-{
+typedef enum {
     WHITE = 0,
     BLACK = 1
 } Color;
@@ -88,8 +86,7 @@ typedef enum
  * @brief Enum for chess piece types. The piece types are assigned integer values starting from 0 for NO_PIECE up to 6 for KING.
  *
  */
-typedef enum
-{
+typedef enum {
     NO_PIECE = 0,
     PAWN = 1,
     KNIGHT = 2,

@@ -1,8 +1,16 @@
 {
+    "editor.formatOnSave": true,
+    "clang-format.style": "file",
+    "clang-format.fallbackStyle": "none",
+    "[c]": {
+        "editor.defaultFormatter": "xaver.clang-format"
+    },
     "files.associations": {
         "stdint.h": "c",
         "board.h": "c",
         "bitboard.h": "c",
-        "constant_attacks.h": "c"
+        "constant_attacks.h": "c",
+        ".clang-format": "txt"
     },
+    
 }

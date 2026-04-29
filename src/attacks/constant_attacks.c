@@ -282,12 +282,9 @@ const Bitboard blackPawnAttacksTable[64] = {
 Bitboard getPawnAttacks(Square square, Color color)
 {
 
-    if (color == WHITE)
-    {
+    if (color == WHITE) {
         return whitePawnAttacksTable[square];
-    }
-    else
-    {
+    } else {
         return blackPawnAttacksTable[square];
     }
 }

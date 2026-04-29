@@ -1,10 +1,10 @@
 #ifndef PROPHET_MOVE_H
 #define PROPHET_MOVE_H
 
+#include "board/cboard.h"
+#include "core/chess_types.h"
 #include <stdbool.h>
 #include <stdint.h>
-#include "core/chess_types.h"
-#include "board/cboard.h"
 
 /**
  * @brief Move representation using a compact 16-bit encoding. The move is represented as a uint16_t where:
@@ -23,8 +23,7 @@ typedef struct
     int count;
 } MoveList;
 
-typedef enum
-{
+typedef enum {
     NORMAL = 0,
     PROMO = 1u << 14,
     EN_PASSANT = 2u << 14,
@@ -51,8 +50,8 @@ PieceType getPromotionPieceType(Move move);
 bool move_is_enpassant(Move move);
 bool move_is_promotion(Move move);
 bool move_is_castling(Move move);
-bool move_is_capture(CBoard *board, Move move);
-bool move_is_quiet(CBoard *board, Move move);
+bool move_is_capture(CBoard* board, Move move);
+bool move_is_quiet(CBoard* board, Move move);
 /**
  * @brief Structure to store information needed to undo a move on the chess board.
  * This includes the:
@@ -67,11 +66,10 @@ bool move_is_quiet(CBoard *board, Move move);
  *
  * - previous castling rights, and the previous Zobrist hash key.
  */
-typedef struct UndoInfo
-{
-    PieceType capturedPiece;        // What was captured (NO_PIECE if none)
-    Square capturedSquare;          // Where the captured piece was (NO_SQUARE if none)
-    uint8_t previousEpSquare;       // Previous en passant square (or NO_SQUARE)
+typedef struct UndoInfo {
+    PieceType capturedPiece; // What was captured (NO_PIECE if none)
+    Square capturedSquare; // Where the captured piece was (NO_SQUARE if none)
+    uint8_t previousEpSquare; // Previous en passant square (or NO_SQUARE)
     uint16_t previousHalfmoveClock; // Previous 50-move counter
     uint8_t previousCastlingRights; // 0..15 bitfield
     uint64_t previousZobristKey;

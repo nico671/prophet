@@ -21,6 +21,6 @@ void hcEvalInit(void);
  * @param board The board to evaluate.
  * @return int The evaluation score (positive for white advantage, negative for black advantage).
  */
-int evaluateBoard(const CBoard *board);
+int evaluateBoard(const CBoard* board);
 
 #endif // HCEVAL_H

@@ -1,8 +1,8 @@
-#include "sliding_attacks.h"
+#include "attacks/sliding_attacks.h"
 
 #include <assert.h>
-#include <stdbool.h>
 #include <stdatomic.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -306,7 +306,8 @@ static const int RBits[64] = {
     11, 10, 10, 10, 10, 10, 10, 11,
     11, 10, 10, 10, 10, 10, 10, 11,
     11, 10, 10, 10, 10, 10, 10, 11,
-    12, 11, 11, 11, 11, 11, 11, 12};
+    12, 11, 11, 11, 11, 11, 11, 12
+};
 
 static const int BBits[64] = {
     6, 5, 5, 5, 5, 5, 5, 6,
@@ -316,18 +317,17 @@ static const int BBits[64] = {
     5, 5, 7, 9, 9, 7, 5, 5,
     5, 5, 7, 7, 7, 7, 5, 5,
     5, 5, 5, 5, 5, 5, 5, 5,
-    6, 5, 5, 5, 5, 5, 5, 6};
+    6, 5, 5, 5, 5, 5, 5, 6
+};
 
 typedef Bitboard (*AttackGenerator)(Square square, Bitboard blockers);
 
 // enumerates all relevant blocker bit positions for a given square and stores them in the provided positions array, returning the count of positions found. used to generate the occupancy variations for testing magic candidates and generating the attack tables.
-static int extractMaskBitPositions(Bitboard mask, int *positions, int maxPositions)
+static int extractMaskBitPositions(Bitboard mask, int* positions, int maxPositions)
 {
     int count = 0;
-    while (mask)
-    {
-        if (count >= maxPositions)
-        {
+    while (mask) {
+        if (count >= maxPositions) {
             assert(count < maxPositions);
             break;
         }
@@ -339,13 +339,11 @@ static int extractMaskBitPositions(Bitboard mask, int *positions, int maxPositio
 
 // converts permutation index to occupancy bitboard
 //
-static Bitboard occupancyFromIndex(int occupancyIndex, const int *positions, int relevantBits)
+static Bitboard occupancyFromIndex(int occupancyIndex, const int* positions, int relevantBits)
 {
     Bitboard occupancy = 0ULL;
-    for (int bit = 0; bit < relevantBits; ++bit)
-    {
-        if (occupancyIndex & (1 << bit))
-        {
+    for (int bit = 0; bit < relevantBits; ++bit) {
+        if (occupancyIndex & (1 << bit)) {
             bitboardSetSquareBit(&occupancy, positions[bit]);
         }
     }
@@ -354,7 +352,7 @@ static Bitboard occupancyFromIndex(int occupancyIndex, const int *positions, int
 
 // generic attack table initializer for sliding pieces, used to generate both rook and bishop tables
 static void initializeAttackTable(
-    Bitboard *table,
+    Bitboard* table,
     int tableSize,
     const Bitboard occupancyMaps[64],
     const Bitboard magics[64],
@@ -364,33 +362,29 @@ static void initializeAttackTable(
     // collision detection checker
     bool used[ROOK_TABLE_SIZE];
     // loop all squares
-    for (int square = 0; square < 64; ++square)
-    {
+    for (int square = 0; square < 64; ++square) {
         const int bits = bitsPerSquare[square];
         const int permutations = 1 << bits;
-        int bitPositions[ROOK_TABLE_BITS] = {0};
+        int bitPositions[ROOK_TABLE_BITS] = { 0 };
         const int extractedBits = extractMaskBitPositions(occupancyMaps[square], bitPositions, ROOK_TABLE_BITS);
 
         assert(bits <= ROOK_TABLE_BITS);
         assert(permutations <= tableSize);
         assert(extractedBits == bits);
-        if (bits > ROOK_TABLE_BITS || permutations > tableSize || extractedBits != bits)
-        {
+        if (bits > ROOK_TABLE_BITS || permutations > tableSize || extractedBits != bits) {
             abort();
         }
 
         memset(used, 0, (size_t)tableSize * sizeof(used[0]));
 
-        for (int i = 0; i < permutations; ++i)
-        {
+        for (int i = 0; i < permutations; ++i) {
             const Bitboard occupancy = occupancyFromIndex(i, bitPositions, bits);
             const int magic_index = magicIndex(occupancy, magics[square], bits);
             const Bitboard attacks = attackGenerator(square, occupancy);
 
             assert(magic_index >= 0 && magic_index < tableSize);
 
-            if (used[magic_index])
-            {
+            if (used[magic_index]) {
                 assert(table[square * tableSize + magic_index] == attacks);
                 continue;
             }
@@ -409,40 +403,32 @@ Bitboard generateRookAttacks(Square square, Bitboard blockers)
     int file = square % 8;
 
     // north direction check
-    for (int r = rank + 1; r <= 7; r++)
-    {
+    for (int r = rank + 1; r <= 7; r++) {
         bitboardSetSquareBit(&attacks, file + r * 8);
-        if (bitboardIsBitSet(blockers, file + r * 8))
-        {
+        if (bitboardIsBitSet(blockers, file + r * 8)) {
             break;
         }
     }
 
     // south direction check
-    for (int r = rank - 1; r >= 0; r--)
-    {
+    for (int r = rank - 1; r >= 0; r--) {
         bitboardSetSquareBit(&attacks, file + r * 8);
-        if (bitboardIsBitSet(blockers, file + r * 8))
-        {
+        if (bitboardIsBitSet(blockers, file + r * 8)) {
             break;
         }
     }
 
     // east direction check
-    for (int f = file + 1; f <= 7; f++)
-    {
+    for (int f = file + 1; f <= 7; f++) {
         bitboardSetSquareBit(&attacks, f + rank * 8);
-        if (bitboardIsBitSet(blockers, f + rank * 8))
-        {
+        if (bitboardIsBitSet(blockers, f + rank * 8)) {
             break;
         }
     }
     // west direction check
-    for (int f = file - 1; f >= 0; f--)
-    {
+    for (int f = file - 1; f >= 0; f--) {
         bitboardSetSquareBit(&attacks, f + rank * 8);
-        if (bitboardIsBitSet(blockers, f + rank * 8))
-        {
+        if (bitboardIsBitSet(blockers, f + rank * 8)) {
             break;
         }
     }
@@ -457,29 +443,25 @@ Bitboard generateBishopAttacks(Square square, Bitboard blockers)
     int file = square % 8;
 
     // NE
-    for (int r = rank + 1, f = file + 1; r <= 7 && f <= 7; r++, f++)
-    {
+    for (int r = rank + 1, f = file + 1; r <= 7 && f <= 7; r++, f++) {
         bitboardSetSquareBit(&attacks, r * 8 + f);
         if (bitboardIsBitSet(blockers, r * 8 + f))
             break;
     }
     // NW
-    for (int r = rank + 1, f = file - 1; r <= 7 && f >= 0; r++, f--)
-    {
+    for (int r = rank + 1, f = file - 1; r <= 7 && f >= 0; r++, f--) {
         bitboardSetSquareBit(&attacks, r * 8 + f);
         if (bitboardIsBitSet(blockers, r * 8 + f))
             break;
     }
     // SE
-    for (int r = rank - 1, f = file + 1; r >= 0 && f <= 7; r--, f++)
-    {
+    for (int r = rank - 1, f = file + 1; r >= 0 && f <= 7; r--, f++) {
         bitboardSetSquareBit(&attacks, r * 8 + f);
         if (bitboardIsBitSet(blockers, r * 8 + f))
             break;
     }
     // SW
-    for (int r = rank - 1, f = file - 1; r >= 0 && f >= 0; r--, f--)
-    {
+    for (int r = rank - 1, f = file - 1; r >= 0 && f >= 0; r--, f--) {
         bitboardSetSquareBit(&attacks, r * 8 + f);
         if (bitboardIsBitSet(blockers, r * 8 + f))
             break;
@@ -513,27 +495,25 @@ void initSlidingAttacks(void)
     int expected = 0;
 
     if (atomic_compare_exchange_strong_explicit(
-            &initState, &expected, 1, memory_order_acq_rel, memory_order_acquire))
-    {
+            &initState, &expected, 1, memory_order_acq_rel, memory_order_acquire)) {
         initializeAttackTable(&rook_attacks[0][0],
-                              ROOK_TABLE_SIZE,
-                              rook_occupancy_maps,
-                              RMagic,
-                              RBits,
-                              generateRookAttacks);
+            ROOK_TABLE_SIZE,
+            rook_occupancy_maps,
+            RMagic,
+            RBits,
+            generateRookAttacks);
 
         initializeAttackTable(&bishop_attacks[0][0],
-                              BISHOP_TABLE_SIZE,
-                              bishop_occupancy_maps,
-                              BMagic,
-                              BBits,
-                              generateBishopAttacks);
+            BISHOP_TABLE_SIZE,
+            bishop_occupancy_maps,
+            BMagic,
+            BBits,
+            generateBishopAttacks);
 
         atomic_store_explicit(&initState, 2, memory_order_release);
         return;
     }
 
-    while (atomic_load_explicit(&initState, memory_order_acquire) != 2)
-    {
+    while (atomic_load_explicit(&initState, memory_order_acquire) != 2) {
     }
 }

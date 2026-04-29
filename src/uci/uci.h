@@ -5,8 +5,7 @@
 #include <pthread.h>
 
 // UCI state structure to track initialization, readiness, quitting, and the current board position. Also manages the search thread and whether a search is active.
-typedef struct UCIState
-{
+typedef struct UCIState {
     bool initialized;
     bool debugMode;
     bool ready;

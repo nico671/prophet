@@ -7,8 +7,7 @@
 
 #include "board/cboard.h"
 
-enum
-{
+enum {
     WHITE_PAWN = 0,
     BLACK_PAWN = 1,
     WHITE_KNIGHT = 2,
@@ -27,8 +26,8 @@ enum
 #define FLIP(sq) ((sq) ^ 56)
 #define OTHER(side) ((side) ^ 1)
 
-static const int mg_value[6] = {82, 337, 365, 477, 1025, 0};
-static const int eg_value[6] = {94, 281, 297, 512, 936, 0};
+static const int mg_value[6] = { 82, 337, 365, 477, 1025, 0 };
+static const int eg_value[6] = { 94, 281, 297, 512, 936, 0 };
 
 // piece-square tables (Rofchade)
 static const int mg_pawn_table[64] = {
@@ -835,7 +834,7 @@ static const int eg_king_table[64] = {
     -43,
 };
 
-static const int *mg_pesto_table[6] = {
+static const int* mg_pesto_table[6] = {
     mg_pawn_table,
     mg_knight_table,
     mg_bishop_table,
@@ -844,7 +843,7 @@ static const int *mg_pesto_table[6] = {
     mg_king_table,
 };
 
-static const int *eg_pesto_table[6] = {
+static const int* eg_pesto_table[6] = {
     eg_pawn_table,
     eg_knight_table,
     eg_bishop_table,
@@ -853,22 +852,19 @@ static const int *eg_pesto_table[6] = {
     eg_king_table,
 };
 
-static const int gamephaseInc[12] = {0, 0, 1, 1, 1, 1, 2, 2, 4, 4, 0, 0};
+static const int gamephaseInc[12] = { 0, 0, 1, 1, 1, 1, 2, 2, 4, 4, 0, 0 };
 static int mg_table[12][64];
 static int eg_table[12][64];
 static bool tables_initialized = false;
 
 void hcEvalInit(void)
 {
-    if (tables_initialized)
-    {
+    if (tables_initialized) {
         return;
     }
 
-    for (int p = PAWN, pieceIndex = 0, pc = WHITE_PAWN; p <= KING; p++, pieceIndex++, pc += 2)
-    {
-        for (int sq = 0; sq < 64; sq++)
-        {
+    for (int p = PAWN, pieceIndex = 0, pc = WHITE_PAWN; p <= KING; p++, pieceIndex++, pc += 2) {
+        for (int sq = 0; sq < 64; sq++) {
             mg_table[pc][sq] = mg_value[pieceIndex] + mg_pesto_table[pieceIndex][sq];
             eg_table[pc][sq] = eg_value[pieceIndex] + eg_pesto_table[pieceIndex][sq];
             mg_table[pc + 1][sq] = mg_value[pieceIndex] + mg_pesto_table[pieceIndex][FLIP(sq)];
@@ -879,10 +875,9 @@ void hcEvalInit(void)
     tables_initialized = true;
 }
 
-static inline void accumulate_piece(Bitboard bb, int pc, int mg[2], int eg[2], int *gamePhase)
+static inline void accumulate_piece(Bitboard bb, int pc, int mg[2], int eg[2], int* gamePhase)
 {
-    while (!bitboardIsEmpty(bb))
-    {
+    while (!bitboardIsEmpty(bb)) {
         int sq = bitboardPopLSB(&bb);
         mg[PCOLOR(pc)] += mg_table[pc][sq];
         eg[PCOLOR(pc)] += eg_table[pc][sq];
@@ -890,10 +885,10 @@ static inline void accumulate_piece(Bitboard bb, int pc, int mg[2], int eg[2], i
     }
 }
 
-int evaluateBoard(const CBoard *board)
+int evaluateBoard(const CBoard* board)
 {
-    int mg[2] = {0, 0};
-    int eg[2] = {0, 0};
+    int mg[2] = { 0, 0 };
+    int eg[2] = { 0, 0 };
     int gamePhase = 0;
 
     accumulate_piece(board->whitePawns, WHITE_PAWN, mg, eg, &gamePhase);
@@ -912,8 +907,7 @@ int evaluateBoard(const CBoard *board)
     int mgScore = mg[board->sideToMove] - mg[OTHER(board->sideToMove)];
     int egScore = eg[board->sideToMove] - eg[OTHER(board->sideToMove)];
     int mgPhase = gamePhase;
-    if (mgPhase > 24)
-    {
+    if (mgPhase > 24) {
         mgPhase = 24;
     }
     int egPhase = 24 - mgPhase;

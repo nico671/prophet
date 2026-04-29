@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 
-char *moveToStringCoordinate(Move move)
+char* moveToStringCoordinate(Move move)
 {
     static char str[5];
     char files[] = "abcdefgh";
@@ -16,11 +16,11 @@ char *moveToStringCoordinate(Move move)
     return str;
 }
 
-char *moveToStringAlgebraic(Move move)
+char* moveToStringAlgebraic(Move move)
 {
     static char moveStr[10];
-    const char *files = "abcdefgh";
-    const char *ranks = "12345678";
+    const char* files = "abcdefgh";
+    const char* ranks = "12345678";
 
     Square from = getFromSquare(move);
     Square to = getToSquare(move);
@@ -34,15 +34,13 @@ char *moveToStringAlgebraic(Move move)
 
     // Basic move notation: e2e4
     sprintf(moveStr, "%c%c%c%c",
-            files[fromFile], ranks[fromRank],
-            files[toFile], ranks[toRank]);
+        files[fromFile], ranks[fromRank],
+        files[toFile], ranks[toRank]);
 
     // Add promotion piece if applicable
-    if (type == PROMO)
-    {
+    if (type == PROMO) {
         char promoChar = ' ';
-        switch (promoPiece)
-        {
+        switch (promoPiece) {
         case KNIGHT:
             promoChar = 'n';
             break;
