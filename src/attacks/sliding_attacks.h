@@ -28,7 +28,7 @@ extern Bitboard bishop_attacks[64][512];
  * After initialization has completed (state == 2), subsequent calls return
  * immediately without performing any additional work.
  */
-void initSlidingAttacks(void);
+void init_sliding_attacks(void);
 
 /**
  * @brief Fast lookup functions for rook attacks using magic bitboard indexing.
@@ -37,7 +37,7 @@ void initSlidingAttacks(void);
  * @param occupancy The occupancy bitboard of the current position, which will be masked and transformed to index into the attack table
  * @return Bitboard
  */
-Bitboard getRookAttacks(Square square, Bitboard occupancy);
+Bitboard get_rook_attack_bitboard(Square square, Bitboard occupancy);
 /**
  * @brief Fast lookup functions for bishop attacks using magic bitboard indexing.
  * @note Expects valid inputs
@@ -45,7 +45,7 @@ Bitboard getRookAttacks(Square square, Bitboard occupancy);
  * @param occupancy The occupancy bitboard of the current position, which will be masked and transformed to index into the attack table
  * @return Bitboard
  */
-Bitboard getBishopAttacks(Square square, Bitboard occupancy);
+Bitboard get_bishop_attack_bitboard(Square square, Bitboard occupancy);
 
 /**
  * @brief Fast lookup function for queen attacks, which combines rook and bishop attacks.
@@ -55,7 +55,7 @@ Bitboard getBishopAttacks(Square square, Bitboard occupancy);
  * @param occupancy The occupancy bitboard of the current position, which will be masked and transformed to index into the rook and bishop attack tables
  * @return Bitboard
  */
-Bitboard getQueenAttacks(Square square, Bitboard occupancy);
+Bitboard get_queen_attack_bitboard(Square square, Bitboard occupancy);
 
 /**
  * @brief Internal function used by the attack table initializer to generate the attack bitboard for a bishop on a given square with a specific blocker configuration. This function is not used directly in move generation, but is essential for populating the attack tables during initialization.
@@ -64,7 +64,7 @@ Bitboard getQueenAttacks(Square square, Bitboard occupancy);
  * @param blockers The occupancy bitboard representing the positions of blockers for this test case, which will be used to calculate the attack bitboard for this specific configuration
  * @return Bitboard
  */
-Bitboard generateBishopAttacks(Square square, Bitboard blockers);
+Bitboard generate_bishop_attacks(Square square, Bitboard blockers);
 
 /**
  * @brief Internal function used by the attack table initializer to generate the attack bitboard for a rook on a given square with a specific blocker configuration. This function is not used directly in move generation, but is essential for populating the attack tables during initialization.
@@ -73,6 +73,6 @@ Bitboard generateBishopAttacks(Square square, Bitboard blockers);
  * @param blockers The occupancy bitboard representing the positions of blockers for this test case, which will be used to calculate the attack bitboard for this specific configuration
  * @return Bitboard
  */
-Bitboard generateRookAttacks(Square square, Bitboard blockers);
+Bitboard generate_rook_attacks(Square square, Bitboard blockers);
 
 #endif

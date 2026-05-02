@@ -1,6 +1,6 @@
 #include "constant_attacks.h"
 
-const Bitboard knightAttacksTable[64] = {
+const Bitboard knight_attacks_table[64] = {
     0x0000000000020400ULL,
     0x0000000000050800ULL,
     0x00000000000a1100ULL,
@@ -67,13 +67,13 @@ const Bitboard knightAttacksTable[64] = {
     0x0020400000000000ULL,
 };
 
-Bitboard getKnightAttacks(Square square)
+Bitboard get_knight_attack_bitboard(Square square)
 {
 
-    return knightAttacksTable[square];
+    return knight_attacks_table[square];
 }
 
-const Bitboard kingAttacksTable[64] = {
+const Bitboard king_attacks_table[64] = {
     0x0000000000000302ULL,
     0x0000000000000705ULL,
     0x0000000000000e0aULL,
@@ -140,12 +140,12 @@ const Bitboard kingAttacksTable[64] = {
     0x40c0000000000000ULL,
 };
 
-Bitboard getKingAttacks(Square square)
+Bitboard get_king_attack_bitboard(Square square)
 {
-    return kingAttacksTable[square];
+    return king_attacks_table[square];
 }
 
-const Bitboard whitePawnAttacksTable[64] = {
+const Bitboard white_pawn_attacks_table[64] = {
     0x0000000000000200ULL,
     0x0000000000000500ULL,
     0x0000000000000a00ULL,
@@ -212,7 +212,7 @@ const Bitboard whitePawnAttacksTable[64] = {
     0x0000000000000000ULL,
 };
 
-const Bitboard blackPawnAttacksTable[64] = {
+const Bitboard black_pawn_attacks_table[64] = {
     0x0000000000000000ULL,
     0x0000000000000000ULL,
     0x0000000000000000ULL,
@@ -279,13 +279,13 @@ const Bitboard blackPawnAttacksTable[64] = {
     0x0040000000000000ULL,
 };
 
-Bitboard getPawnAttacks(Square square, Color color)
+Bitboard get_pawn_attack_bitboard(Square square, Color color)
 {
 
     if (color == WHITE) {
-        return whitePawnAttacksTable[square];
+        return white_pawn_attacks_table[square];
     } else {
-        return blackPawnAttacksTable[square];
+        return black_pawn_attacks_table[square];
     }
 }
 // FUNCTIONS USED TO GENERATE THE ABOVE ATTACK TABLES, KEPT FOR REFERENCE

@@ -14,7 +14,7 @@ void genAllPseudoLegalKingNonCastlingMoves(CBoard* board, MoveList* moveList)
         : (board->whitePieces & ~board->whiteKing);
     if (king) {
         Square from = bitboard_pop_lsb(&king);
-        Bitboard attacks = getKingAttacks(from);
+        Bitboard attacks = get_king_attack_bitboard(from);
 
         Bitboard captures = attacks & opponentPieces;
         while (captures) {
@@ -97,7 +97,7 @@ void genAllPseudoLegalKnightMoves(CBoard* board, MoveList* moveList)
 
     while (knights) {
         Square from = bitboard_pop_lsb(&knights);
-        Bitboard attacks = getKnightAttacks(from);
+        Bitboard attacks = get_knight_attack_bitboard(from);
 
         attacks &= ~friendlyPieces;
 
@@ -183,7 +183,7 @@ void genPawnCaptures(CBoard* board, MoveList* moveList)
 
     while (pawns) {
         Square from = bitboard_pop_lsb(&pawns);
-        Bitboard captureTargets = getPawnAttacks(from, sideToMove) & opponentPieces;
+        Bitboard captureTargets = get_pawn_attack_bitboard(from, sideToMove) & opponentPieces;
 
         while (captureTargets) {
             Square to = bitboard_pop_lsb(&captureTargets);
@@ -223,7 +223,7 @@ void genPawnPromotions(CBoard* board, MoveList* moveList)
     // Promotion captures
     while (pawns) {
         Square from = bitboard_pop_lsb(&pawns);
-        Bitboard captureTargets = getPawnAttacks(from, sideToMove) & opponentPieces;
+        Bitboard captureTargets = get_pawn_attack_bitboard(from, sideToMove) & opponentPieces;
 
         while (captureTargets) {
             Square to = bitboard_pop_lsb(&captureTargets);
@@ -249,8 +249,8 @@ void genEnPassantPawnMoves(CBoard* board, MoveList* moveList)
     // If white to move, we need squares that BLACK pawns would attack from (diagonal down)
     // If black to move, we need squares that WHITE pawns would attack from (diagonal up)
     Bitboard attackers = (sideToMove == WHITE)
-        ? getPawnAttacks(board->epSquare, BLACK)
-        : getPawnAttacks(board->epSquare, WHITE);
+        ? get_pawn_attack_bitboard(board->epSquare, BLACK)
+        : get_pawn_attack_bitboard(board->epSquare, WHITE);
 
     Bitboard pawnsThatCanCaptureEP = pawns & attackers;
 

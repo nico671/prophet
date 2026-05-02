@@ -16,7 +16,7 @@ _Static_assert(ROOK_TABLE_SIZE == (1 << ROOK_TABLE_BITS), "rook table size must 
 _Static_assert(BISHOP_TABLE_SIZE == (1 << BISHOP_TABLE_BITS), "bishop table size must match max bishop bits");
 
 // maps a masked occupancy bitboard to a compact index into the attack table for that square.
-static inline int magicIndex(Bitboard occupancy, Bitboard magic, int bits)
+static inline int magic_index(Bitboard occupancy, Bitboard magic, int bits)
 {
     return (int)((occupancy * magic) >> (64 - bits));
 }
@@ -323,12 +323,12 @@ static const int BBits[64] = {
 typedef Bitboard (*AttackGenerator)(Square square, Bitboard blockers);
 
 // enumerates all relevant blocker bit positions for a given square and stores them in the provided positions array, returning the count of positions found. used to generate the occupancy variations for testing magic candidates and generating the attack tables.
-static int extractMaskBitPositions(Bitboard mask, int* positions, int maxPositions)
+static int extract_mask_bit_positions(Bitboard mask, int* positions, int max_positions)
 {
     int count = 0;
     while (mask) {
-        if (count >= maxPositions) {
-            assert(count < maxPositions);
+        if (count >= max_positions) {
+            assert(count < max_positions);
             break;
         }
         positions[count++] = bitboard_lsb_index(mask);
@@ -339,11 +339,11 @@ static int extractMaskBitPositions(Bitboard mask, int* positions, int maxPositio
 
 // converts permutation index to occupancy bitboard
 //
-static Bitboard occupancyFromIndex(int occupancyIndex, const int* positions, int relevantBits)
+static Bitboard generate_occupancy_from_index(int occupancy_index, const int* positions, int relevant_bits)
 {
     Bitboard occupancy = 0ULL;
-    for (int bit = 0; bit < relevantBits; ++bit) {
-        if (occupancyIndex & (1 << bit)) {
+    for (int bit = 0; bit < relevant_bits; ++bit) {
+        if (occupancy_index & (1 << bit)) {
             bitboard_set_square_bit(&occupancy, positions[bit]);
         }
     }
@@ -351,52 +351,52 @@ static Bitboard occupancyFromIndex(int occupancyIndex, const int* positions, int
 }
 
 // generic attack table initializer for sliding pieces, used to generate both rook and bishop tables
-static void initializeAttackTable(
+static void init_attack_table(
     Bitboard* table,
-    int tableSize,
-    const Bitboard occupancyMaps[64],
+    int table_size,
+    const Bitboard occupancy_maps[64],
     const Bitboard magics[64],
-    const int bitsPerSquare[64],
-    AttackGenerator attackGenerator)
+    const int bits_per_square[64],
+    AttackGenerator attack_generator)
 {
     // collision detection checker
     bool used[ROOK_TABLE_SIZE];
     // loop all squares
     for (int square = 0; square < 64; ++square) {
-        const int bits = bitsPerSquare[square];
+        const int bits = bits_per_square[square];
         const int permutations = 1 << bits;
         int bitPositions[ROOK_TABLE_BITS] = { 0 };
-        const int extractedBits = extractMaskBitPositions(occupancyMaps[square], bitPositions, ROOK_TABLE_BITS);
+        const int extractedBits = extract_mask_bit_positions(occupancy_maps[square], bitPositions, ROOK_TABLE_BITS);
 
         assert(bits <= ROOK_TABLE_BITS);
-        assert(permutations <= tableSize);
+        assert(permutations <= table_size);
         assert(extractedBits == bits);
-        if (bits > ROOK_TABLE_BITS || permutations > tableSize || extractedBits != bits) {
+        if (bits > ROOK_TABLE_BITS || permutations > table_size || extractedBits != bits) {
             abort();
         }
 
-        memset(used, 0, (size_t)tableSize * sizeof(used[0]));
+        memset(used, 0, (size_t)table_size * sizeof(used[0]));
 
         for (int i = 0; i < permutations; ++i) {
-            const Bitboard occupancy = occupancyFromIndex(i, bitPositions, bits);
-            const int magic_index = magicIndex(occupancy, magics[square], bits);
-            const Bitboard attacks = attackGenerator(square, occupancy);
+            const Bitboard occupancy = generate_occupancy_from_index(i, bitPositions, bits);
+            const int magic_idx = magic_index(occupancy, magics[square], bits);
+            const Bitboard attacks = attack_generator(square, occupancy);
 
-            assert(magic_index >= 0 && magic_index < tableSize);
+            assert(magic_idx >= 0 && magic_idx < table_size);
 
-            if (used[magic_index]) {
-                assert(table[square * tableSize + magic_index] == attacks);
+            if (used[magic_idx]) {
+                assert(table[square * table_size + magic_idx] == attacks);
                 continue;
             }
 
-            used[magic_index] = true;
-            table[square * tableSize + magic_index] = attacks;
+            used[magic_idx] = true;
+            table[square * table_size + magic_idx] = attacks;
         }
     }
 }
 
 // generate rook attacks for a given square and blockers at initialization
-Bitboard generateRookAttacks(Square square, Bitboard blockers)
+Bitboard generate_rook_attacks(Square square, Bitboard blockers)
 {
     Bitboard attacks = 0ULL;
     int rank = square / 8;
@@ -436,7 +436,7 @@ Bitboard generateRookAttacks(Square square, Bitboard blockers)
 }
 
 // generate bishop attacks for a given square and blockers at initialization
-Bitboard generateBishopAttacks(Square square, Bitboard blockers)
+Bitboard generate_bishop_attacks(Square square, Bitboard blockers)
 {
     Bitboard attacks = 0ULL;
     int rank = square / 8;
@@ -470,45 +470,45 @@ Bitboard generateBishopAttacks(Square square, Bitboard blockers)
     return attacks;
 }
 
-Bitboard getRookAttacks(Square square, Bitboard occupancy)
+Bitboard get_rook_attack_bitboard(Square square, Bitboard occupancy)
 {
     occupancy &= rook_occupancy_maps[square];
-    int index = magicIndex(occupancy, RMagic[square], RBits[square]);
+    int index = magic_index(occupancy, RMagic[square], RBits[square]);
     return rook_attacks[square][index];
 }
 
-Bitboard getBishopAttacks(Square square, Bitboard occupancy)
+Bitboard get_bishop_attack_bitboard(Square square, Bitboard occupancy)
 {
     occupancy &= bishop_occupancy_maps[square];
-    int index = magicIndex(occupancy, BMagic[square], BBits[square]);
+    int index = magic_index(occupancy, BMagic[square], BBits[square]);
     return bishop_attacks[square][index];
 }
 
-Bitboard getQueenAttacks(Square square, Bitboard occupancy)
+Bitboard get_queen_attack_bitboard(Square square, Bitboard occupancy)
 {
-    return getRookAttacks(square, occupancy) | getBishopAttacks(square, occupancy);
+    return get_rook_attack_bitboard(square, occupancy) | get_bishop_attack_bitboard(square, occupancy);
 }
 
-void initSlidingAttacks(void)
+void init_sliding_attacks(void)
 {
     static atomic_int initState = 0; // 0=uninitialized, 1=initializing, 2=initialized
     int expected = 0;
 
     if (atomic_compare_exchange_strong_explicit(
             &initState, &expected, 1, memory_order_acq_rel, memory_order_acquire)) {
-        initializeAttackTable(&rook_attacks[0][0],
+        init_attack_table(&rook_attacks[0][0],
             ROOK_TABLE_SIZE,
             rook_occupancy_maps,
             RMagic,
             RBits,
-            generateRookAttacks);
+            generate_rook_attacks);
 
-        initializeAttackTable(&bishop_attacks[0][0],
+        init_attack_table(&bishop_attacks[0][0],
             BISHOP_TABLE_SIZE,
             bishop_occupancy_maps,
             BMagic,
             BBits,
-            generateBishopAttacks);
+            generate_bishop_attacks);
 
         atomic_store_explicit(&initState, 2, memory_order_release);
         return;

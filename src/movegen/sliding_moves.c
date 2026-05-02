@@ -12,7 +12,7 @@ void genAllPseudoLegalBishopMoves(CBoard* board, MoveList* moveList)
         : (board->whitePieces & ~board->whiteKing);
     while (bishops) {
         Square from = bitboard_pop_lsb(&bishops);
-        Bitboard attacks = getBishopAttacks(from, board->allPieces);
+        Bitboard attacks = get_bishop_attack_bitboard(from, board->allPieces);
 
         Bitboard captures = attacks & opponentPieces;
         while (captures) {
@@ -39,7 +39,7 @@ void genAllPseudoLegalRookMoves(CBoard* board, MoveList* moveList)
         : (board->whitePieces & ~board->whiteKing);
     while (rooks) {
         Square from = bitboard_pop_lsb(&rooks);
-        Bitboard attacks = getRookAttacks(from, board->allPieces);
+        Bitboard attacks = get_rook_attack_bitboard(from, board->allPieces);
 
         Bitboard captures = attacks & opponentPieces;
         while (captures) {
@@ -66,7 +66,7 @@ void genAllPseudoLegalQueenMoves(CBoard* board, MoveList* moveList)
         : (board->whitePieces & ~board->whiteKing);
     while (queens) {
         Square from = bitboard_pop_lsb(&queens);
-        Bitboard attacks = getQueenAttacks(from, board->allPieces);
+        Bitboard attacks = get_queen_attack_bitboard(from, board->allPieces);
 
         Bitboard captures = attacks & opponentPieces;
         while (captures) {

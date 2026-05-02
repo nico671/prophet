@@ -8,7 +8,7 @@
 void initEngine(void)
 {
     // all of these functions are idempotent
-    initSlidingAttacks();
+    init_sliding_attacks();
     initZobristKeys();
     hcEvalInit();
     initTT(64); // 64 MB TT by default, can be overridden by UCI option later

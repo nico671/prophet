@@ -53,33 +53,33 @@ bool isSquareAttacked(CBoard* board, Square square, Color attackerColor)
     // If white pawns attack diagonally upward, we need to check squares diagonally downward
     // So we use the OPPOSITE color's attack pattern (FLIPPED, like in genEnPassantPawnMoves)
     Bitboard pawnAttacks = (attackerColor == WHITE)
-        ? getPawnAttacks(square, BLACK) // FLIPPED
-        : getPawnAttacks(square, WHITE); // FLIPPED
+        ? get_pawn_attack_bitboard(square, BLACK) // FLIPPED
+        : get_pawn_attack_bitboard(square, WHITE); // FLIPPED
     Bitboard attackerPawns = (attackerColor == WHITE) ? board->whitePawns : board->blackPawns;
     if (pawnAttacks & attackerPawns)
         return true;
 
     // Check for knight attacks
-    Bitboard knightAttacks = getKnightAttacks(square);
+    Bitboard knightAttacks = get_knight_attack_bitboard(square);
     Bitboard attackerKnights = (attackerColor == WHITE) ? board->whiteKnights : board->blackKnights;
     if (knightAttacks & attackerKnights)
         return true;
 
     // Check for bishop/queen attacks
-    Bitboard bishopAttacks = getBishopAttacks(square, board->allPieces);
+    Bitboard bishopAttacks = get_bishop_attack_bitboard(square, board->allPieces);
     Bitboard attackerBishops = (attackerColor == WHITE) ? board->whiteBishops : board->blackBishops;
     Bitboard attackerQueens = (attackerColor == WHITE) ? board->whiteQueens : board->blackQueens;
     if (bishopAttacks & (attackerBishops | attackerQueens))
         return true;
 
     // Check for rook/queen attacks
-    Bitboard rookAttacks = getRookAttacks(square, board->allPieces);
+    Bitboard rookAttacks = get_rook_attack_bitboard(square, board->allPieces);
     Bitboard attackerRooks = (attackerColor == WHITE) ? board->whiteRooks : board->blackRooks;
     if (rookAttacks & (attackerRooks | attackerQueens))
         return true;
 
     // Check for king attacks
-    Bitboard kingAttacks = getKingAttacks(square);
+    Bitboard kingAttacks = get_king_attack_bitboard(square);
     Bitboard attackerKing = (attackerColor == WHITE) ? board->whiteKing : board->blackKing;
     if (kingAttacks & attackerKing)
         return true;
