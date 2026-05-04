@@ -15,20 +15,22 @@
 _Static_assert(ROOK_TABLE_SIZE == (1 << ROOK_TABLE_BITS), "rook table size must match max rook bits");
 _Static_assert(BISHOP_TABLE_SIZE == (1 << BISHOP_TABLE_BITS), "bishop table size must match max bishop bits");
 
-// maps a masked occupancy bitboard to a compact index into the attack table for that square.
-static inline int magic_index(Bitboard occupancy, Bitboard magic, int bits)
-{
-    return (int)((occupancy * magic) >> (64 - bits));
-}
-
-// Materialized attack tables (single definition)
-// used for fast lookup in move generation and evaluation
+/**
+ * @brief Precomputed rook attack bitboards for each square and occupancy mask variation, indexed by magic bitboard hashing
+ *
+ */
 Bitboard rook_attacks[64][4096];
+/**
+ * @brief Precomputed bishop attack bitboards for each square and occupancy mask variation, indexed by magic bitboard hashing
+ *
+ */
 Bitboard bishop_attacks[64][512];
 
-// *_occupancy_maps are masks of relevant blocker squares for each origin square
-// they are used to generate the occupancy variations for testing magic candidates and generating the attack tables
-static const Bitboard rook_occupancy_maps[64] = {
+/**
+ * @brief Rook occupancy maps for each square, which are masks of the relevant blocker squares for that square. These are used to generate the occupancy variations for testing magic candidates and generating the attack tables.
+ *
+ */
+const Bitboard rook_occupancy_maps[64] = {
     0x000101010101017eULL,
     0x000202020202027cULL,
     0x000404040404047aULL,
@@ -95,7 +97,11 @@ static const Bitboard rook_occupancy_maps[64] = {
     0x7e80808080808000ULL,
 };
 
-static const Bitboard bishop_occupancy_maps[64] = {
+/**
+ * @brief Bishop occupancy maps for each square, which are masks of the relevant blocker squares for that square. These are used to generate the occupancy variations for testing magic candidates and generating the attack tables.
+ *
+ */
+const Bitboard bishop_occupancy_maps[64] = {
     0x0040201008040200ULL,
     0x0000402010080400ULL,
     0x0000004020100a00ULL,
@@ -162,8 +168,8 @@ static const Bitboard bishop_occupancy_maps[64] = {
     0x0040201008040200ULL,
 };
 
-// magic multipliers per square used to index into the attack tables after masking blockers and multiplying by the magic multiplier, then shifting to get the final index
-static const Bitboard RMagic[64] = {
+// rook magic multipliers per square used to index into the attack tables after masking blockers and multiplying by the magic multiplier, then shifting to get the final index
+const Bitboard RMagic[64] = {
     0x800040008a6111ULL,
     0x240004010002005ULL,
     0x1080100084082000ULL,
@@ -230,7 +236,8 @@ static const Bitboard RMagic[64] = {
     0x1000002410410082ULL,
 };
 
-static const Bitboard BMagic[64] = {
+// bishop magic multipliers per square used to index into the attack tables after masking blockers and multiplying by the magic multiplier, then shifting to get the final index
+const Bitboard BMagic[64] = {
     0x22081060c8c0c80ULL,
     0x2103400888002ULL,
     0x2018860402a22380ULL,
@@ -297,8 +304,8 @@ static const Bitboard BMagic[64] = {
     0x9908500410440020ULL,
 };
 
-// relevant number of bits per square used for indexing into the attack tables after masking blockers and multiplying by the magic multiplier, then shifting to get the final index
-static const int RBits[64] = {
+// rook relevant number of bits per square used for indexing into the attack tables after masking blockers and multiplying by the magic multiplier, then shifting to get the final index
+const int RBits[64] = {
     12, 11, 11, 11, 11, 11, 11, 12,
     11, 10, 10, 10, 10, 10, 10, 11,
     11, 10, 10, 10, 10, 10, 10, 11,
@@ -309,7 +316,8 @@ static const int RBits[64] = {
     12, 11, 11, 11, 11, 11, 11, 12
 };
 
-static const int BBits[64] = {
+// bishop relevant number of bits per square used for indexing into the attack tables after masking blockers and multiplying by the magic multiplier, then shifting to get the final index
+const int BBits[64] = {
     6, 5, 5, 5, 5, 5, 5, 6,
     5, 5, 5, 5, 5, 5, 5, 5,
     5, 5, 7, 7, 7, 7, 5, 5,
@@ -468,25 +476,6 @@ Bitboard generate_bishop_attacks(Square square, Bitboard blockers)
     }
 
     return attacks;
-}
-
-Bitboard get_rook_attack_bitboard(Square square, Bitboard occupancy)
-{
-    occupancy &= rook_occupancy_maps[square];
-    int index = magic_index(occupancy, RMagic[square], RBits[square]);
-    return rook_attacks[square][index];
-}
-
-Bitboard get_bishop_attack_bitboard(Square square, Bitboard occupancy)
-{
-    occupancy &= bishop_occupancy_maps[square];
-    int index = magic_index(occupancy, BMagic[square], BBits[square]);
-    return bishop_attacks[square][index];
-}
-
-Bitboard get_queen_attack_bitboard(Square square, Bitboard occupancy)
-{
-    return get_rook_attack_bitboard(square, occupancy) | get_bishop_attack_bitboard(square, occupancy);
 }
 
 void init_sliding_attacks(void)

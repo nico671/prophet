@@ -2,6 +2,25 @@
 #ifndef SLIDING_ATTACKS_H
 #define SLIDING_ATTACKS_H
 #include "core/bitboard.h"
+// TODO: look into fancy bitboards
+extern const Bitboard rook_occupancy_maps[64];
+extern const Bitboard bishop_occupancy_maps[64];
+extern const Bitboard RMagic[64];
+extern const Bitboard BMagic[64];
+extern const int RBits[64];
+extern const int BBits[64];
+
+/**
+ * @brief Computes the index into the magic bitboard attack table for a given occupancy, magic number, and number of bits.
+ * @param occupancy The occupancy bitboard of the current position, which will be masked and transformed to index into the attack table
+ * @param magic The magic number for the square
+ * @param bits The number of bits to use for the index
+ * @return The computed index
+ */
+static inline int magic_index(Bitboard occupancy, Bitboard magic, int bits)
+{
+    return (int)((occupancy * magic) >> (64 - bits));
+}
 
 /**
  * @brief Precomputed rook attack bitboards for each square and occupancy mask variation, indexed by magic bitboard hashing
@@ -37,7 +56,13 @@ void init_sliding_attacks(void);
  * @param occupancy The occupancy bitboard of the current position, which will be masked and transformed to index into the attack table
  * @return Bitboard
  */
-Bitboard get_rook_attack_bitboard(Square square, Bitboard occupancy);
+static inline Bitboard get_rook_attack_bitboard(Square square, Bitboard occupancy)
+{
+    occupancy &= rook_occupancy_maps[square];
+    int index = magic_index(occupancy, RMagic[square], RBits[square]);
+    return rook_attacks[square][index];
+}
+
 /**
  * @brief Fast lookup functions for bishop attacks using magic bitboard indexing.
  * @note Expects valid inputs
@@ -45,7 +70,12 @@ Bitboard get_rook_attack_bitboard(Square square, Bitboard occupancy);
  * @param occupancy The occupancy bitboard of the current position, which will be masked and transformed to index into the attack table
  * @return Bitboard
  */
-Bitboard get_bishop_attack_bitboard(Square square, Bitboard occupancy);
+static inline Bitboard get_bishop_attack_bitboard(Square square, Bitboard occupancy)
+{
+    occupancy &= bishop_occupancy_maps[square];
+    int index = magic_index(occupancy, BMagic[square], BBits[square]);
+    return bishop_attacks[square][index];
+}
 
 /**
  * @brief Fast lookup function for queen attacks, which combines rook and bishop attacks.
@@ -55,7 +85,10 @@ Bitboard get_bishop_attack_bitboard(Square square, Bitboard occupancy);
  * @param occupancy The occupancy bitboard of the current position, which will be masked and transformed to index into the rook and bishop attack tables
  * @return Bitboard
  */
-Bitboard get_queen_attack_bitboard(Square square, Bitboard occupancy);
+static inline Bitboard get_queen_attack_bitboard(Square square, Bitboard occupancy)
+{
+    return get_rook_attack_bitboard(square, occupancy) | get_bishop_attack_bitboard(square, occupancy);
+}
 
 /**
  * @brief Internal function used by the attack table initializer to generate the attack bitboard for a bishop on a given square with a specific blocker configuration. This function is not used directly in move generation, but is essential for populating the attack tables during initialization.
