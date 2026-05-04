@@ -14,7 +14,10 @@ extern const Bitboard knight_attacks_table[64];
  * @param square The square for which to get the knight attacks (0-63 corresponding to A1-H8)
  * @return Bitboard
  */
-Bitboard get_knight_attack_bitboard(Square square);
+static inline Bitboard get_knight_attack_bitboard(Square square)
+{
+    return knight_attacks_table[square];
+}
 
 /**
  * @brief Precomputed king attack bitboards for each square, indexing same as Square enum
@@ -28,13 +31,17 @@ extern const Bitboard king_attacks_table[64];
  * @param square The square for which to get the king attacks (0-63 corresponding to A1-H8)
  * @return Bitboard
  */
-Bitboard get_king_attack_bitboard(Square square);
+static inline Bitboard get_king_attack_bitboard(Square square)
+{
+    return king_attacks_table[square];
+}
 
 /**
- * @brief Precomputed white pawn attack bitboards for each square, indexing same as Square enum
+ * @brief Precomputed pawn attack bitboards for each square, indexing same as Square enum,
  *
  */
-extern const Bitboard white_pawn_attacks_table[64];
+extern const Bitboard pawn_attacks_table[2][64]; // [color][square], where color is 0 for white and 1 for black
+
 /**
  * @brief Returns the attack bitboard for a pawn of the given color on the given square
  *
@@ -42,12 +49,9 @@ extern const Bitboard white_pawn_attacks_table[64];
  * @param color The color of the pawn (WHITE or BLACK)
  * @return Bitboard
  */
-Bitboard get_pawn_attack_bitboard(Square square, Color color);
-
-/**
- * @brief Precomputed black pawn attack bitboards for each square, indexing same as Square enum
- *
- */
-extern const Bitboard black_pawn_attacks_table[64];
+static inline Bitboard get_pawn_attack_bitboard(Square square, Color color)
+{
+    return pawn_attacks_table[color][square];
+}
 
 #endif
