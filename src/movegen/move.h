@@ -36,17 +36,17 @@ typedef enum {
  * @param from The starting square of the move.
  * @param to The destination square of the move.
  * @param type The type of the move.
- * @param promoPiece The piece type for promotion moves.
+ * @param promo_piece The piece type for promotion moves.
  * @return Move The created move.
  */
-Move createMove(Square from, Square to, MoveType type, PieceType promoPiece);
-Square getFromSquare(Move move);
+Move create_move(Square from, Square to, MoveType type, PieceType promo_piece);
+Square move_get_from_square(Move move);
 
-Square getToSquare(Move move);
+Square move_get_to_square(Move move);
 
-MoveType getMoveType(Move move);
+MoveType move_get_move_type(Move move);
 
-PieceType getPromotionPieceType(Move move);
+PieceType move_get_promotion_piecetype(Move move);
 bool move_is_enpassant(Move move);
 bool move_is_promotion(Move move);
 bool move_is_castling(Move move);
@@ -67,12 +67,12 @@ bool move_is_quiet(CBoard* board, Move move);
  * - previous castling rights, and the previous Zobrist hash key.
  */
 typedef struct UndoInfo {
-    PieceType capturedPiece; // What was captured (NO_PIECE if none)
-    Square capturedSquare; // Where the captured piece was (NO_SQUARE if none)
-    uint8_t previousEpSquare; // Previous en passant square (or NO_SQUARE)
-    uint16_t previousHalfmoveClock; // Previous 50-move counter
-    uint8_t previousCastlingRights; // 0..15 bitfield
-    uint64_t previousZobristKey;
+    PieceType captured_piecetype; // What was captured (NO_PIECE if none)
+    Square captured_square; // Where the captured piece was (NO_SQUARE if none)
+    uint8_t previous_ep_square; // Previous en passant square (or NO_SQUARE)
+    uint16_t previous_halfmove_clock; // Previous 50-move counter
+    uint8_t previous_castling_rights; // 0..15 bitfield
+    uint64_t previous_zobrist_key;
 } UndoInfo;
 
 #endif // PROPHET_MOVE_H

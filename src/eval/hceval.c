@@ -8,18 +8,18 @@
 #include "board/cboard.h"
 
 enum {
-    WHITE_PAWN = 0,
-    BLACK_PAWN = 1,
-    WHITE_KNIGHT = 2,
-    BLACK_KNIGHT = 3,
-    WHITE_BISHOP = 4,
-    BLACK_BISHOP = 5,
-    WHITE_ROOK = 6,
-    BLACK_ROOK = 7,
-    WHITE_QUEEN = 8,
-    BLACK_QUEEN = 9,
-    WHITE_KING = 10,
-    BLACK_KING = 11,
+    HC_WHITE_PAWN = 0,
+    HC_BLACK_PAWN = 1,
+    HC_WHITE_KNIGHT = 2,
+    HC_BLACK_KNIGHT = 3,
+    HC_WHITE_BISHOP = 4,
+    HC_BLACK_BISHOP = 5,
+    HC_WHITE_ROOK = 6,
+    HC_BLACK_ROOK = 7,
+    HC_WHITE_QUEEN = 8,
+    HC_BLACK_QUEEN = 9,
+    HC_WHITE_KING = 10,
+    HC_BLACK_KING = 11,
 };
 
 #define PCOLOR(p) ((p) & 1)
@@ -852,64 +852,64 @@ static const int* eg_pesto_table[6] = {
     eg_king_table,
 };
 
-static const int gamephaseInc[12] = { 0, 0, 1, 1, 1, 1, 2, 2, 4, 4, 0, 0 };
+static const int game_phase_inc[12] = { 0, 0, 1, 1, 1, 1, 2, 2, 4, 4, 0, 0 };
 static int mg_table[12][64];
 static int eg_table[12][64];
 static bool tables_initialized = false;
 
-void hcEvalInit(void)
+void hc_eval_init(void)
 {
     if (tables_initialized) {
         return;
     }
 
-    for (int p = PAWN, pieceIndex = 0, pc = WHITE_PAWN; p <= KING; p++, pieceIndex++, pc += 2) {
+    for (int p = PAWN, piece_index = 0, pc = HC_WHITE_PAWN; p <= KING; p++, piece_index++, pc += 2) {
         for (int sq = 0; sq < 64; sq++) {
-            mg_table[pc][sq] = mg_value[pieceIndex] + mg_pesto_table[pieceIndex][sq];
-            eg_table[pc][sq] = eg_value[pieceIndex] + eg_pesto_table[pieceIndex][sq];
-            mg_table[pc + 1][sq] = mg_value[pieceIndex] + mg_pesto_table[pieceIndex][FLIP(sq)];
-            eg_table[pc + 1][sq] = eg_value[pieceIndex] + eg_pesto_table[pieceIndex][FLIP(sq)];
+            mg_table[pc][sq] = mg_value[piece_index] + mg_pesto_table[piece_index][sq];
+            eg_table[pc][sq] = eg_value[piece_index] + eg_pesto_table[piece_index][sq];
+            mg_table[pc + 1][sq] = mg_value[piece_index] + mg_pesto_table[piece_index][FLIP(sq)];
+            eg_table[pc + 1][sq] = eg_value[piece_index] + eg_pesto_table[piece_index][FLIP(sq)];
         }
     }
 
     tables_initialized = true;
 }
 
-static inline void accumulate_piece(Bitboard bb, int pc, int mg[2], int eg[2], int* gamePhase)
+static inline void accumulate_piece(Bitboard bb, int pc, int mg[2], int eg[2], int* game_phase)
 {
     while (!bitboard_is_empty(bb)) {
         int sq = bitboard_pop_lsb(&bb);
         mg[PCOLOR(pc)] += mg_table[pc][sq];
         eg[PCOLOR(pc)] += eg_table[pc][sq];
-        *gamePhase += gamephaseInc[pc];
+        *game_phase += game_phase_inc[pc];
     }
 }
 
-int evaluateBoard(const CBoard* board)
+int evaluate_cboard(const CBoard* board)
 {
     int mg[2] = { 0, 0 };
     int eg[2] = { 0, 0 };
-    int gamePhase = 0;
+    int game_phase = 0;
 
-    accumulate_piece(board->whitePawns, WHITE_PAWN, mg, eg, &gamePhase);
-    accumulate_piece(board->blackPawns, BLACK_PAWN, mg, eg, &gamePhase);
-    accumulate_piece(board->whiteKnights, WHITE_KNIGHT, mg, eg, &gamePhase);
-    accumulate_piece(board->blackKnights, BLACK_KNIGHT, mg, eg, &gamePhase);
-    accumulate_piece(board->whiteBishops, WHITE_BISHOP, mg, eg, &gamePhase);
-    accumulate_piece(board->blackBishops, BLACK_BISHOP, mg, eg, &gamePhase);
-    accumulate_piece(board->whiteRooks, WHITE_ROOK, mg, eg, &gamePhase);
-    accumulate_piece(board->blackRooks, BLACK_ROOK, mg, eg, &gamePhase);
-    accumulate_piece(board->whiteQueens, WHITE_QUEEN, mg, eg, &gamePhase);
-    accumulate_piece(board->blackQueens, BLACK_QUEEN, mg, eg, &gamePhase);
-    accumulate_piece(board->whiteKing, WHITE_KING, mg, eg, &gamePhase);
-    accumulate_piece(board->blackKing, BLACK_KING, mg, eg, &gamePhase);
+    accumulate_piece(board->white_pawns_bb, HC_WHITE_PAWN, mg, eg, &game_phase);
+    accumulate_piece(board->black_pawns_bb, HC_BLACK_PAWN, mg, eg, &game_phase);
+    accumulate_piece(board->white_knights_bb, HC_WHITE_KNIGHT, mg, eg, &game_phase);
+    accumulate_piece(board->black_knights_bb, HC_BLACK_KNIGHT, mg, eg, &game_phase);
+    accumulate_piece(board->white_bishops_bb, HC_WHITE_BISHOP, mg, eg, &game_phase);
+    accumulate_piece(board->black_bishops_bb, HC_BLACK_BISHOP, mg, eg, &game_phase);
+    accumulate_piece(board->white_rooks_bb, HC_WHITE_ROOK, mg, eg, &game_phase);
+    accumulate_piece(board->black_rooks_bb, HC_BLACK_ROOK, mg, eg, &game_phase);
+    accumulate_piece(board->white_queens_bb, HC_WHITE_QUEEN, mg, eg, &game_phase);
+    accumulate_piece(board->black_queens_bb, HC_BLACK_QUEEN, mg, eg, &game_phase);
+    accumulate_piece(board->white_king_bb, HC_WHITE_KING, mg, eg, &game_phase);
+    accumulate_piece(board->black_king_bb, HC_BLACK_KING, mg, eg, &game_phase);
 
-    int mgScore = mg[board->sideToMove] - mg[OTHER(board->sideToMove)];
-    int egScore = eg[board->sideToMove] - eg[OTHER(board->sideToMove)];
-    int mgPhase = gamePhase;
-    if (mgPhase > 24) {
-        mgPhase = 24;
+    int mg_score = mg[board->side_to_move] - mg[OTHER(board->side_to_move)];
+    int eg_score = eg[board->side_to_move] - eg[OTHER(board->side_to_move)];
+    int mg_phase = game_phase;
+    if (mg_phase > 24) {
+        mg_phase = 24;
     }
-    int egPhase = 24 - mgPhase;
-    return (mgScore * mgPhase + egScore * egPhase) / 24;
+    int eg_phase = 24 - mg_phase;
+    return (mg_score * mg_phase + eg_score * eg_phase) / 24;
 }

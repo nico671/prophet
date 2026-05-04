@@ -8,10 +8,10 @@ char* moveToStringCoordinate(Move move)
     static char str[5];
     char files[] = "abcdefgh";
     char ranks[] = "12345678";
-    str[0] = files[getFromSquare(move) % 8];
-    str[1] = ranks[getFromSquare(move) / 8];
-    str[2] = files[getToSquare(move) % 8];
-    str[3] = ranks[getToSquare(move) / 8];
+    str[0] = files[move_get_from_square(move) % 8];
+    str[1] = ranks[move_get_from_square(move) / 8];
+    str[2] = files[move_get_to_square(move) % 8];
+    str[3] = ranks[move_get_to_square(move) / 8];
     str[4] = '\0';
     return str;
 }
@@ -22,10 +22,10 @@ char* moveToStringAlgebraic(Move move)
     const char* files = "abcdefgh";
     const char* ranks = "12345678";
 
-    Square from = getFromSquare(move);
-    Square to = getToSquare(move);
-    MoveType type = getMoveType(move);
-    PieceType promoPiece = getPromotionPieceType(move);
+    Square from = move_get_from_square(move);
+    Square to = move_get_to_square(move);
+    MoveType type = move_get_move_type(move);
+    PieceType promoPiece = move_get_promotion_piecetype(move);
 
     int fromFile = from % 8;
     int fromRank = from / 8;

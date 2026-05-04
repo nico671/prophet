@@ -15,30 +15,30 @@
 
 #define START_FEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
-void skipWhitespace(const char** str);
+void skip_whitespace(const char** str);
 
-static void stopSearchIfRunning(UCIState* state)
+static void stop_search_if_running(UCIState* state)
 {
-    if (!state->isSearching) {
+    if (!state->is_searching) {
         return;
     }
 
     atomic_store(&engine_stop_search, true);
-    pthread_join(state->searchThread, NULL);
-    state->isSearching = false;
+    pthread_join(state->search_thread, NULL);
+    state->is_searching = false;
     atomic_store(&engine_is_pondering, false);
 }
 
-static bool nextToken(const char** command, char* out, size_t outSize)
+static bool next_token(const char** command, char* out, size_t out_size)
 {
-    skipWhitespace(command);
+    skip_whitespace(command);
     if (**command == '\0') {
         return false;
     }
 
     size_t len = strcspn(*command, " \t\r\n");
-    if (len >= outSize) {
-        len = outSize - 1;
+    if (len >= out_size) {
+        len = out_size - 1;
     }
 
     strncpy(out, *command, len);
@@ -47,15 +47,15 @@ static bool nextToken(const char** command, char* out, size_t outSize)
     return true;
 }
 
-static bool isGoKeyword(const char* token)
+static bool is_go_keyword(const char* token)
 {
     return !strcmp(token, "searchmoves") || !strcmp(token, "ponder") || !strcmp(token, "wtime") || !strcmp(token, "btime") || !strcmp(token, "winc") || !strcmp(token, "binc") || !strcmp(token, "movestogo") || !strcmp(token, "depth") || !strcmp(token, "nodes") || !strcmp(token, "mate") || !strcmp(token, "movetime") || !strcmp(token, "infinite");
 }
 
-static bool parseNextIntToken(const char** command, int* out)
+static bool parse_next_int_token(const char** command, int* out)
 {
     char token[64];
-    if (!nextToken(command, token, sizeof(token))) {
+    if (!next_token(command, token, sizeof(token))) {
         return false;
     }
 
@@ -63,7 +63,7 @@ static bool parseNextIntToken(const char** command, int* out)
     return true;
 }
 
-static bool equalsIgnoreCase(const char* a, const char* b)
+static bool equals_ignore_case(const char* a, const char* b)
 {
     while (*a && *b) {
         if (tolower((unsigned char)*a) != tolower((unsigned char)*b)) {
@@ -75,39 +75,39 @@ static bool equalsIgnoreCase(const char* a, const char* b)
     return *a == '\0' && *b == '\0';
 }
 
-static void handleSetOptionCommand(UCIState* state, const char* command)
+static void handle_set_option_command(UCIState* state, const char* command)
 {
     command += 9; // Skip "setoption"
 
     char token[64];
     char name[128] = "";
     char value[128] = "";
-    bool readingName = false;
-    bool readingValue = false;
+    bool reading_name = false;
+    bool reading_value = false;
 
-    while (nextToken(&command, token, sizeof(token))) {
-        if (equalsIgnoreCase(token, "name")) {
-            readingName = true;
-            readingValue = false;
+    while (next_token(&command, token, sizeof(token))) {
+        if (equals_ignore_case(token, "name")) {
+            reading_name = true;
+            reading_value = false;
             name[0] = '\0';
             continue;
         }
 
-        if (equalsIgnoreCase(token, "value")) {
-            readingValue = true;
-            readingName = false;
+        if (equals_ignore_case(token, "value")) {
+            reading_value = true;
+            reading_name = false;
             value[0] = '\0';
             continue;
         }
 
-        if (readingName) {
+        if (reading_name) {
             if (name[0] != '\0' && strlen(name) + 1 < sizeof(name)) {
                 strncat(name, " ", sizeof(name) - strlen(name) - 1);
             }
             if (strlen(name) + strlen(token) < sizeof(name)) {
                 strncat(name, token, sizeof(name) - strlen(name) - 1);
             }
-        } else if (readingValue) {
+        } else if (reading_value) {
             if (value[0] != '\0' && strlen(value) + 1 < sizeof(value)) {
                 strncat(value, " ", sizeof(value) - strlen(value) - 1);
             }
@@ -117,8 +117,8 @@ static void handleSetOptionCommand(UCIState* state, const char* command)
         }
     }
 
-    if (equalsIgnoreCase(name, "Hash")) {
-        stopSearchIfRunning(state);
+    if (equals_ignore_case(name, "Hash")) {
+        stop_search_if_running(state);
 
         if (value[0] == '\0') {
             printf("info string setoption Hash requires a value\n");
@@ -126,10 +126,10 @@ static void handleSetOptionCommand(UCIState* state, const char* command)
             return;
         }
 
-        char* endptr = NULL;
+        char* end_ptr = NULL;
         errno = 0;
-        long mb = strtol(value, &endptr, 10);
-        if (errno != 0 || endptr == value || *endptr != '\0') {
+        long mb = strtol(value, &end_ptr, 10);
+        if (errno != 0 || end_ptr == value || *end_ptr != '\0') {
             printf("info string Invalid Hash value: %s\n", value);
             fflush(stdout);
             return;
@@ -141,15 +141,15 @@ static void handleSetOptionCommand(UCIState* state, const char* command)
             mb = 1024;
         }
 
-        initTT((size_t)mb);
+        init_tt((size_t)mb);
         printf("info string Hash set to %ld MB\n", mb);
         fflush(stdout);
         return;
     }
 
-    if (equalsIgnoreCase(name, "Clear Hash")) {
-        stopSearchIfRunning(state);
-        clearTT();
+    if (equals_ignore_case(name, "Clear Hash")) {
+        stop_search_if_running(state);
+        clear_tt();
         printf("info string Hash cleared\n");
         fflush(stdout);
         return;
@@ -159,7 +159,7 @@ static void handleSetOptionCommand(UCIState* state, const char* command)
     fflush(stdout);
 }
 
-int safeLineRead(char* line_input)
+int safe_line_read(char* line_input)
 {
     if (fgets(line_input, 8192, stdin) == NULL) {
         return 0;
@@ -171,179 +171,179 @@ int safeLineRead(char* line_input)
     return 1;
 }
 
-void skipWhitespace(const char** str)
+void skip_whitespace(const char** str)
 {
     while (**str && isspace((unsigned char)**str)) {
         (*str)++;
     }
 }
 
-Square algebraicToSquare(const char* squareStr)
+Square algebraic_notation_to_square(const char* algebraic_square_str)
 {
-    if (strlen(squareStr) < 2) {
+    if (strlen(algebraic_square_str) < 2) {
         return NO_SQUARE;
     }
-    char file = squareStr[0];
-    char rank = squareStr[1];
+    char file = algebraic_square_str[0];
+    char rank = algebraic_square_str[1];
     if (file < 'a' || file > 'h' || rank < '1' || rank > '8') {
         return NO_SQUARE;
     }
-    int fileIndex = file - 'a';
-    int rankIndex = rank - '1';
-    return (Square)(rankIndex * 8 + fileIndex);
+    int file_idx = file - 'a';
+    int rank_idx = rank - '1';
+    return (Square)(rank_idx * 8 + file_idx);
 }
 
-Move parseLongAlgebraicMove(const CBoard* board, const char* moveStr)
+Move parse_long_algebraic_move_str(const CBoard* board, const char* algebraic_move_str)
 {
-    if (strlen(moveStr) < 4) {
-        printf("info string Invalid move format: %s\n", moveStr);
-        return createMove(NO_SQUARE, NO_SQUARE, NORMAL, NO_PIECE);
+    if (strlen(algebraic_move_str) < 4) {
+        printf("info string Invalid move format: %s\n", algebraic_move_str);
+        return create_move(NO_SQUARE, NO_SQUARE, NORMAL, NO_PIECE);
     }
 
-    Square from = algebraicToSquare(moveStr);
-    Square to = algebraicToSquare(moveStr + 2);
+    Square from = algebraic_notation_to_square(algebraic_move_str);
+    Square to = algebraic_notation_to_square(algebraic_move_str + 2);
     if (from == NO_SQUARE || to == NO_SQUARE) {
-        printf("info string Invalid move format: %s\n", moveStr);
-        return createMove(NO_SQUARE, NO_SQUARE, NORMAL, NO_PIECE);
+        printf("info string Invalid move format: %s\n", algebraic_move_str);
+        return create_move(NO_SQUARE, NO_SQUARE, NORMAL, NO_PIECE);
     }
 
-    // generateLegalMoves() temporarily makes/unmakes moves internally.
+    // generate_legal_moves() temporarily makes/unmakes moves internally.
     // Work on a copy here so parsing cannot accidentally perturb live board
     // state.
-    CBoard boardCopy = *board;
-    MoveList moveList;
-    initMoveList(&moveList);
-    generateLegalMoves(&boardCopy, &moveList);
+    CBoard board_copy = *board;
+    MoveList move_list;
+    init_move_list(&move_list);
+    generate_legal_moves(&board_copy, &move_list);
 
-    char promotionChar = '\0';
-    if (strlen(moveStr) >= 5) {
-        promotionChar = (char)tolower((unsigned char)moveStr[4]);
+    char promotion_char = '\0';
+    if (strlen(algebraic_move_str) >= 5) {
+        promotion_char = (char)tolower((unsigned char)algebraic_move_str[4]);
     }
 
-    for (int i = 0; i < moveList.count; i++) {
-        if (getFromSquare(moveList.moves[i]) == from && getToSquare(moveList.moves[i]) == to) {
-            if (promotionChar == '\0') {
-                return moveList.moves[i];
+    for (int i = 0; i < move_list.count; i++) {
+        if (move_get_from_square(move_list.moves[i]) == from && move_get_to_square(move_list.moves[i]) == to) {
+            if (promotion_char == '\0') {
+                return move_list.moves[i];
             }
 
-            if (!move_is_promotion(moveList.moves[i])) {
+            if (!move_is_promotion(move_list.moves[i])) {
                 continue;
             }
 
-            PieceType promoType = getPromotionPieceType(moveList.moves[i]);
-            bool promotionMatches = (promotionChar == 'n' && promoType == KNIGHT) || (promotionChar == 'b' && promoType == BISHOP) || (promotionChar == 'r' && promoType == ROOK) || (promotionChar == 'q' && promoType == QUEEN);
+            PieceType promo_piecetype = move_get_promotion_piecetype(move_list.moves[i]);
+            bool promotion_matches = (promotion_char == 'n' && promo_piecetype == KNIGHT) || (promotion_char == 'b' && promo_piecetype == BISHOP) || (promotion_char == 'r' && promo_piecetype == ROOK) || (promotion_char == 'q' && promo_piecetype == QUEEN);
 
-            if (promotionMatches) {
-                return moveList.moves[i];
+            if (promotion_matches) {
+                return move_list.moves[i];
             }
             continue;
         }
     }
-    printf("info string Move not in legal moves list: %s\n", moveStr);
-    return createMove(NO_SQUARE, NO_SQUARE, NORMAL, NO_PIECE);
+    printf("info string Move not in legal moves list: %s\n", algebraic_move_str);
+    return create_move(NO_SQUARE, NO_SQUARE, NORMAL, NO_PIECE);
 }
 
-void handleGoCommand(UCIState* state, const char* command)
+void handle_go_command(UCIState* state, const char* command)
 {
     command += 2; // Skip "go"
-    SearchLimits goCmd = { 0 };
-    initMoveList(&goCmd.searchMoves);
-    bool searchmovesSpecified = false;
+    SearchLimits go_cmd = { 0 };
+    init_move_list(&go_cmd.search_moves);
+    bool search_moves_specified = false;
 
     char token[64];
-    while (nextToken(&command, token, sizeof(token))) {
+    while (next_token(&command, token, sizeof(token))) {
         if (!strcmp(token, "searchmoves")) {
-            searchmovesSpecified = true;
+            search_moves_specified = true;
             while (1) {
                 const char* saved = command;
                 char moveToken[32];
-                if (!nextToken(&command, moveToken, sizeof(moveToken))) {
+                if (!next_token(&command, moveToken, sizeof(moveToken))) {
                     break;
                 }
 
-                if (isGoKeyword(moveToken)) {
+                if (is_go_keyword(moveToken)) {
                     command = saved;
                     break;
                 }
 
-                Move move = parseLongAlgebraicMove(&state->board, moveToken);
-                if (getFromSquare(move) != NO_SQUARE && getToSquare(move) != NO_SQUARE) {
-                    if (goCmd.searchMoves.count < 256) {
-                        goCmd.searchMoves.moves[goCmd.searchMoves.count++] = move;
+                Move move = parse_long_algebraic_move_str(&state->board, moveToken);
+                if (move_get_from_square(move) != NO_SQUARE && move_get_to_square(move) != NO_SQUARE) {
+                    if (go_cmd.search_moves.count < 256) {
+                        go_cmd.search_moves.moves[go_cmd.search_moves.count++] = move;
                     }
-                } else if (state->debugMode) {
+                } else if (state->is_debug_mode) {
                     printf("info string Invalid move in go searchmoves: %s\n", moveToken);
                 }
             }
         } else if (!strcmp(token, "ponder")) {
-            goCmd.ponder = true;
+            go_cmd.ponder = true;
         } else if (!strcmp(token, "infinite")) {
-            goCmd.infiniteSearch = true;
+            go_cmd.infinite_search = true;
         } else if (!strcmp(token, "wtime")) {
-            parseNextIntToken(&command, &goCmd.timeForWhiteMs);
+            parse_next_int_token(&command, &go_cmd.time_for_white_ms);
         } else if (!strcmp(token, "btime")) {
-            parseNextIntToken(&command, &goCmd.timeForBlackMs);
+            parse_next_int_token(&command, &go_cmd.time_for_black_ms);
         } else if (!strcmp(token, "winc")) {
-            parseNextIntToken(&command, &goCmd.incrementForWhiteMs);
+            parse_next_int_token(&command, &go_cmd.increment_for_white_ms);
         } else if (!strcmp(token, "binc")) {
-            parseNextIntToken(&command, &goCmd.incrementForBlackMs);
+            parse_next_int_token(&command, &go_cmd.increment_for_black_ms);
         } else if (!strcmp(token, "movestogo")) {
-            parseNextIntToken(&command, &goCmd.movesUntilNextTimeControl);
+            parse_next_int_token(&command, &go_cmd.moves_until_next_time_control);
         } else if (!strcmp(token, "depth")) {
-            parseNextIntToken(&command, &goCmd.searchDepthLimit);
+            parse_next_int_token(&command, &go_cmd.depth_limit);
         } else if (!strcmp(token, "nodes")) {
-            parseNextIntToken(&command, &goCmd.searchNodeLimit);
+            parse_next_int_token(&command, &go_cmd.node_limit);
         } else if (!strcmp(token, "mate")) {
-            parseNextIntToken(&command, &goCmd.searchForMateInNMoves);
+            parse_next_int_token(&command, &go_cmd.search_for_mate_in_n_moves);
         } else if (!strcmp(token, "movetime")) {
-            parseNextIntToken(&command, &goCmd.searchMoveTimeLimitMs);
-        } else if (state->debugMode) {
+            parse_next_int_token(&command, &go_cmd.time_limit_ms);
+        } else if (state->is_debug_mode) {
             printf("info string Ignoring unknown go token: %s\n", token);
         }
     }
 
-    if (searchmovesSpecified && goCmd.searchMoves.count == 0) {
+    if (search_moves_specified && go_cmd.search_moves.count == 0) {
         printf("bestmove 0000\n");
         fflush(stdout);
         return;
     }
 
     // handle go command with the parsed parameters in goCmd struct
-    if (state->debugMode) {
+    if (state->is_debug_mode) {
         printf("info string Parsed go command parameters:\n");
-        printf("  ponder: %d\n", goCmd.ponder);
-        printf("  infiniteSearch: %d\n", goCmd.infiniteSearch);
-        printf("  timeForWhiteMs: %d\n", goCmd.timeForWhiteMs);
-        printf("  timeForBlackMs: %d\n", goCmd.timeForBlackMs);
-        printf("  incrementForWhiteMs: %d\n", goCmd.incrementForWhiteMs);
-        printf("  incrementForBlackMs: %d\n", goCmd.incrementForBlackMs);
-        printf("  movesUntilNextTimeControl: %d\n",
-            goCmd.movesUntilNextTimeControl);
-        printf("  searchDepthLimit: %d\n", goCmd.searchDepthLimit);
-        printf("  searchNodeLimit: %d\n", goCmd.searchNodeLimit);
-        printf("  searchForMateInNMoves: %d\n", goCmd.searchForMateInNMoves);
-        printf("  searchMoveTimeLimitMs: %d\n", goCmd.searchMoveTimeLimitMs);
-        printf("  searchMoves count: %d\n", goCmd.searchMoves.count);
+        printf("  ponder: %d\n", go_cmd.ponder);
+        printf("  infinite_search: %d\n", go_cmd.infinite_search);
+        printf("  time_for_white_ms: %d\n", go_cmd.time_for_white_ms);
+        printf("  time_for_black_ms: %d\n", go_cmd.time_for_black_ms);
+        printf("  increment_for_white_ms: %d\n", go_cmd.increment_for_white_ms);
+        printf("  increment_for_black_ms: %d\n", go_cmd.increment_for_black_ms);
+        printf("  moves_until_next_time_control: %d\n",
+            go_cmd.moves_until_next_time_control);
+        printf("  depth_limit: %d\n", go_cmd.depth_limit);
+        printf("  node_limit: %d\n", go_cmd.node_limit);
+        printf("  search_for_mate_in_n_moves: %d\n", go_cmd.search_for_mate_in_n_moves);
+        printf("  time_limit_ms: %d\n", go_cmd.time_limit_ms);
+        printf("  search_moves count: %d\n", go_cmd.search_moves.count);
     }
 
-    searchOnGoCommand(state, goCmd);
+    search_on_go_command(state, go_cmd);
 }
-void handlePositionCommand(UCIState* state, const char* command)
+void handle_position_command(UCIState* state, const char* command)
 {
-    stopSearchIfRunning(state);
+    stop_search_if_running(state);
 
     command += 8; // Skip "position"
-    skipWhitespace(&command);
+    skip_whitespace(&command);
 
     if (!strncmp(command, "startpos", 8) && (command[8] == '\0' || isspace((unsigned char)command[8]))) {
-        bool success = fenToCBoard(START_FEN, &state->board);
+        bool success = fen_string_to_cboard(START_FEN, &state->board);
         if (!success) {
             printf("info string Failed to parse start position FEN\n");
         }
         command += 8;
     } else if (!strncmp(command, "fen", 3) && (command[3] == '\0' || isspace((unsigned char)command[3]))) {
         command += 3;
-        skipWhitespace(&command);
+        skip_whitespace(&command);
 
         // Find optional " moves " token as a full keyword, not as a set of chars.
         const char* moves_pos = strstr(command, " moves");
@@ -359,71 +359,71 @@ void handlePositionCommand(UCIState* state, const char* command)
         }
         strncpy(fen_copy, command, fen_length);
         fen_copy[fen_length] = '\0';
-        bool success = fenToCBoard(fen_copy, &state->board);
+        bool success = fen_string_to_cboard(fen_copy, &state->board);
         if (!success) {
             printf("info string Failed to parse FEN: %s\n", fen_copy);
         }
         command += fen_length;
 
-        if (state->debugMode) {
+        if (state->is_debug_mode) {
             printf("info string Parsed FEN: %s\n", fen_copy);
             printf("info string Command after FEN: '%s'\n", command);
         }
     }
 
     // process moves if present
-    skipWhitespace(&command);
+    skip_whitespace(&command);
     if (!strncmp(command, "moves", 5) && (command[5] == '\0' || isspace((unsigned char)command[5]))) {
         command += 5;
-        skipWhitespace(&command);
+        skip_whitespace(&command);
         size_t move_length = strcspn(command, " \r\n");
         while (move_length > 0) {
-            char move_str[16];
+            char algebraic_move_str[16];
 
-            if (move_length >= sizeof(move_str)) {
+            if (move_length >= sizeof(algebraic_move_str)) {
                 printf("info string Move token too long in position command\n");
                 return;
             }
 
-            strncpy(move_str, command, move_length);
-            move_str[move_length] = '\0';
-            Move move = parseLongAlgebraicMove(&state->board, move_str);
-            if (getFromSquare(move) != NO_SQUARE && getToSquare(move) != NO_SQUARE) {
-                makeMove(&state->board, move);
+            strncpy(algebraic_move_str, command, move_length);
+            algebraic_move_str[move_length] = '\0';
+            Move move = parse_long_algebraic_move_str(&state->board, algebraic_move_str);
+            if (move_get_from_square(move) != NO_SQUARE && move_get_to_square(move) != NO_SQUARE) {
+                make_move(&state->board, move);
             } else {
-                printf("info string Invalid move in position command: %s\n", move_str);
+                printf("info string Invalid move in position command: %s\n", algebraic_move_str);
             }
             command += move_length;
-            skipWhitespace(&command);
+            skip_whitespace(&command);
             move_length = strcspn(command, " \r\n");
         }
     }
 }
-void uciLoop(void)
+void uci_loop(void)
 {
     static char line_input[8192]; // Buffer for reading input lines (max UCI
                                   // command length is 512 characters)
 
     UCIState state = { 0 };
     state.initialized = false;
-    state.debugMode = false;
+    state.is_debug_mode = false;
     state.ready = false;
     state.quitting = false;
-    state.isSearching = false;
-    bool initSuccess = fenToCBoard(START_FEN, &state.board);
-    if (!initSuccess) {
+    state.is_searching = false;
+    bool init_success = fen_string_to_cboard(START_FEN, &state.board);
+    if (!init_success) {
         printf("info string Failed to parse start position FEN\n");
         return;
     }
-    while (safeLineRead(line_input)) {
+    while (safe_line_read(line_input)) {
         const char* p = line_input;
-        skipWhitespace(&p);
+        skip_whitespace(&p);
 
         if (*p == '\0') {
             continue; // blank line
         }
         if (!strncmp(p, "quit", 4) && (p[4] == '\0' || isspace((unsigned char)p[4]))) {
-            stopSearchIfRunning(&state);
+            stop_search_if_running(&state);
             state.quitting = true;
             break;
         }
@@ -433,7 +433,7 @@ void uciLoop(void)
             fflush(stdout);
             state.ready = true;
         } else if (!strncmp(p, "uci", 3) && (p[3] == '\0' || isspace((unsigned char)p[3]))) {
-            initEngine();
+            init_engine();
 
             // Fallback if VERSION is not defined by the build system.
 #ifndef VERSION
@@ -448,52 +448,52 @@ void uciLoop(void)
             fflush(stdout);
             state.initialized = true;
         } else if (!strncmp(p, "setoption", 9) && (p[9] == '\0' || isspace((unsigned char)p[9]))) {
-            handleSetOptionCommand(&state, p);
+            handle_set_option_command(&state, p);
         } else if (!strncmp(p, "ucinewgame", 10) && (p[10] == '\0' || isspace((unsigned char)p[10]))) {
-            stopSearchIfRunning(&state);
-            bool success = fenToCBoard(START_FEN, &state.board);
+            stop_search_if_running(&state);
+            bool success = fen_string_to_cboard(START_FEN, &state.board);
 
             if (!success) {
                 printf("info string Failed to reset board to start position\n");
                 fflush(stdout);
             }
-            clearTT();
-            clearSearchHeuristics();
+            clear_tt();
+            clear_search_heuristics();
             // Board/game state is reset via START_FEN, and search state via
             // TT/heuristic clears.
         } else if (!strncmp(p, "position", 8) && (p[8] == '\0' || isspace((unsigned char)p[8]))) {
-            handlePositionCommand(&state, p);
+            handle_position_command(&state, p);
         } else if (!strncmp(p, "go", 2) && (p[2] == '\0' || isspace((unsigned char)p[2]))) {
-            handleGoCommand(&state, p);
+            handle_go_command(&state, p);
         } else if (!strncmp(p, "stop", 4) && (p[4] == '\0' || isspace((unsigned char)p[4]))) {
-            stopSearchIfRunning(&state);
+            stop_search_if_running(&state);
         } else if (!strncmp(p, "ponderhit", 9) && (p[9] == '\0' || isspace((unsigned char)p[9]))) {
-            onPonderHit();
-            if (state.debugMode) {
+            on_ponder_hit();
+            if (state.is_debug_mode) {
                 printf("info string ponderhit received\n");
             }
         } else if (!strncmp(p, "debug", 5) && (p[5] == '\0' || isspace((unsigned char)p[5]))) {
             p += 5;
-            skipWhitespace(&p);
+            skip_whitespace(&p);
             if (!strncmp(p, "on", 2) && (p[2] == '\0' || isspace((unsigned char)p[2]))) {
-                state.debugMode = true;
+                state.is_debug_mode = true;
                 printf("info string Debug mode enabled\n");
             } else if (!strncmp(p, "off", 3) && (p[3] == '\0' || isspace((unsigned char)p[3]))) {
-                state.debugMode = false;
+                state.is_debug_mode = false;
                 printf("info string Debug mode disabled\n");
             } else {
                 printf("info string Invalid debug command: %s\n", p);
             }
         } else if (!strncmp(p, "printboard", 10) && (p[10] == '\0' || isspace((unsigned char)p[10]))) {
-            if (state.debugMode) {
-                printBoard(&state.board);
+            if (state.is_debug_mode) {
+                print_cboard(&state.board);
                 fflush(stdout);
             } else {
                 printf("info string 'printboard' command only works in debug mode\n");
                 fflush(stdout);
             }
         } else {
-            if (state.debugMode) {
+            if (state.is_debug_mode) {
                 printf("info string Ignoring unknown command: %s\n", p);
                 fflush(stdout);
             }

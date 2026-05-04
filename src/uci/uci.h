@@ -7,17 +7,17 @@
 // UCI state structure to track initialization, readiness, quitting, and the current board position. Also manages the search thread and whether a search is active.
 typedef struct UCIState {
     bool initialized;
-    bool debugMode;
+    bool is_debug_mode;
     bool ready;
     bool quitting;
 
     CBoard board; // The "root" board managed by UCI
 
     // Thread management
-    pthread_t searchThread;
-    bool isSearching; // Tracks if the thread is currently active
+    pthread_t search_thread;
+    bool is_searching; // Tracks if the thread is currently active
 } UCIState;
 
-void uciLoop(void);
+void uci_loop(void);
 
 #endif // UCI_H

@@ -8,29 +8,29 @@
 #include "movegen/sliding_moves.h"
 #include <stdbool.h>
 
-void genAllPseudoLegalMoves(CBoard* board, MoveList* moveList) // TODO: refactor movegen to have less reused code everywhere, all individual piece gen is abt the same minus pawns and kings
+void gen_all_pseudolegal_moves(CBoard* board, MoveList* moveList) // TODO: refactor movegen to have less reused code everywhere, all individual piece gen is abt the same minus pawns and kings
 {
-    genAllPseudoLegalPawnMoves(board, moveList);
-    genAllPseudoLegalKnightMoves(board, moveList);
-    genAllPseudoLegalBishopMoves(board, moveList);
-    genAllPseudoLegalRookMoves(board, moveList);
-    genAllPseudoLegalQueenMoves(board, moveList);
-    genAllPseudoLegalKingMoves(board, moveList);
+    gen_all_pseudolegal_pawn_moves(board, moveList);
+    gen_all_pseudolegal_knight_moves(board, moveList);
+    gen_all_pseudolegal_bishop_moves(board, moveList);
+    gen_all_pseudolegal_rook_moves(board, moveList);
+    gen_all_pseudolegal_queen_moves(board, moveList);
+    gen_all_pseudolegal_king_moves(board, moveList);
 }
 
-void initMoveList(MoveList* moveList)
+void init_move_list(MoveList* moveList)
 {
     moveList->count = 0;
 }
 
-void generateCaptureMoves(CBoard* board, MoveList* out)
+void generate_capture_moves(CBoard* board, MoveList* out)
 {
     MoveList pseudoLegalMoves;
-    initMoveList(&pseudoLegalMoves);
-    initMoveList(out);
-    genAllPseudoLegalMoves(board, &pseudoLegalMoves);
+    init_move_list(&pseudoLegalMoves);
+    init_move_list(out);
+    gen_all_pseudolegal_moves(board, &pseudoLegalMoves);
 
-    Color side = board->sideToMove;
+    Color side = board->side_to_move;
     for (int i = 0; i < pseudoLegalMoves.count; i++) {
         Move move = pseudoLegalMoves.moves[i];
         bool tactical = move_is_capture(board, move) || move_is_enpassant(move) || move_is_promotion(move);
@@ -38,107 +38,107 @@ void generateCaptureMoves(CBoard* board, MoveList* out)
             continue;
         }
 
-        UndoInfo undoInfo = makeMove(board, move);
-        if (!isKingInCheck(board, side)) {
+        UndoInfo undoInfo = make_move(board, move);
+        if (!is_king_in_check(board, side)) {
             out->moves[out->count++] = move;
         }
-        unmakeMove(board, move, undoInfo);
+        unmake_move(board, move, undoInfo);
     }
 }
 
-bool isSquareAttacked(CBoard* board, Square square, Color attackerColor)
+bool is_square_attacked(CBoard* board, Square square, Color attackerColor)
 {
     // Check for pawn attacks
     // We need to check if pawns of attackerColor can attack this square
     // If white pawns attack diagonally upward, we need to check squares diagonally downward
-    // So we use the OPPOSITE color's attack pattern (FLIPPED, like in genEnPassantPawnMoves)
+    // So we use the OPPOSITE color's attack pattern (FLIPPED, like in gen_all_pseudolegal_ep_pawn_moves)
     Bitboard pawnAttacks = (attackerColor == WHITE)
         ? get_pawn_attack_bitboard(square, BLACK) // FLIPPED
         : get_pawn_attack_bitboard(square, WHITE); // FLIPPED
-    Bitboard attackerPawns = (attackerColor == WHITE) ? board->whitePawns : board->blackPawns;
+    Bitboard attackerPawns = (attackerColor == WHITE) ? board->white_pawns_bb : board->black_pawns_bb;
     if (pawnAttacks & attackerPawns)
         return true;
 
     // Check for knight attacks
     Bitboard knightAttacks = get_knight_attack_bitboard(square);
-    Bitboard attackerKnights = (attackerColor == WHITE) ? board->whiteKnights : board->blackKnights;
+    Bitboard attackerKnights = (attackerColor == WHITE) ? board->white_knights_bb : board->black_knights_bb;
     if (knightAttacks & attackerKnights)
         return true;
 
     // Check for bishop/queen attacks
-    Bitboard bishopAttacks = get_bishop_attack_bitboard(square, board->allPieces);
-    Bitboard attackerBishops = (attackerColor == WHITE) ? board->whiteBishops : board->blackBishops;
-    Bitboard attackerQueens = (attackerColor == WHITE) ? board->whiteQueens : board->blackQueens;
+    Bitboard bishopAttacks = get_bishop_attack_bitboard(square, board->all_pieces_bb);
+    Bitboard attackerBishops = (attackerColor == WHITE) ? board->white_bishops_bb : board->black_bishops_bb;
+    Bitboard attackerQueens = (attackerColor == WHITE) ? board->white_queens_bb : board->black_queens_bb;
     if (bishopAttacks & (attackerBishops | attackerQueens))
         return true;
 
     // Check for rook/queen attacks
-    Bitboard rookAttacks = get_rook_attack_bitboard(square, board->allPieces);
-    Bitboard attackerRooks = (attackerColor == WHITE) ? board->whiteRooks : board->blackRooks;
+    Bitboard rookAttacks = get_rook_attack_bitboard(square, board->all_pieces_bb);
+    Bitboard attackerRooks = (attackerColor == WHITE) ? board->white_rooks_bb : board->black_rooks_bb;
     if (rookAttacks & (attackerRooks | attackerQueens))
         return true;
 
     // Check for king attacks
     Bitboard kingAttacks = get_king_attack_bitboard(square);
-    Bitboard attackerKing = (attackerColor == WHITE) ? board->whiteKing : board->blackKing;
+    Bitboard attackerKing = (attackerColor == WHITE) ? board->white_king_bb : board->black_king_bb;
     if (kingAttacks & attackerKing)
         return true;
 
     return false;
 }
 
-bool isKingInCheck(CBoard* board, Color side)
+bool is_king_in_check(CBoard* board, Color side)
 {
-    Bitboard king = (side == WHITE) ? board->whiteKing : board->blackKing;
+    Bitboard king = (side == WHITE) ? board->white_king_bb : board->black_king_bb;
     if (king == 0) {
         return true;
     }
     Square kingSquare = bitboard_lsb_index(king);
     Color opponentColor = (side == WHITE) ? BLACK : WHITE;
-    return isSquareAttacked(board, kingSquare, opponentColor);
+    return is_square_attacked(board, kingSquare, opponentColor);
 }
 
-void generateLegalMoves(CBoard* board, MoveList* out)
+void generate_legal_moves(CBoard* board, MoveList* out)
 {
     MoveList pseudoLegalMoves;
-    initMoveList(&pseudoLegalMoves);
-    genAllPseudoLegalMoves(board, &pseudoLegalMoves);
+    init_move_list(&pseudoLegalMoves);
+    gen_all_pseudolegal_moves(board, &pseudoLegalMoves);
 
     for (int i = 0; i < pseudoLegalMoves.count; i++) {
         Move move = pseudoLegalMoves.moves[i];
 
         // Special handling for castling
         if (move_is_castling(move)) {
-            Color side = board->sideToMove;
+            Color side = board->side_to_move;
             Color opponent = (side == WHITE) ? BLACK : WHITE;
             // Square kingFrom = FROM_SQ(move);
 
             // Cannot castle if in check
-            if (isKingInCheck(board, side)) {
+            if (is_king_in_check(board, side)) {
                 continue;
             }
 
             // Check squares the king moves through
-            if ((side == WHITE && getFromSquare(move) == E1 && getToSquare(move) == G1) || (side == BLACK && getFromSquare(move) == E8 && getToSquare(move) == G8)) // KINGSIDE_CASTLE
+            if ((side == WHITE && move_get_from_square(move) == E1 && move_get_to_square(move) == G1) || (side == BLACK && move_get_from_square(move) == E8 && move_get_to_square(move) == G8)) // KINGSIDE_CASTLE
             {
                 Square throughSquare = (side == WHITE) ? F1 : F8;
-                if (isSquareAttacked(board, throughSquare, opponent)) {
+                if (is_square_attacked(board, throughSquare, opponent)) {
                     continue;
                 }
             } else // QUEENSIDE_CASTLE
             {
                 Square throughSquare = (side == WHITE) ? D1 : D8;
-                if (isSquareAttacked(board, throughSquare, opponent)) {
+                if (is_square_attacked(board, throughSquare, opponent)) {
                     continue;
                 }
             }
         }
 
         // Normal legality check for all moves (including castling destination)
-        UndoInfo undoInfo = makeMove(board, move);
-        if (!isKingInCheck(board, (board->sideToMove == WHITE) ? BLACK : WHITE)) {
+        UndoInfo undoInfo = make_move(board, move);
+        if (!is_king_in_check(board, (board->side_to_move == WHITE) ? BLACK : WHITE)) {
             out->moves[out->count++] = move;
         }
-        unmakeMove(board, move, undoInfo);
+        unmake_move(board, move, undoInfo);
     }
 }

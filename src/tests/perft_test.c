@@ -117,8 +117,8 @@ uint64_t perft(CBoard* board, int depth)
     if (depth == 0)
         return 1;
     MoveList moveList;
-    initMoveList(&moveList);
-    generateLegalMoves(board, &moveList);
+    init_move_list(&moveList);
+    generate_legal_moves(board, &moveList);
     if (depth == 1)
         return moveList.count;
 
@@ -128,13 +128,13 @@ uint64_t perft(CBoard* board, int depth)
 
         // Make the move
         UndoInfo undoInfo;
-        undoInfo = makeMove(board, move);
+        undoInfo = make_move(board, move);
 
         // Recurse
         nodes += perft(board, depth - 1);
 
         // Unmake the move
-        unmakeMove(board, move, undoInfo);
+        unmake_move(board, move, undoInfo);
     }
 
     return nodes;
@@ -143,8 +143,8 @@ uint64_t perft(CBoard* board, int depth)
 uint64_t divide(CBoard* board, int depth)
 {
     MoveList moveList;
-    initMoveList(&moveList);
-    generateLegalMoves(board, &moveList);
+    init_move_list(&moveList);
+    generate_legal_moves(board, &moveList);
 
     uint64_t totalNodes = 0;
     for (int i = 0; i < moveList.count; i++) {
@@ -152,7 +152,7 @@ uint64_t divide(CBoard* board, int depth)
 
         // Make the move
         UndoInfo undoInfo;
-        undoInfo = makeMove(board, move);
+        undoInfo = make_move(board, move);
 
         // Recurse
         uint64_t nodes = perft(board, depth - 1);
@@ -163,7 +163,7 @@ uint64_t divide(CBoard* board, int depth)
         printf("%s: %llu\n", moveStr, nodes);
 
         // Unmake the move
-        unmakeMove(board, move, undoInfo);
+        unmake_move(board, move, undoInfo);
     }
 
     printf("Total nodes: %llu\n", totalNodes);
@@ -172,7 +172,7 @@ uint64_t divide(CBoard* board, int depth)
 
 int main()
 {
-    initEngine();
+    init_engine();
 
     int num_tests = sizeof(test_suite) / sizeof(PerftTest);
     int total_passed = 0;
@@ -185,7 +185,7 @@ int main()
         printf("=== %s ===\n", test.name);
         printf("FEN: %s\n", test.fen);
         CBoard board;
-        bool parsedFen = fenToCBoard(test.fen, &board);
+        bool parsedFen = fen_string_to_cboard(test.fen, &board);
         if (!parsedFen) {
             printf("Failed to parse FEN for test '%s'. Skipping this test.\n\n", test.name);
             total_failed += test.max_depth + 1; // Count all depths as failed for this test

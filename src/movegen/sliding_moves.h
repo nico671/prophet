@@ -4,8 +4,8 @@
 #include "movegen/move.h"
 
 typedef struct CBoard CBoard;
-void genAllPseudoLegalBishopMoves(CBoard* board, MoveList* moveList);
-void genAllPseudoLegalRookMoves(CBoard* board, MoveList* moveList);
-void genAllPseudoLegalQueenMoves(CBoard* board, MoveList* moveList);
+void gen_all_pseudolegal_bishop_moves(CBoard* board, MoveList* move_list);
+void gen_all_pseudolegal_rook_moves(CBoard* board, MoveList* move_list);
+void gen_all_pseudolegal_queen_moves(CBoard* board, MoveList* move_list);
 
 #endif // SLIDING_MOVES_H

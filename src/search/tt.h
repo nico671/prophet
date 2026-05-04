@@ -21,17 +21,17 @@ typedef enum {
 } TTBound;
 
 typedef struct {
-    uint64_t zobristKey; // To verify this entry matches the current board
+    uint64_t zobrist_key; // To verify this entry matches the current board
     int score; // Evaluation score
     int depth; // Depth searched from this node
     TTBound bound; // The type of score
-    Move bestMove; // The move that caused a cutoff or highest score
+    Move best_move; // The move that caused a cutoff or highest score
 } TTEntry;
 
 extern TTEntry* tt_table;
 extern size_t tt_size; // Number of entries (must be a power of 2)
-int extractPVLine(CBoard* board, Move* pvArray, int maxDepth);
-void initTT(size_t megabytes);
-void clearTT(void);
-void storeTT(uint64_t key, int depth, int score, TTBound bound, Move bestMove);
-TTEntry* probeTT(uint64_t key);
+int extract_pv_line(CBoard* board, Move* pv_move_list, int max_depth);
+void init_tt(size_t megabytes);
+void clear_tt(void);
+void store_tt(uint64_t key, int depth, int score, TTBound bound, Move best_move);
+TTEntry* probe_tt(uint64_t key);

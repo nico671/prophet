@@ -8,7 +8,7 @@
 #include "board/zobrist.h"
 #include "core/bitboard.h"
 
-void printBoard(CBoard* board)
+void print_cboard(CBoard* board)
 {
     if (!board) {
         printf("Board is NULL\n");
@@ -17,63 +17,63 @@ void printBoard(CBoard* board)
 
     for (int rank = 7; rank >= 0; rank--) {
         for (int file = 0; file < 8; file++) {
-            int squareIndex = rank * 8 + file; // Fixed calculation
-            char pieceChar = '.';
-            Bitboard squareMask = bitboard_square_mask(squareIndex);
-            if (board->whitePawns & squareMask)
-                pieceChar = 'P';
-            else if (board->whiteKnights & squareMask)
-                pieceChar = 'N';
-            else if (board->whiteBishops & squareMask)
-                pieceChar = 'B';
-            else if (board->whiteRooks & squareMask)
-                pieceChar = 'R';
-            else if (board->whiteQueens & squareMask)
-                pieceChar = 'Q';
-            else if (board->whiteKing & squareMask)
-                pieceChar = 'K';
-            else if (board->blackPawns & squareMask)
-                pieceChar = 'p';
-            else if (board->blackKnights & squareMask)
-                pieceChar = 'n';
-            else if (board->blackBishops & squareMask)
-                pieceChar = 'b';
-            else if (board->blackRooks & squareMask)
-                pieceChar = 'r';
-            else if (board->blackQueens & squareMask)
-                pieceChar = 'q';
-            else if (board->blackKing & squareMask)
-                pieceChar = 'k';
-            printf("%c ", pieceChar);
+            int square_idx = rank * 8 + file; // Fixed calculation
+            char piece_char = '.';
+            Bitboard square_mask_bb = bitboard_square_mask(square_idx);
+            if (board->white_pawns_bb & square_mask_bb)
+                piece_char = 'P';
+            else if (board->white_knights_bb & square_mask_bb)
+                piece_char = 'N';
+            else if (board->white_bishops_bb & square_mask_bb)
+                piece_char = 'B';
+            else if (board->white_rooks_bb & square_mask_bb)
+                piece_char = 'R';
+            else if (board->white_queens_bb & square_mask_bb)
+                piece_char = 'Q';
+            else if (board->white_king_bb & square_mask_bb)
+                piece_char = 'K';
+            else if (board->black_pawns_bb & square_mask_bb)
+                piece_char = 'p';
+            else if (board->black_knights_bb & square_mask_bb)
+                piece_char = 'n';
+            else if (board->black_bishops_bb & square_mask_bb)
+                piece_char = 'b';
+            else if (board->black_rooks_bb & square_mask_bb)
+                piece_char = 'r';
+            else if (board->black_queens_bb & square_mask_bb)
+                piece_char = 'q';
+            else if (board->black_king_bb & square_mask_bb)
+                piece_char = 'k';
+            printf("%c ", piece_char);
         }
         printf("\n"); // Add newline after each rank
     }
     printf("\n");
-    printf("White to move: %s\n", board->sideToMove == WHITE ? "Yes" : "No");
-    printf("En passant square: %d\n", board->epSquare);
-    printf("Halfmove clock: %d\n", board->halfmoveClock);
-    printf("Fullmove number: %d\n", board->fullmoveNumber);
+    printf("White to move: %s\n", board->side_to_move == WHITE ? "Yes" : "No");
+    printf("En passant square: %d\n", board->ep_square);
+    printf("Halfmove clock: %d\n", board->half_move_clock);
+    printf("Fullmove number: %d\n", board->full_move_number);
     printf("Castling rights: %s%s%s%s\n",
-        CHECK_BIT(board->castlingRights, 3) ? "K" : "",
-        CHECK_BIT(board->castlingRights, 2) ? "Q" : "",
-        CHECK_BIT(board->castlingRights, 1) ? "k" : "",
-        CHECK_BIT(board->castlingRights, 0) ? "q" : "");
-    printf("Zobrist Key: %llu\n", board->zobristKey);
+        CHECK_BIT(board->castling_rights, 3) ? "K" : "",
+        CHECK_BIT(board->castling_rights, 2) ? "Q" : "",
+        CHECK_BIT(board->castling_rights, 1) ? "k" : "",
+        CHECK_BIT(board->castling_rights, 0) ? "q" : "");
+    printf("Zobrist Key: %llu\n", board->zobrist_key);
 }
 
-bool fenToCBoard(const char* fenString, CBoard* board)
+bool fen_string_to_cboard(const char* fen_string, CBoard* board)
 {
     *board = (CBoard) { 0 };
-    board->epSquare = NO_SQUARE; // default no en passant
+    board->ep_square = NO_SQUARE; // default no en passant
     for (int sq = 0; sq < 64; ++sq) {
-        board->pieceAtSquare[sq] = NO_PIECE;
+        board->piece_at_square[sq] = NO_PIECE;
     }
-    size_t len = strlen(fenString);
+    size_t len = strlen(fen_string);
     int rank = 7;
     int file = 0;
     // get piece placement
     for (size_t i = 0; i < len && rank >= 0; i++) {
-        char ch = fenString[i];
+        char ch = fen_string[i];
         if (ch == ' ') {
             break; // End of piece placement section
         }
@@ -92,68 +92,68 @@ bool fenToCBoard(const char* fenString, CBoard* board)
             file += (ch - '0');
             continue;
         }
-        int squareIndex = rank * 8 + file;
-        Bitboard squareMask = bitboard_square_mask(squareIndex);
+        int square_idx = rank * 8 + file;
+        Bitboard square_mask_bb = bitboard_square_mask(square_idx);
         switch (ch) {
         case 'P':
-            board->whitePawns |= squareMask;
-            board->whitePieces |= squareMask;
-            board->pieceAtSquare[squareIndex] = PAWN;
+            board->white_pawns_bb |= square_mask_bb;
+            board->white_pieces_bb |= square_mask_bb;
+            board->piece_at_square[square_idx] = PAWN;
             break;
         case 'N':
-            board->whiteKnights |= squareMask;
-            board->whitePieces |= squareMask;
-            board->pieceAtSquare[squareIndex] = KNIGHT;
+            board->white_knights_bb |= square_mask_bb;
+            board->white_pieces_bb |= square_mask_bb;
+            board->piece_at_square[square_idx] = KNIGHT;
             break;
         case 'B':
-            board->whiteBishops |= squareMask;
-            board->whitePieces |= squareMask;
-            board->pieceAtSquare[squareIndex] = BISHOP;
+            board->white_bishops_bb |= square_mask_bb;
+            board->white_pieces_bb |= square_mask_bb;
+            board->piece_at_square[square_idx] = BISHOP;
             break;
         case 'R':
-            board->whiteRooks |= squareMask;
-            board->whitePieces |= squareMask;
-            board->pieceAtSquare[squareIndex] = ROOK;
+            board->white_rooks_bb |= square_mask_bb;
+            board->white_pieces_bb |= square_mask_bb;
+            board->piece_at_square[square_idx] = ROOK;
             break;
         case 'Q':
-            board->whiteQueens |= squareMask;
-            board->whitePieces |= squareMask;
-            board->pieceAtSquare[squareIndex] = QUEEN;
+            board->white_queens_bb |= square_mask_bb;
+            board->white_pieces_bb |= square_mask_bb;
+            board->piece_at_square[square_idx] = QUEEN;
             break;
         case 'K':
-            board->whiteKing |= squareMask;
-            board->whitePieces |= squareMask;
-            board->pieceAtSquare[squareIndex] = KING;
+            board->white_king_bb |= square_mask_bb;
+            board->white_pieces_bb |= square_mask_bb;
+            board->piece_at_square[square_idx] = KING;
             break;
         case 'p':
-            board->blackPawns |= squareMask;
-            board->blackPieces |= squareMask;
-            board->pieceAtSquare[squareIndex] = PAWN;
+            board->black_pawns_bb |= square_mask_bb;
+            board->black_pieces_bb |= square_mask_bb;
+            board->piece_at_square[square_idx] = PAWN;
             break;
         case 'n':
-            board->blackKnights |= squareMask;
-            board->blackPieces |= squareMask;
-            board->pieceAtSquare[squareIndex] = KNIGHT;
+            board->black_knights_bb |= square_mask_bb;
+            board->black_pieces_bb |= square_mask_bb;
+            board->piece_at_square[square_idx] = KNIGHT;
             break;
         case 'b':
-            board->blackBishops |= squareMask;
-            board->blackPieces |= squareMask;
-            board->pieceAtSquare[squareIndex] = BISHOP;
+            board->black_bishops_bb |= square_mask_bb;
+            board->black_pieces_bb |= square_mask_bb;
+            board->piece_at_square[square_idx] = BISHOP;
             break;
         case 'r':
-            board->blackRooks |= squareMask;
-            board->blackPieces |= squareMask;
-            board->pieceAtSquare[squareIndex] = ROOK;
+            board->black_rooks_bb |= square_mask_bb;
+            board->black_pieces_bb |= square_mask_bb;
+            board->piece_at_square[square_idx] = ROOK;
             break;
         case 'q':
-            board->blackQueens |= squareMask;
-            board->blackPieces |= squareMask;
-            board->pieceAtSquare[squareIndex] = QUEEN;
+            board->black_queens_bb |= square_mask_bb;
+            board->black_pieces_bb |= square_mask_bb;
+            board->piece_at_square[square_idx] = QUEEN;
             break;
         case 'k':
-            board->blackKing |= squareMask;
-            board->blackPieces |= squareMask;
-            board->pieceAtSquare[squareIndex] = KING;
+            board->black_king_bb |= square_mask_bb;
+            board->black_pieces_bb |= square_mask_bb;
+            board->piece_at_square[square_idx] = KING;
             break;
         default:
             return false; // Invalid character in piece placement
@@ -168,10 +168,10 @@ bool fenToCBoard(const char* fenString, CBoard* board)
         return false;
     }
 
-    board->allPieces = board->whitePieces | board->blackPieces;
+    board->all_pieces_bb = board->white_pieces_bb | board->black_pieces_bb;
 
     // now parse remaining fields safely using strtok-like navigation
-    const char* p = strchr(fenString, ' ');
+    const char* p = strchr(fen_string, ' ');
     if (!p)
         return false;
     ++p;
@@ -179,7 +179,7 @@ bool fenToCBoard(const char* fenString, CBoard* board)
     // side to move
     if (*p != 'w' && *p != 'b')
         return false; // Invalid side to move character
-    board->sideToMove = (*p == 'w') ? WHITE : BLACK;
+    board->side_to_move = (*p == 'w') ? WHITE : BLACK;
     p = strchr(p, ' ');
     if (!p)
         return false;
@@ -193,16 +193,16 @@ bool fenToCBoard(const char* fenString, CBoard* board)
         while (*p && *p != ' ') {
             switch (*p) {
             case 'K':
-                SET_BIT(board->castlingRights, 3);
+                SET_BIT(board->castling_rights, 3);
                 break;
             case 'Q':
-                SET_BIT(board->castlingRights, 2);
+                SET_BIT(board->castling_rights, 2);
                 break;
             case 'k':
-                SET_BIT(board->castlingRights, 1);
+                SET_BIT(board->castling_rights, 1);
                 break;
             case 'q':
-                SET_BIT(board->castlingRights, 0);
+                SET_BIT(board->castling_rights, 0);
                 break;
             default:
                 return false; // Invalid castling right character
@@ -218,94 +218,94 @@ bool fenToCBoard(const char* fenString, CBoard* board)
         char f = *p; // file letter 'a'..'h'
         char r = *(p + 1); // rank char '1'..'8'
         if (f >= 'a' && f <= 'h' && r >= '1' && r <= '8') {
-            int epFile = f - 'a';
-            int epRank = r - '1';
-            board->epSquare = epRank * 8 + epFile;
+            int ep_file = f - 'a';
+            int ep_rank = r - '1';
+            board->ep_square = ep_rank * 8 + ep_file;
         } else {
             return false; // Invalid en passant square
         }
     } else {
-        board->epSquare = NO_SQUARE; // no en passant
+        board->ep_square = NO_SQUARE; // no en passant
     }
     // advance to halfmove/fullmove fields
     p = strchr(p, ' ');
     if (p) {
         ++p;
-        board->halfmoveClock = (uint16_t)atoi(p);
-        if (board->halfmoveClock < 0) {
+        board->half_move_clock = (uint16_t)atoi(p);
+        if (board->half_move_clock < 0) {
             return false; // Halfmove clock cannot be negative
         }
         p = strchr(p, ' ');
         if (p) {
             ++p;
-            board->fullmoveNumber = (uint16_t)atoi(p);
-            if (board->fullmoveNumber < 1) {
+            board->full_move_number = (uint16_t)atoi(p);
+            if (board->full_move_number < 1) {
                 return false; // Fullmove number must be at least 1
             }
         }
     }
     // ensure exactly one white king and one black king on board
-    if (bitboard_popcount(board->whiteKing) != 1 || bitboard_popcount(board->blackKing) != 1) {
+    if (bitboard_popcount(board->white_king_bb) != 1 || bitboard_popcount(board->black_king_bb) != 1) {
         return false; // Invalid number of kings
     }
     // ensure no pawns on first or last rank
-    if ((board->whitePawns & (RANK_1 | RANK_8)) || (board->blackPawns & (RANK_1 | RANK_8))) {
+    if ((board->white_pawns_bb & (RANK_1 | RANK_8)) || (board->black_pawns_bb & (RANK_1 | RANK_8))) {
         return false; // Pawns cannot be on first or last rank
     }
 
-    computeZobristKey(board);
+    compute_zobrist_key(board);
     return true;
 }
 
-char* CBoardToFen(CBoard* board)
+char* cboard_to_fen(CBoard* board)
 {
-    char* fenString = (char*)malloc(128); // enough space
+    char* fen_string = (char*)malloc(128); // enough space
 
-    char* p = fenString;
+    char* p = fen_string;
     for (int rank = 7; rank >= 0; --rank) {
-        int emptyCount = 0; // reset per rank
+        int rank_empty_count = 0; // reset per rank
         for (int file = 0; file < 8; ++file) {
-            int squareIndex = rank * 8 + file;
-            Bitboard squareMask = bitboard_square_mask(squareIndex);
-            char pieceChar = '\0';
-            if (board->whitePawns & squareMask)
-                pieceChar = 'P';
-            else if (board->whiteKnights & squareMask)
-                pieceChar = 'N';
-            else if (board->whiteBishops & squareMask)
-                pieceChar = 'B';
-            else if (board->whiteRooks & squareMask)
-                pieceChar = 'R';
-            else if (board->whiteQueens & squareMask)
-                pieceChar = 'Q';
-            else if (board->whiteKing & squareMask)
-                pieceChar = 'K';
-            else if (board->blackPawns & squareMask)
-                pieceChar = 'p';
-            else if (board->blackKnights & squareMask)
-                pieceChar = 'n';
-            else if (board->blackBishops & squareMask)
-                pieceChar = 'b';
-            else if (board->blackRooks & squareMask)
-                pieceChar = 'r';
-            else if (board->blackQueens & squareMask)
-                pieceChar = 'q';
-            else if (board->blackKing & squareMask)
-                pieceChar = 'k';
+            int square_idx = rank * 8 + file;
+            Bitboard square_mask_bb = bitboard_square_mask(square_idx);
+            char piece_char = '\0';
+            if (board->white_pawns_bb & square_mask_bb)
+                piece_char = 'P';
+            else if (board->white_knights_bb & square_mask_bb)
+                piece_char = 'N';
+            else if (board->white_bishops_bb & square_mask_bb)
+                piece_char = 'B';
+            else if (board->white_rooks_bb & square_mask_bb)
+                piece_char = 'R';
+            else if (board->white_queens_bb & square_mask_bb)
+                piece_char = 'Q';
+            else if (board->white_king_bb & square_mask_bb)
+                piece_char = 'K';
+            else if (board->black_pawns_bb & square_mask_bb)
+                piece_char = 'p';
+            else if (board->black_knights_bb & square_mask_bb)
+                piece_char = 'n';
+            else if (board->black_bishops_bb & square_mask_bb)
+                piece_char = 'b';
+            else if (board->black_rooks_bb & square_mask_bb)
+                piece_char = 'r';
+            else if (board->black_queens_bb & square_mask_bb)
+                piece_char = 'q';
+            else if (board->black_king_bb & square_mask_bb)
+                piece_char = 'k';
 
-            if (pieceChar) {
-                if (emptyCount > 0) {
-                    p += sprintf(p, "%d", emptyCount);
-                    emptyCount = 0;
+            if (piece_char) {
+                if (rank_empty_count > 0) {
+                    p += sprintf(p, "%d", rank_empty_count);
+                    rank_empty_count = 0;
                 }
-                *p++ = pieceChar;
+                *p++ = piece_char;
             } else {
-                ++emptyCount; // increment for empty square
+                ++rank_empty_count; // increment for empty square
             }
         }
 
-        if (emptyCount > 0)
-            p += sprintf(p, "%d", emptyCount);
+        if (rank_empty_count > 0)
+            p += sprintf(p, "%d", rank_empty_count);
 
         if (rank > 0)
             *p++ = '/';
@@ -314,24 +314,24 @@ char* CBoardToFen(CBoard* board)
     *p++ = ' ';
 
     // side to move
-    *p++ = board->sideToMove == WHITE ? 'w' : 'b';
+    *p++ = board->side_to_move == WHITE ? 'w' : 'b';
     *p++ = ' ';
 
     // castling rights
     bool any = false;
-    if (CHECK_BIT(board->castlingRights, 3)) {
+    if (CHECK_BIT(board->castling_rights, 3)) {
         *p++ = 'K';
         any = true;
     }
-    if (CHECK_BIT(board->castlingRights, 2)) {
+    if (CHECK_BIT(board->castling_rights, 2)) {
         *p++ = 'Q';
         any = true;
     }
-    if (CHECK_BIT(board->castlingRights, 1)) {
+    if (CHECK_BIT(board->castling_rights, 1)) {
         *p++ = 'k';
         any = true;
     }
-    if (CHECK_BIT(board->castlingRights, 0)) {
+    if (CHECK_BIT(board->castling_rights, 0)) {
         *p++ = 'q';
         any = true;
     }
@@ -340,201 +340,198 @@ char* CBoardToFen(CBoard* board)
     *p++ = ' ';
 
     // en passant
-    if (board->epSquare != NO_SQUARE) {
-        int epFile = board->epSquare % 8;
-        int epRank = board->epSquare / 8;
-        *p++ = 'a' + epFile;
-        *p++ = '1' + epRank;
+    if (board->ep_square != NO_SQUARE) {
+        int ep_file = board->ep_square % 8;
+        int ep_rank = board->ep_square / 8;
+        *p++ = 'a' + ep_file;
+        *p++ = '1' + ep_rank;
     } else {
         *p++ = '-';
     }
     *p++ = ' ';
 
     // halfmove clock and fullmove number
-    p += sprintf(p, "%u %u", board->halfmoveClock, board->fullmoveNumber);
+    p += sprintf(p, "%u %u", board->half_move_clock, board->full_move_number);
 
     *p = '\0';
-    return fenString;
+    return fen_string;
 }
 
-PieceType getPieceAtSquare(const CBoard* board, Square square)
+PieceType cboard_get_piece_at_square(const CBoard* board, Square square)
 {
     if (!board || square < A1 || square >= NO_SQUARE) {
         return NO_PIECE;
     }
 
     // Mailbox-backed lookup with occupancy validation.
-    if (!bitboard_is_bit_set(board->allPieces, square)) {
+    if (!bitboard_is_bit_set(board->all_pieces_bb, square)) {
         return NO_PIECE;
     }
 
-    return board->pieceAtSquare[square];
+    return board->piece_at_square[square];
 }
 
-Bitboard* pieceBitboard(CBoard* board, Color color, PieceType piece)
+Bitboard* cboard_get_piece_bitboard(CBoard* board, Color color, PieceType piece)
 {
     if (color == WHITE) {
         switch (piece) {
         case PAWN:
-            return &board->whitePawns;
+            return &board->white_pawns_bb;
         case KNIGHT:
-            return &board->whiteKnights;
+            return &board->white_knights_bb;
         case BISHOP:
-            return &board->whiteBishops;
+            return &board->white_bishops_bb;
         case ROOK:
-            return &board->whiteRooks;
+            return &board->white_rooks_bb;
         case QUEEN:
-            return &board->whiteQueens;
+            return &board->white_queens_bb;
         case KING:
-            return &board->whiteKing;
+            return &board->white_king_bb;
         default:
             return NULL;
         }
     } else {
         switch (piece) {
         case PAWN:
-            return &board->blackPawns;
+            return &board->black_pawns_bb;
         case KNIGHT:
-            return &board->blackKnights;
+            return &board->black_knights_bb;
         case BISHOP:
-            return &board->blackBishops;
+            return &board->black_bishops_bb;
         case ROOK:
-            return &board->blackRooks;
+            return &board->black_rooks_bb;
         case QUEEN:
-            return &board->blackQueens;
+            return &board->black_queens_bb;
         case KING:
-            return &board->blackKing;
+            return &board->black_king_bb;
         default:
             return NULL;
         }
     }
 }
 
-void addPieceToBoard(CBoard* board, Square square, Color color, PieceType piece)
+void add_piece_to_cboard(CBoard* board, Square square, Color color, PieceType piece)
 {
-    Bitboard* bb = pieceBitboard(board, color, piece);
+    Bitboard* bb = cboard_get_piece_bitboard(board, color, piece);
     if (!bb) {
         return;
     }
 
     bitboard_set_square_bit(bb, square);
-    board->pieceAtSquare[square] = piece;
+    board->piece_at_square[square] = piece;
 }
 
-void removePieceFromBoard(CBoard* board, Square square, Color color, PieceType piece)
+void remove_piece_from_cboard(CBoard* board, Square square, Color color, PieceType piece)
 {
-    Bitboard* bb = pieceBitboard(board, color, piece);
+    Bitboard* bb = cboard_get_piece_bitboard(board, color, piece);
     if (!bb) {
         return;
     }
 
     bitboard_clear_square_bit(bb, square);
-    board->pieceAtSquare[square] = NO_PIECE;
+    board->piece_at_square[square] = NO_PIECE;
 }
 
-void movePieceOnBoard(CBoard* board, Square from, Square to, Color side)
+void move_piece_on_cboard(CBoard* board, Square from, Square to, Color side)
 {
-    PieceType movingPiece = getPieceAtSquare(board, from);
-    if (movingPiece == NO_PIECE) {
+    PieceType moving_piece = cboard_get_piece_at_square(board, from);
+    if (moving_piece == NO_PIECE) {
         return;
     }
 
-    removePieceFromBoard(board, from, side, movingPiece);
-    addPieceToBoard(board, to, side, movingPiece);
+    remove_piece_from_cboard(board, from, side, moving_piece);
+    add_piece_to_cboard(board, to, side, moving_piece);
 }
 
-PieceType removeCapturedPiece(CBoard* board, Square square, Color capturingColor)
+PieceType cboard_remove_captured_piece(CBoard* board, Square square, Color capturingColor)
 {
-    Color capturedColor = (capturingColor == WHITE) ? BLACK : WHITE;
+    Color captured_color = (capturingColor == WHITE) ? BLACK : WHITE;
 
-    PieceType capturedPiece = getPieceAtSquare(board, square);
-    if (capturedPiece == NO_PIECE) {
+    PieceType captured_piece = cboard_get_piece_at_square(board, square);
+    if (captured_piece == NO_PIECE) {
         return NO_PIECE;
     }
 
-    removePieceFromBoard(board, square, capturedColor, capturedPiece);
-    return capturedPiece;
+    remove_piece_from_cboard(board, square, captured_color, captured_piece);
+    return captured_piece;
 }
 
-void updateOccupanciesForMove(CBoard* board, Square from, Square to, Color color)
+void cboard_update_occupancies_for_move(CBoard* board, Square from, Square to, Color color)
 {
     if (color == WHITE) {
-        bitboard_clear_square_bit(&board->whitePieces, from);
-        bitboard_set_square_bit(&board->whitePieces, to);
+        bitboard_clear_square_bit(&board->white_pieces_bb, from);
+        bitboard_set_square_bit(&board->white_pieces_bb, to);
     } else {
-        bitboard_clear_square_bit(&board->blackPieces, from);
-        bitboard_set_square_bit(&board->blackPieces, to);
+        bitboard_clear_square_bit(&board->black_pieces_bb, from);
+        bitboard_set_square_bit(&board->black_pieces_bb, to);
     }
-    bitboard_clear_square_bit(&board->allPieces, from);
-    bitboard_set_square_bit(&board->allPieces, to);
+    bitboard_clear_square_bit(&board->all_pieces_bb, from);
+    bitboard_set_square_bit(&board->all_pieces_bb, to);
 }
 
-void updateOccupanciesForCapture(CBoard* board, Square square, Color capturedColor)
+void cboard_update_occupancies_for_capture(CBoard* board, Square square, Color captured_color)
 {
-    if (capturedColor == WHITE) {
-        bitboard_clear_square_bit(&board->whitePieces, square);
+    if (captured_color == WHITE) {
+        bitboard_clear_square_bit(&board->white_pieces_bb, square);
     } else {
-        bitboard_clear_square_bit(&board->blackPieces, square);
+        bitboard_clear_square_bit(&board->black_pieces_bb, square);
     }
-    bitboard_clear_square_bit(&board->allPieces, square);
+    bitboard_clear_square_bit(&board->all_pieces_bb, square);
 }
 
-void updateOccupanciesForPromotion(CBoard* board, Square from, Square to, Color color)
+void cboard_update_occupancies_for_promotion(CBoard* board, Square from, Square to, Color color)
 {
-    updateOccupanciesForMove(board, from, to, color);
+    cboard_update_occupancies_for_move(board, from, to, color);
 }
 
-void updateOccupanciesForCastling(CBoard* board, Square kingFrom, Square kingTo,
-    Square rookFrom, Square rookTo, Color color)
+void cboard_update_occupancies_for_castling(CBoard* board, Square king_from, Square king_to,
+    Square rook_from, Square rook_to, Color color)
 {
     if (color == WHITE) {
-        bitboard_clear_square_bit(&board->whitePieces, kingFrom);
-        bitboard_clear_square_bit(&board->whitePieces, rookFrom);
-        bitboard_set_square_bit(&board->whitePieces, kingTo);
-        bitboard_set_square_bit(&board->whitePieces, rookTo);
+        bitboard_clear_square_bit(&board->white_pieces_bb, king_from);
+        bitboard_clear_square_bit(&board->white_pieces_bb, rook_from);
+        bitboard_set_square_bit(&board->white_pieces_bb, king_to);
+        bitboard_set_square_bit(&board->white_pieces_bb, rook_to);
     } else {
-        bitboard_clear_square_bit(&board->blackPieces, kingFrom);
-        bitboard_clear_square_bit(&board->blackPieces, rookFrom);
-        bitboard_set_square_bit(&board->blackPieces, kingTo);
-        bitboard_set_square_bit(&board->blackPieces, rookTo);
+        bitboard_clear_square_bit(&board->black_pieces_bb, king_from);
+        bitboard_clear_square_bit(&board->black_pieces_bb, rook_from);
+        bitboard_set_square_bit(&board->black_pieces_bb, king_to);
+        bitboard_set_square_bit(&board->black_pieces_bb, rook_to);
     }
-    bitboard_clear_square_bit(&board->allPieces, kingFrom);
-    bitboard_clear_square_bit(&board->allPieces, rookFrom);
-    bitboard_set_square_bit(&board->allPieces, kingTo);
-    bitboard_set_square_bit(&board->allPieces, rookTo);
+    bitboard_clear_square_bit(&board->all_pieces_bb, king_from);
+    bitboard_clear_square_bit(&board->all_pieces_bb, rook_from);
+    bitboard_set_square_bit(&board->all_pieces_bb, king_to);
+    bitboard_set_square_bit(&board->all_pieces_bb, rook_to);
 }
 
-void updateCastlingRights(CBoard* board, Square from, Square to)
+void cboard_update_castling_rights(CBoard* board, Square from, Square to)
 {
     // If king moved, lose all castling
-    if (bitboard_is_bit_set(board->whiteKing, to)) {
-        CLEAR_BIT(board->castlingRights, 3);
-        CLEAR_BIT(board->castlingRights, 2);
-        // board->whiteCanCastleQueenside = false;
-    } else if (bitboard_is_bit_set(board->blackKing, to)) {
-        CLEAR_BIT(board->castlingRights, 1);
-        CLEAR_BIT(board->castlingRights, 0);
-        // board->blackCanCastleKingside = false;
-        // board->blackCanCastleQueenside = false;
+    if (bitboard_is_bit_set(board->white_king_bb, to)) {
+        CLEAR_BIT(board->castling_rights, 3);
+        CLEAR_BIT(board->castling_rights, 2);
+    } else if (bitboard_is_bit_set(board->black_king_bb, to)) {
+        CLEAR_BIT(board->castling_rights, 1);
+        CLEAR_BIT(board->castling_rights, 0);
     }
 
     // If rook moved from corner, lose that side's castling
     if (from == H1)
-        CLEAR_BIT(board->castlingRights, 3);
+        CLEAR_BIT(board->castling_rights, 3);
     if (from == A1)
-        CLEAR_BIT(board->castlingRights, 2);
+        CLEAR_BIT(board->castling_rights, 2);
     if (from == H8)
-        CLEAR_BIT(board->castlingRights, 1);
+        CLEAR_BIT(board->castling_rights, 1);
     if (from == A8)
-        CLEAR_BIT(board->castlingRights, 0);
+        CLEAR_BIT(board->castling_rights, 0);
 
     // If rook was captured on corner square, lose that side's castling
     if (to == H1)
-        CLEAR_BIT(board->castlingRights, 3);
+        CLEAR_BIT(board->castling_rights, 3);
     if (to == A1)
-        CLEAR_BIT(board->castlingRights, 2);
+        CLEAR_BIT(board->castling_rights, 2);
     if (to == H8)
-        CLEAR_BIT(board->castlingRights, 1);
+        CLEAR_BIT(board->castling_rights, 1);
     if (to == A8)
-        CLEAR_BIT(board->castlingRights, 0);
+        CLEAR_BIT(board->castling_rights, 0);
 }

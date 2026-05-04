@@ -7,13 +7,13 @@ uint64_t piece_keys[12][64];
 uint64_t side_key;
 uint64_t castle_keys[16];
 uint64_t en_passant_keys[8];
-static bool zobristKeysInitialized = false;
+static bool zobrist_keys_initialized = false;
 
-void initZobristKeys(void)
+void init_zobrist_keys(void)
 {
-    if (zobristKeysInitialized)
+    if (zobrist_keys_initialized)
         return;
-    zobristKeysInitialized = true;
+    zobrist_keys_initialized = true;
 
     ranctx ctx;
     raninit(&ctx,
@@ -40,74 +40,74 @@ void initZobristKeys(void)
     }
 }
 
-static bool shouldHashEnPassant(const CBoard* board, Square epSquare)
+static bool should_hash_ep(const CBoard* board, Square ep_square)
 {
-    if (!board || epSquare == NO_SQUARE)
+    if (!board || ep_square == NO_SQUARE)
         return false;
 
-    if ((unsigned)epSquare >= 64U)
+    if ((unsigned)ep_square >= 64U)
         return false;
 
-    int epFile = epSquare % 8;
+    int ep_file = ep_square % 8;
 
     // EP target must be on rank 6 for white to capture, rank 3 for black to
     // capture.
-    if (board->sideToMove == WHITE) {
-        if (epSquare < A6 || epSquare > H6)
+    if (board->side_to_move == WHITE) {
+        if (ep_square < A6 || ep_square > H6)
             return false;
 
-        if (epFile > 0 && bitboard_is_bit_set(board->whitePawns, epSquare - 9))
+        if (ep_file > 0 && bitboard_is_bit_set(board->white_pawns_bb, ep_square - 9))
             return true;
-        if (epFile < 7 && bitboard_is_bit_set(board->whitePawns, epSquare - 7))
+        if (ep_file < 7 && bitboard_is_bit_set(board->white_pawns_bb, ep_square - 7))
             return true;
         return false;
     }
 
-    if (epSquare < A3 || epSquare > H3)
+    if (ep_square < A3 || ep_square > H3)
         return false;
 
-    if (epFile > 0 && bitboard_is_bit_set(board->blackPawns, epSquare + 7))
+    if (ep_file > 0 && bitboard_is_bit_set(board->black_pawns_bb, ep_square + 7))
         return true;
-    if (epFile < 7 && bitboard_is_bit_set(board->blackPawns, epSquare + 9))
+    if (ep_file < 7 && bitboard_is_bit_set(board->black_pawns_bb, ep_square + 9))
         return true;
     return false;
 }
 
-void zobristToggleEnPassant(uint64_t* key, const CBoard* board,
-    Square epSquare)
+void zobrist_toggle_ep(uint64_t* key, const CBoard* board,
+    Square ep_square)
 {
-    if (shouldHashEnPassant(board, epSquare)) {
-        int file = epSquare % 8;
+    if (should_hash_ep(board, ep_square)) {
+        int file = ep_square % 8;
         *key ^= en_passant_keys[file];
     }
 }
 
-void computeZobristKey(CBoard* board)
+void compute_zobrist_key(CBoard* board)
 {
     // Safety: make initialization impossible to forget.
-    initZobristKeys();
+    init_zobrist_keys();
 
     uint64_t key = 0ULL;
 
     // Map your bitboards to an array of pointers to avoid struct layout issues
-    uint64_t* pieceBBs[12] = {
-        &board->whitePawns, &board->whiteKnights, &board->whiteBishops,
-        &board->whiteRooks, &board->whiteQueens, &board->whiteKing,
-        &board->blackPawns, &board->blackKnights, &board->blackBishops,
-        &board->blackRooks, &board->blackQueens, &board->blackKing
+    uint64_t* piece_bbs[12] = {
+        &board->white_pawns_bb, &board->white_knights_bb, &board->white_bishops_bb,
+        &board->white_rooks_bb, &board->white_queens_bb, &board->white_king_bb,
+        &board->black_pawns_bb, &board->black_knights_bb, &board->black_bishops_bb,
+        &board->black_rooks_bb, &board->black_queens_bb, &board->black_king_bb
     };
 
-    for (int pieceType = 0; pieceType < 12; pieceType++) {
+    for (int piece_type = 0; piece_type < 12; piece_type++) {
         // Copy the bitboard value into a local variable 'bb'
         // Changes to 'bb' do NOT affect board->whitePawns, etc.
-        uint64_t bb = *pieceBBs[pieceType];
+        uint64_t bb = *piece_bbs[piece_type];
 
         while (bb) {
             // Find the index of the least significant bit (0-63)
             int sq = __builtin_ctzll(bb);
 
             // XOR the random key for this piece/square combo
-            key ^= piece_keys[pieceType][sq];
+            key ^= piece_keys[piece_type][sq];
 
             // Mathematically clear the bit we just processed in the LOCAL copy
             bb &= (bb - 1);
@@ -115,15 +115,15 @@ void computeZobristKey(CBoard* board)
     }
 
     // 2. Side to move
-    if (board->sideToMove == BLACK) {
+    if (board->side_to_move == BLACK) {
         key ^= side_key;
     }
 
     // 3. Castling rights
-    key ^= castle_keys[board->castlingRights & 0x0F];
+    key ^= castle_keys[board->castling_rights & 0x0F];
 
     // 4. En Passant
-    zobristToggleEnPassant(&key, board, board->epSquare);
+    zobrist_toggle_ep(&key, board, board->ep_square);
 
-    board->zobristKey = key;
+    board->zobrist_key = key;
 }

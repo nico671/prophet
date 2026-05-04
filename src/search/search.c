@@ -14,12 +14,12 @@
 #include "search/search.h"
 #include "search/tt.h"
 
-Move killerMoves[MAX_PLY][MAX_KILLER_MOVES]; // [depth][idx] where 0 is newest
-                                             // killer, 1 is previous killer
-int historyHeuristic[2][64][64]; // [color][from][to]
+Move killer_moves_list[MAX_PLY][MAX_KILLER_MOVES]; // [depth][idx] where 0 is newest
+                                                   // killer, 1 is previous killer
+int history_heuristic[2][64][64]; // [color][from][to]
 
-static int pieceValue(PieceType piece);
-static long long computeTimeBudgetMs(const CBoard* board, SearchLimits limits);
+static int piece_value(PieceType piece);
+static long long compute_time_budget_ms(const CBoard* board, SearchLimits search_limits);
 
 static const int TT_MOVE_SCORE = 2000000;
 static const int GOOD_CAPTURE_BASE_SCORE = 1200000;
@@ -30,52 +30,52 @@ static const int HISTORY_MAX = 200000;
 static const int MATE_SCORE = 200000000;
 static const int MATE_THRESHOLD = 199999000;
 
-static PieceType capturedPieceForMove(const CBoard* board, Move move)
+static PieceType captured_piece_for_move(const CBoard* board, Move move)
 {
     if (move_is_enpassant(move)) {
         return PAWN;
     }
 
-    Square to = getToSquare(move);
+    Square to = move_get_to_square(move);
     if (to == NO_SQUARE) {
         return NO_PIECE;
     }
-    return getPieceAtSquare(board, to);
+    return cboard_get_piece_at_square(board, to);
 }
 
-static bool isPromotionCapture(const CBoard* board, Move move)
+static bool is_promotion_capture(const CBoard* board, Move move)
 {
     if (!move_is_promotion(move)) {
         return false;
     }
 
-    Square to = getToSquare(move);
+    Square to = move_get_to_square(move);
     if (to == NO_SQUARE) {
         return false;
     }
 
-    if (board->sideToMove == WHITE) {
-        return bitboard_is_bit_set(board->blackPieces, to);
+    if (board->side_to_move == WHITE) {
+        return bitboard_is_bit_set(board->black_pieces_bb, to);
     }
-    return bitboard_is_bit_set(board->whitePieces, to);
+    return bitboard_is_bit_set(board->white_pieces_bb, to);
 }
 
-static bool isCaptureLike(CBoard* board, Move move)
+static bool is_capture_like(CBoard* board, Move move)
 {
-    return move_is_capture(board, move) || move_is_enpassant(move) || isPromotionCapture(board, move);
+    return move_is_capture(board, move) || move_is_enpassant(move) || is_promotion_capture(board, move);
 }
 
-static bool isQuietMove(CBoard* board, Move move)
+static bool is_quiet_move(CBoard* board, Move move)
 {
     return !move_is_capture(board, move) && !move_is_enpassant(move) && !move_is_promotion(move);
 }
 
-static bool isMateScore(int score)
+static bool is_mate_score(int score)
 {
     return score >= MATE_THRESHOLD || score <= -MATE_THRESHOLD;
 }
 
-static int toTTScore(int score, int ply)
+static int to_tt_score(int score, int ply)
 {
     if (score >= MATE_THRESHOLD) {
         return score + ply;
@@ -86,7 +86,7 @@ static int toTTScore(int score, int ply)
     return score;
 }
 
-static int fromTTScore(int score, int ply)
+static int from_tt_score(int score, int ply)
 {
     if (score >= MATE_THRESHOLD) {
         return score - ply;
@@ -97,20 +97,20 @@ static int fromTTScore(int score, int ply)
     return score;
 }
 
-static void updateHistory(Color side, Move move, int depth)
+static void update_history(Color side, Move move, int depth)
 {
     if (side != WHITE && side != BLACK) {
         return;
     }
 
-    Square from = getFromSquare(move);
-    Square to = getToSquare(move);
+    Square from = move_get_from_square(move);
+    Square to = move_get_to_square(move);
     if (from == NO_SQUARE || to == NO_SQUARE) {
         return;
     }
 
     int bonus = depth * depth;
-    int* entry = &historyHeuristic[(int)side][(int)from][(int)to];
+    int* entry = &history_heuristic[(int)side][(int)from][(int)to];
     long long updated = (long long)(*entry) + bonus;
     if (updated > HISTORY_MAX) {
         updated = HISTORY_MAX;
@@ -120,20 +120,20 @@ static void updateHistory(Color side, Move move, int depth)
     *entry = (int)updated;
 }
 
-static void penalizeHistory(Color side, Move move, int depth)
+static void penalize_history(Color side, Move move, int depth)
 {
     if (side != WHITE && side != BLACK) {
         return;
     }
 
-    Square from = getFromSquare(move);
-    Square to = getToSquare(move);
+    Square from = move_get_from_square(move);
+    Square to = move_get_to_square(move);
     if (from == NO_SQUARE || to == NO_SQUARE) {
         return;
     }
 
     int malus = depth * depth;
-    int* entry = &historyHeuristic[(int)side][(int)from][(int)to];
+    int* entry = &history_heuristic[(int)side][(int)from][(int)to];
     long long updated = (long long)(*entry) - malus;
     if (updated > HISTORY_MAX) {
         updated = HISTORY_MAX;
@@ -143,67 +143,67 @@ static void penalizeHistory(Color side, Move move, int depth)
     *entry = (int)updated;
 }
 
-static void ageHistory(void)
+static void age_history(void)
 {
     for (int side = 0; side < 2; side++) {
         for (int from = 0; from < 64; from++) {
             for (int to = 0; to < 64; to++) {
-                historyHeuristic[side][from][to] /= 2;
+                history_heuristic[side][from][to] /= 2;
             }
         }
     }
 }
 
-void clearSearchHeuristics(void)
+void clear_search_heuristics(void)
 {
     for (int ply = 0; ply < MAX_PLY; ply++) {
-        killerMoves[ply][0] = MOVE_NONE;
-        killerMoves[ply][1] = MOVE_NONE;
+        killer_moves_list[ply][0] = MOVE_NONE;
+        killer_moves_list[ply][1] = MOVE_NONE;
     }
-    memset(historyHeuristic, 0, sizeof(historyHeuristic));
+    memset(history_heuristic, 0, sizeof(history_heuristic));
 }
 
-static int pieceValue(PieceType piece)
+static int piece_value(PieceType piece)
 {
     switch (piece) {
     case PAWN:
-        return PAWN_VALUE;
+        return HC_PAWN_VALUE;
     case KNIGHT:
-        return KNIGHT_VALUE;
+        return HC_KNIGHT_VALUE;
     case BISHOP:
-        return BISHOP_VALUE;
+        return HC_BISHOP_VALUE;
     case ROOK:
-        return ROOK_VALUE;
+        return HC_ROOK_VALUE;
     case QUEEN:
-        return QUEEN_VALUE;
+        return HC_QUEEN_VALUE;
     case KING:
-        return KING_VALUE;
+        return HC_KING_VALUE;
     default:
         return 0;
     }
 }
 
-static SearchLimits activeSearchLimits;
-static atomic_llong searchedNodes = 0;
-static long long searchStartMs = 0;
-static atomic_llong searchDeadlineMs = -1;
-static atomic_int activeSearchSideToMove = WHITE;
+static SearchLimits active_search_limits;
+static atomic_llong search_node_count = 0;
+static long long search_start_ms = 0;
+static atomic_llong search_deadline_ms = -1;
+static atomic_int active_search_side_to_move = WHITE;
 
-static long long nowMs(void)
+static long long now_ms(void)
 {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (long long)ts.tv_sec * 1000LL + (long long)ts.tv_nsec / 1000000LL;
 }
 
-static bool moveAllowedBySearchMoves(Move move, const MoveList* searchMoves)
+static bool move_allowed_by_search_moves(Move move, const MoveList* search_moves)
 {
-    if (searchMoves->count <= 0) {
+    if (search_moves->count <= 0) {
         return true;
     }
 
-    for (int i = 0; i < searchMoves->count; i++) {
-        if (move == searchMoves->moves[i]) {
+    for (int i = 0; i < search_moves->count; i++) {
+        if (move == search_moves->moves[i]) {
             return true;
         }
     }
@@ -211,19 +211,19 @@ static bool moveAllowedBySearchMoves(Move move, const MoveList* searchMoves)
     return false;
 }
 
-static bool shouldStopSearch(void)
+static bool should_stop_search(void)
 {
     if (atomic_load(&engine_stop_search)) {
         return true;
     }
 
-    if (activeSearchLimits.searchNodeLimit > 0 && atomic_load(&searchedNodes) >= activeSearchLimits.searchNodeLimit) {
+    if (active_search_limits.node_limit > 0 && atomic_load(&search_node_count) >= active_search_limits.node_limit) {
         atomic_store(&engine_stop_search, true);
         return true;
     }
 
-    long long deadline = atomic_load(&searchDeadlineMs);
-    if (!atomic_load(&engine_is_pondering) && deadline >= 0 && nowMs() >= deadline) {
+    long long deadline = atomic_load(&search_deadline_ms);
+    if (!atomic_load(&engine_is_pondering) && deadline >= 0 && now_ms() >= deadline) {
         atomic_store(&engine_stop_search, true);
         return true;
     }
@@ -231,124 +231,124 @@ static bool shouldStopSearch(void)
     return false;
 }
 
-void onPonderHit(void)
+void on_ponder_hit(void)
 {
     atomic_store(&engine_is_pondering, false);
 
-    Color side = (Color)atomic_load(&activeSearchSideToMove);
+    Color side = (Color)atomic_load(&active_search_side_to_move);
     if (side != WHITE && side != BLACK) {
-        atomic_store(&searchDeadlineMs, -1);
+        atomic_store(&search_deadline_ms, -1);
         return;
     }
 
-    CBoard budgetBoard = { 0 };
-    budgetBoard.sideToMove = side;
+    CBoard budget_cboard = { 0 };
+    budget_cboard.side_to_move = side;
 
-    long long budgetMs = computeTimeBudgetMs(&budgetBoard, activeSearchLimits);
-    long long deadlineMs = (budgetMs > 0) ? (nowMs() + budgetMs) : -1;
-    atomic_store(&searchDeadlineMs, deadlineMs);
+    long long budget_ms = compute_time_budget_ms(&budget_cboard, active_search_limits);
+    long long deadline_ms = (budget_ms > 0) ? (now_ms() + budget_ms) : -1;
+    atomic_store(&search_deadline_ms, deadline_ms);
 }
 
-static long long computeTimeBudgetMs(const CBoard* board, SearchLimits limits)
+static long long compute_time_budget_ms(const CBoard* board, SearchLimits search_limits)
 {
-    if (limits.searchMoveTimeLimitMs > 0) {
-        return limits.searchMoveTimeLimitMs;
+    if (search_limits.time_limit_ms > 0) {
+        return search_limits.time_limit_ms;
     }
 
-    if (limits.infiniteSearch) {
+    if (search_limits.infinite_search) {
         return -1;
     }
 
-    int remaining = (board->sideToMove == WHITE) ? limits.timeForWhiteMs
-                                                 : limits.timeForBlackMs;
-    int increment = (board->sideToMove == WHITE) ? limits.incrementForWhiteMs
-                                                 : limits.incrementForBlackMs;
-    int movesToGo = limits.movesUntilNextTimeControl > 0
-        ? limits.movesUntilNextTimeControl
+    int remaining = (board->side_to_move == WHITE) ? search_limits.time_for_white_ms
+                                                   : search_limits.time_for_black_ms;
+    int increment = (board->side_to_move == WHITE) ? search_limits.increment_for_white_ms
+                                                   : search_limits.increment_for_black_ms;
+    int moves_to_go = search_limits.moves_until_next_time_control > 0
+        ? search_limits.moves_until_next_time_control
         : 30;
 
     if (remaining <= 0) {
         return -1;
     }
 
-    long long budget = (long long)remaining / movesToGo + (long long)increment / 2;
+    long long budget = (long long)remaining / moves_to_go + (long long)increment / 2;
     if (budget < 10) {
         budget = 10;
     }
 
-    long long maxSpend = (long long)remaining - 5;
-    if (maxSpend > 0 && budget > maxSpend) {
-        budget = maxSpend;
+    long long max_spend = (long long)remaining - 5;
+    if (max_spend > 0 && budget > max_spend) {
+        budget = max_spend;
     }
 
     return budget;
 }
 
 typedef struct {
-    uint8_t previousEpSquare;
-    uint16_t previousHalfmoveClock;
+    uint8_t previous_ep_square;
+    uint16_t previous_halfmove_clock;
     uint16_t previousFullmoveNumber;
     Color previousSideToMove;
-    uint64_t previousZobristKey;
+    uint64_t previous_zobrist_key;
 } NullMoveUndo;
 
-static NullMoveUndo makeNullMove(CBoard* board)
+static NullMoveUndo make_null_move(CBoard* board)
 {
     NullMoveUndo undo;
-    undo.previousEpSquare = board->epSquare;
-    undo.previousHalfmoveClock = board->halfmoveClock;
-    undo.previousFullmoveNumber = board->fullmoveNumber;
-    undo.previousSideToMove = board->sideToMove;
-    undo.previousZobristKey = board->zobristKey;
+    undo.previous_ep_square = board->ep_square;
+    undo.previous_halfmove_clock = board->half_move_clock;
+    undo.previousFullmoveNumber = board->full_move_number;
+    undo.previousSideToMove = board->side_to_move;
+    undo.previous_zobrist_key = board->zobrist_key;
 
-    zobristToggleEnPassant(&board->zobristKey, board, board->epSquare);
-    board->epSquare = NO_SQUARE;
-    board->halfmoveClock++;
+    zobrist_toggle_ep(&board->zobrist_key, board, board->ep_square);
+    board->ep_square = NO_SQUARE;
+    board->half_move_clock++;
 
-    board->sideToMove = (board->sideToMove == WHITE) ? BLACK : WHITE;
-    if (board->sideToMove == WHITE) {
-        board->fullmoveNumber++;
+    board->side_to_move = (board->side_to_move == WHITE) ? BLACK : WHITE;
+    if (board->side_to_move == WHITE) {
+        board->full_move_number++;
     }
 
-    zobristToggleSide(&board->zobristKey);
+    zobrist_toggle_side(&board->zobrist_key);
 
     return undo;
 }
 
-static void unmakeNullMove(CBoard* board, NullMoveUndo undo)
+static void unmake_null_move(CBoard* board, NullMoveUndo undo)
 {
-    board->epSquare = undo.previousEpSquare;
-    board->halfmoveClock = undo.previousHalfmoveClock;
-    board->fullmoveNumber = undo.previousFullmoveNumber;
-    board->sideToMove = undo.previousSideToMove;
-    board->zobristKey = undo.previousZobristKey;
+    board->ep_square = undo.previous_ep_square;
+    board->half_move_clock = undo.previous_halfmove_clock;
+    board->full_move_number = undo.previousFullmoveNumber;
+    board->side_to_move = undo.previousSideToMove;
+    board->zobrist_key = undo.previous_zobrist_key;
 }
 
-static void moveToUciString(Move move, char* out)
+static void move_to_uci_string(Move move, char* out)
 {
-    if (getFromSquare(move) == NO_SQUARE || getToSquare(move) == NO_SQUARE) {
+    if (move_get_from_square(move) == NO_SQUARE || move_get_to_square(move) == NO_SQUARE) {
         strcpy(out, "0000");
         return;
     }
 
-    out[0] = (char)('a' + (getFromSquare(move) % 8));
-    out[1] = (char)('1' + (getFromSquare(move) / 8));
-    out[2] = (char)('a' + (getToSquare(move) % 8));
-    out[3] = (char)('1' + (getToSquare(move) / 8));
+    out[0] = (char)('a' + (move_get_from_square(move) % 8));
+    out[1] = (char)('1' + (move_get_from_square(move) / 8));
+    out[2] = (char)('a' + (move_get_to_square(move) % 8));
+    out[3] = (char)('1' + (move_get_to_square(move) / 8));
 
     if (move_is_promotion(move)) {
-        PieceType promo = getPromotionPieceType(move);
-        char promoChar = 'q';
+        PieceType promo = move_get_promotion_piecetype(move);
+        char promo_char = 'q';
         if (promo == KNIGHT)
-            promoChar = 'n';
+            promo_char = 'n';
         else if (promo == BISHOP)
-            promoChar = 'b';
+            promo_char = 'b';
         else if (promo == ROOK)
-            promoChar = 'r';
+            promo_char = 'r';
         else
-            promoChar = 'q';
+            promo_char = 'q';
 
-        out[4] = promoChar;
+        out[4] = promo_char;
         out[5] = '\0';
         return;
     }
@@ -356,79 +356,79 @@ static void moveToUciString(Move move, char* out)
     out[4] = '\0';
 }
 
-static int searchRootBestMove(CBoard* board, int depth, Move* prevBestMove)
+static int search_root_best_move(CBoard* board, int depth, Move* prev_best_move)
 {
-    MoveList moveList;
-    initMoveList(&moveList);
-    generateLegalMoves(board, &moveList);
+    MoveList move_list;
+    init_move_list(&move_list);
+    generate_legal_moves(board, &move_list);
 
-    if (moveList.count == 0) {
-        *prevBestMove = createMove(NO_SQUARE, NO_SQUARE, 0, 0);
-        return isKingInCheck(board, board->sideToMove) ? -MATE_SCORE : 0;
+    if (move_list.count == 0) {
+        *prev_best_move = create_move(NO_SQUARE, NO_SQUARE, 0, 0);
+        return is_king_in_check(board, board->side_to_move) ? -MATE_SCORE : 0;
     }
 
     // check if prev best move is valid / legal in this position, if so prioritize
     // it if not fall back to probing the TT for a move to prioritize
-    Move ttMove = MOVE_NONE;
-    bool foundPrev = false;
-    if (getFromSquare(*prevBestMove) != NO_SQUARE) {
-        for (int i = 0; i < moveList.count; i++) {
-            if (moveList.moves[i] == *prevBestMove) {
-                foundPrev = true;
+    Move tt_move = MOVE_NONE;
+    bool found_prev_best_move = false;
+    if (move_get_from_square(*prev_best_move) != NO_SQUARE) {
+        for (int i = 0; i < move_list.count; i++) {
+            if (move_list.moves[i] == *prev_best_move) {
+                found_prev_best_move = true;
                 break;
             }
         }
-        if (foundPrev) {
-            ttMove = *prevBestMove;
+        if (found_prev_best_move) {
+            tt_move = *prev_best_move;
         }
     }
 
-    if (!foundPrev) {
-        TTEntry* ttEntry = probeTT(board->zobristKey);
-        if (ttEntry && ttEntry->zobristKey == board->zobristKey) {
-            ttMove = ttEntry->bestMove;
+    if (!found_prev_best_move) {
+        TTEntry* tt_entry = probe_tt(board->zobrist_key);
+        if (tt_entry && tt_entry->zobrist_key == board->zobrist_key) {
+            tt_move = tt_entry->best_move;
         }
     }
 
-    ScoredMove scoredMoves[256];
-    scoreMoves(board, &moveList, scoredMoves, ttMove, 0);
+    ScoredMove scored_moves[256];
+    score_moves(board, &move_list, scored_moves, tt_move, 0);
 
     int alpha = -200000000;
     int beta = 200000000;
-    int bestScore = -MATE_SCORE;
-    Move bestMove = createMove(NO_SQUARE, NO_SQUARE, 0, 0);
-    bool searchedAtLeastOneMove = false;
-    for (int i = 0; i < moveList.count; i++) {
-        if (shouldStopSearch()) {
+    int best_score = -MATE_SCORE;
+    Move best_move = create_move(NO_SQUARE, NO_SQUARE, 0, 0);
+    bool has_searched_at_least_one_move = false;
+    for (int i = 0; i < move_list.count; i++) {
+        if (should_stop_search()) {
             break;
         }
-        pickNextBestMove(scoredMoves, i, moveList.count);
+        pick_next_best_move(scored_moves, i, move_list.count);
 
-        Move move = scoredMoves[i].move;
+        Move move = scored_moves[i].move;
 
-        char currMoveUci[6];
-        moveToUciString(move, currMoveUci);
+        char curr_move_uci_string[6];
+        move_to_uci_string(move, curr_move_uci_string);
         // printf("info depth %d currmove %s currmovenumber %d\n", depth,
-        // currMoveUci, i + 1);
+        // curr_move_uci_string, i + 1);
 
-        // Skip moves that aren't in the searchMoves list (if searchMoves is
+        // Skip moves that aren't in the search_moves list (if search_moves is
         // non-empty)
-        if (!moveAllowedBySearchMoves(move, &activeSearchLimits.searchMoves)) {
+        if (!move_allowed_by_search_moves(move, &active_search_limits.search_moves)) {
             continue;
         }
 
-        UndoInfo undoInfo = makeMove(board, move);
-        int eval = -negamax(board, depth - 1, -beta, -alpha, board->sideToMove, 1);
-        unmakeMove(board, move, undoInfo);
-        searchedAtLeastOneMove = true;
+        UndoInfo undo_info = make_move(board, move);
+        int eval = -negamax(board, depth - 1, -beta, -alpha, board->side_to_move, 1);
+        unmake_move(board, move, undo_info);
+        has_searched_at_least_one_move = true;
 
-        if (shouldStopSearch()) {
+        if (should_stop_search()) {
             break;
         }
 
-        if (eval > bestScore || getFromSquare(bestMove) == NO_SQUARE) {
-            bestScore = eval;
-            bestMove = move;
+        if (eval > best_score || move_get_from_square(best_move) == NO_SQUARE) {
+            best_score = eval;
+            best_move = move;
         }
 
         if (eval > alpha) {
@@ -436,13 +436,13 @@ static int searchRootBestMove(CBoard* board, int depth, Move* prevBestMove)
         }
     }
 
-    if (!searchedAtLeastOneMove) {
-        *prevBestMove = createMove(NO_SQUARE, NO_SQUARE, 0, 0);
+    if (!has_searched_at_least_one_move) {
+        *prev_best_move = create_move(NO_SQUARE, NO_SQUARE, 0, 0);
         return -MATE_SCORE;
     }
-    storeTT(board->zobristKey, depth, toTTScore(bestScore, 0), TT_PV, bestMove);
-    *prevBestMove = bestMove;
-    return bestScore;
+    store_tt(board->zobrist_key, depth, to_tt_score(best_score, 0), TT_PV, best_move);
+    *prev_best_move = best_move;
+    return best_score;
 }
 
 // Define the global atomic flag here
@@ -454,256 +454,256 @@ void* search_worker(void* arg)
 {
     // Cast and extract the data
     SearchThreadData* data = (SearchThreadData*)arg;
-    CBoard searchBoard = data->board;
-    SearchLimits limits = data->limits;
+    CBoard search_board = data->board;
+    SearchLimits search_limits = data->search_limits;
     // clear all killer moves
-    clearSearchHeuristics();
-    activeSearchLimits = limits;
-    atomic_store(&activeSearchSideToMove, (int)searchBoard.sideToMove);
-    atomic_store(&searchedNodes, 0);
-    searchStartMs = nowMs();
-    long long deadlineMs = -1;
-    if (!limits.ponder) {
-        long long budgetMs = computeTimeBudgetMs(&searchBoard, limits);
-        deadlineMs = (budgetMs > 0) ? (searchStartMs + budgetMs) : -1;
+    clear_search_heuristics();
+    active_search_limits = search_limits;
+    atomic_store(&active_search_side_to_move, (int)search_board.side_to_move);
+    atomic_store(&search_node_count, 0);
+    search_start_ms = now_ms();
+    long long deadline_ms = -1;
+    if (!search_limits.ponder) {
+        long long budget_ms = compute_time_budget_ms(&search_board, search_limits);
+        deadline_ms = (budget_ms > 0) ? (search_start_ms + budget_ms) : -1;
     }
-    atomic_store(&searchDeadlineMs, deadlineMs);
+    atomic_store(&search_deadline_ms, deadline_ms);
 
     // We copied the data to local stack variables, so free the allocated payload
     free(data);
 
-    int currentDepth = 1;
-    int bestScore = 0;
-    Move bestMove = createMove(NO_SQUARE, NO_SQUARE, 0, 0);
+    int current_depth = 1;
+    int best_score = 0;
+    Move best_move = create_move(NO_SQUARE, NO_SQUARE, 0, 0);
 
-    int maxDepth;
-    if (limits.searchDepthLimit > 0) {
-        maxDepth = limits.searchDepthLimit;
-    } else if (limits.infiniteSearch || limits.ponder) {
-        maxDepth = INT_MAX;
+    int max_depth;
+    if (search_limits.depth_limit > 0) {
+        max_depth = search_limits.depth_limit;
+    } else if (search_limits.infinite_search || search_limits.ponder) {
+        max_depth = INT_MAX;
     } else {
-        maxDepth = 100;
+        max_depth = 100;
     }
 
     // The Iterative Deepening Loop
-    while (currentDepth <= maxDepth) {
-        if (shouldStopSearch()) {
+    while (current_depth <= max_depth) {
+        if (should_stop_search()) {
             break;
         }
 
-        Move depthBestMove = bestMove;
-        int score = searchRootBestMove(&searchBoard, currentDepth, &depthBestMove);
-        if (!shouldStopSearch() && getFromSquare(depthBestMove) != NO_SQUARE) {
-            bestMove = depthBestMove;
-            bestScore = score;
+        Move depth_best_move = best_move;
+        int score = search_root_best_move(&search_board, current_depth, &depth_best_move);
+        if (!should_stop_search() && move_get_from_square(depth_best_move) != NO_SQUARE) {
+            best_move = depth_best_move;
+            best_score = score;
         }
 
-        long long elapsed = nowMs() - searchStartMs;
-        long long nodes = atomic_load(&searchedNodes);
+        long long elapsed = now_ms() - search_start_ms;
+        long long nodes = atomic_load(&search_node_count);
         long long nps = elapsed > 0 ? (nodes * 1000LL) / elapsed : nodes;
-        Move pvLine[256];
-        int pvLength = extractPVLine(&searchBoard, pvLine, currentDepth);
-        char pvString[2048] = "";
-        for (int i = 0; i < pvLength; i++) {
-            char moveStr[6];
-            moveToUciString(pvLine[i], moveStr);
-            strcat(pvString, moveStr);
-            strcat(pvString, " ");
+        Move pv_line[256];
+        int pv_length = extract_pv_line(&search_board, pv_line, current_depth);
+        char pv_string[2048] = "";
+        for (int i = 0; i < pv_length; i++) {
+            char move_str[6];
+            move_to_uci_string(pv_line[i], move_str);
+            strcat(pv_string, move_str);
+            strcat(pv_string, " ");
         }
-        if (abs(bestScore) > 100000000) {
-            int mateMoves = (MATE_SCORE - abs(bestScore)) / 2;
-            int mateScore = bestScore >= 0 ? mateMoves : -mateMoves;
+        if (abs(best_score) > 100000000) {
+            int mate_moves = (MATE_SCORE - abs(best_score)) / 2;
+            int mate_score = best_score >= 0 ? mate_moves : -mate_moves;
             printf(
                 "info depth %d score mate %d nodes %lld time %lld nps %lld pv %s\n",
-                currentDepth, mateScore, nodes, elapsed, nps, pvString);
+                current_depth, mate_score, nodes, elapsed, nps, pv_string);
         } else {
             printf("info depth %d score cp %d nodes %lld time %lld nps %lld pv %s\n",
-                currentDepth, bestScore, nodes, elapsed, nps, pvString);
+                current_depth, best_score, nodes, elapsed, nps, pv_string);
         }
 
-        ageHistory();
+        age_history();
 
-        currentDepth++;
+        current_depth++;
 
-        if (limits.searchMoveTimeLimitMs > 0 && shouldStopSearch()) {
+        if (search_limits.time_limit_ms > 0 && should_stop_search()) {
             break;
         }
 
-        if (!atomic_load(&engine_is_pondering) && limits.searchForMateInNMoves > 0 && abs(bestScore) > 100000000) {
-            int mateMoves = (MATE_SCORE - abs(bestScore)) / 2;
-            if (mateMoves <= limits.searchForMateInNMoves) {
+        if (!atomic_load(&engine_is_pondering) && search_limits.search_for_mate_in_n_moves > 0 && abs(best_score) > 100000000) {
+            int mate_moves = (MATE_SCORE - abs(best_score)) / 2;
+            if (mate_moves <= search_limits.search_for_mate_in_n_moves) {
                 break;
             }
         }
     }
 
-    char bestMoveUci[6];
-    moveToUciString(bestMove, bestMoveUci);
-    printf("bestmove %s\n", bestMoveUci);
+    char best_move_uci_string[6];
+    move_to_uci_string(best_move, best_move_uci_string);
+    printf("bestmove %s\n", best_move_uci_string);
     fflush(stdout);
 
     return NULL;
 }
 
-void searchOnGoCommand(UCIState* state, SearchLimits goCmd)
+void search_on_go_command(UCIState* state, SearchLimits go_cmd)
 {
     // if search running, stop it before starting a new one
-    if (state->isSearching) {
+    if (state->is_searching) {
         atomic_store(&engine_stop_search, true);
-        pthread_join(state->searchThread, NULL);
+        pthread_join(state->search_thread, NULL);
     }
 
     // Prepare for the new search
     atomic_store(&engine_stop_search, false);
-    atomic_store(&engine_is_pondering, goCmd.ponder);
-    state->isSearching = true;
+    atomic_store(&engine_is_pondering, go_cmd.ponder);
+    state->is_searching = true;
     // 3. Allocate the thread payload. (Using malloc so it safely survives the
     // thread launch)
-    SearchThreadData* threadData = malloc(sizeof(SearchThreadData));
-    if (threadData == NULL) {
+    SearchThreadData* thread_data = malloc(sizeof(SearchThreadData));
+    if (thread_data == NULL) {
         printf("info string memory allocation failed\n");
         return;
     }
 
     // snapshot of the board state. This prevents race conditions if the GUI
     // suddenly sends another "position" command while pondering.
-    threadData->board = state->board;
-    threadData->limits = goCmd;
+    thread_data->board = state->board;
+    thread_data->search_limits = go_cmd;
 
-    if (pthread_create(&state->searchThread, NULL, search_worker, threadData) != 0) {
+    if (pthread_create(&state->search_thread, NULL, search_worker, thread_data) != 0) {
         printf("info string failed to create search thread\n");
-        free(threadData);
-        state->isSearching = false;
+        free(thread_data);
+        state->is_searching = false;
     }
 }
 
-void scoreMoves(CBoard* board, MoveList* moveList, ScoredMove* scoredMoves,
-    Move ttMove, int ply)
+void score_moves(CBoard* board, MoveList* move_list, ScoredMove* scored_moves,
+    Move tt_move, int ply)
 {
-    Color side = board->sideToMove;
+    Color side = board->side_to_move;
 
-    for (int i = 0; i < moveList->count; i++) {
-        Move currMove = moveList->moves[i];
+    for (int i = 0; i < move_list->count; i++) {
+        Move curr_move = move_list->moves[i];
         int score = 0;
 
-        scoredMoves[i].move = currMove;
-        if (ttMove != MOVE_NONE && currMove == ttMove) {
+        scored_moves[i].move = curr_move;
+        if (tt_move != MOVE_NONE && curr_move == tt_move) {
             score = TT_MOVE_SCORE;
-        } else if (isCaptureLike(board, currMove) || move_is_promotion(currMove)) {
-            PieceType attackerPiece = getPieceAtSquare(board, getFromSquare(currMove));
-            PieceType capturedPiece = capturedPieceForMove(board, currMove);
-            int mvvLva = 0;
-            if (capturedPiece != NO_PIECE && attackerPiece != NO_PIECE) {
-                mvvLva = pieceValue(capturedPiece) - pieceValue(attackerPiece);
+        } else if (is_capture_like(board, curr_move) || move_is_promotion(curr_move)) {
+            PieceType attacker_piecetype = cboard_get_piece_at_square(board, move_get_from_square(curr_move));
+            PieceType captured_piecetype = captured_piece_for_move(board, curr_move);
+            int mvv_lva = 0;
+            if (captured_piecetype != NO_PIECE && attacker_piecetype != NO_PIECE) {
+                mvv_lva = piece_value(captured_piecetype) - piece_value(attacker_piecetype);
             }
 
-            int promoBonus = 0;
-            if (move_is_promotion(currMove)) {
-                promoBonus = pieceValue(getPromotionPieceType(currMove));
+            int promo_bonus = 0;
+            if (move_is_promotion(curr_move)) {
+                promo_bonus = piece_value(move_get_promotion_piecetype(curr_move));
             }
 
-            if (mvvLva >= 0 || move_is_promotion(currMove)) {
-                score = GOOD_CAPTURE_BASE_SCORE + mvvLva + promoBonus;
+            if (mvv_lva >= 0 || move_is_promotion(curr_move)) {
+                score = GOOD_CAPTURE_BASE_SCORE + mvv_lva + promo_bonus;
             } else {
-                score = BAD_CAPTURE_BASE_SCORE + mvvLva + promoBonus;
+                score = BAD_CAPTURE_BASE_SCORE + mvv_lva + promo_bonus;
             }
         } else if (ply < MAX_PLY) {
-            if (currMove == killerMoves[ply][0]) {
+            if (curr_move == killer_moves_list[ply][0]) {
                 score = KILLER_1_SCORE;
-            } else if (currMove == killerMoves[ply][1]) {
+            } else if (curr_move == killer_moves_list[ply][1]) {
                 score = KILLER_2_SCORE;
             } else {
-                Square from = getFromSquare(currMove);
-                Square to = getToSquare(currMove);
+                Square from = move_get_from_square(curr_move);
+                Square to = move_get_to_square(curr_move);
                 if (from != NO_SQUARE && to != NO_SQUARE) {
-                    score = historyHeuristic[(int)side][(int)from][(int)to];
+                    score = history_heuristic[(int)side][(int)from][(int)to];
                 }
             }
         } else {
-            Square from = getFromSquare(currMove);
-            Square to = getToSquare(currMove);
+            Square from = move_get_from_square(curr_move);
+            Square to = move_get_to_square(curr_move);
             if (from != NO_SQUARE && to != NO_SQUARE) {
-                score = historyHeuristic[(int)side][(int)from][(int)to];
+                score = history_heuristic[(int)side][(int)from][(int)to];
             }
         }
-        scoredMoves[i].score = score;
+        scored_moves[i].score = score;
     }
 }
 
-void pickNextBestMove(ScoredMove* scoredMoves, int start, int count)
+void pick_next_best_move(ScoredMove* scored_moves, int start, int count)
 {
     for (int i = start; i < count; i++) {
-        if (scoredMoves[i].score > scoredMoves[start].score) {
+        if (scored_moves[i].score > scored_moves[start].score) {
             // Swap
-            ScoredMove temp = scoredMoves[start];
-            scoredMoves[start] = scoredMoves[i];
-            scoredMoves[i] = temp;
+            ScoredMove temp = scored_moves[start];
+            scored_moves[start] = scored_moves[i];
+            scored_moves[i] = temp;
         }
     }
 }
 
 int quiescence(CBoard* node, int alpha, int beta, int ply)
 {
-    atomic_fetch_add(&searchedNodes, 1);
+    atomic_fetch_add(&search_node_count, 1);
 
-    if (shouldStopSearch()) {
-        return evaluateBoard(node);
+    if (should_stop_search()) {
+        return evaluate_cboard(node);
     }
 
     if (ply >= MAX_PLY - 1) {
-        return evaluateBoard(node);
+        return evaluate_cboard(node);
     }
 
-    bool inCheck = isKingInCheck(node, node->sideToMove);
-    if (!inCheck) {
-        int standPat = evaluateBoard(node);
-        if (standPat >= beta) {
-            return standPat;
+    bool king_in_check = is_king_in_check(node, node->side_to_move);
+    if (!king_in_check) {
+        int stand_pat = evaluate_cboard(node);
+        if (stand_pat >= beta) {
+            return stand_pat;
         }
-        if (standPat > alpha) {
-            alpha = standPat;
+        if (stand_pat > alpha) {
+            alpha = stand_pat;
         }
     }
 
-    MoveList moveList;
-    initMoveList(&moveList);
-    if (inCheck) {
-        generateLegalMoves(node, &moveList);
+    MoveList move_list;
+    init_move_list(&move_list);
+    if (king_in_check) {
+        generate_legal_moves(node, &move_list);
     } else {
-        generateCaptureMoves(node, &moveList);
+        generate_capture_moves(node, &move_list);
     }
 
-    if (moveList.count == 0) {
-        if (inCheck) {
+    if (move_list.count == 0) {
+        if (king_in_check) {
             return -MATE_SCORE + ply;
         }
-        return evaluateBoard(node);
+        return evaluate_cboard(node);
     }
 
-    TTEntry* ttEntry = probeTT(node->zobristKey);
-    Move ttBestMove = MOVE_NONE;
-    if (ttEntry && ttEntry->zobristKey == node->zobristKey) {
-        ttBestMove = ttEntry->bestMove;
+    TTEntry* tt_entry = probe_tt(node->zobrist_key);
+    Move tt_best_move = MOVE_NONE;
+    if (tt_entry && tt_entry->zobrist_key == node->zobrist_key) {
+        tt_best_move = tt_entry->best_move;
     }
 
-    ScoredMove scoredMoves[256];
-    scoreMoves(node, &moveList, scoredMoves, ttBestMove, ply);
+    ScoredMove scored_moves[256];
+    score_moves(node, &move_list, scored_moves, tt_best_move, ply);
 
-    for (int i = 0; i < moveList.count; i++) {
-        if (i % 32 == 0 && shouldStopSearch()) {
+    for (int i = 0; i < move_list.count; i++) {
+        if (i % 32 == 0 && should_stop_search()) {
             break;
         }
 
-        pickNextBestMove(scoredMoves, i, moveList.count);
-        Move move = scoredMoves[i].move;
+        pick_next_best_move(scored_moves, i, move_list.count);
+        Move move = scored_moves[i].move;
 
-        if (!inCheck && !isCaptureLike(node, move) && !move_is_promotion(move)) {
+        if (!king_in_check && !is_capture_like(node, move) && !move_is_promotion(move)) {
             continue;
         }
 
-        UndoInfo undoInfo = makeMove(node, move);
+        UndoInfo undo_info = make_move(node, move);
         int eval = -quiescence(node, -beta, -alpha, ply + 1);
-        unmakeMove(node, move, undoInfo);
+        unmake_move(node, move, undo_info);
 
         if (eval >= beta) {
             return eval;
@@ -719,10 +719,10 @@ int quiescence(CBoard* node, int alpha, int beta, int ply)
 int negamax(CBoard* node, int depth, int alpha, int beta, Color color,
     int ply)
 {
-    atomic_fetch_add(&searchedNodes, 1);
+    atomic_fetch_add(&search_node_count, 1);
 
-    if (shouldStopSearch()) {
-        return evaluateBoard(node);
+    if (should_stop_search()) {
+        return evaluate_cboard(node);
     }
 
     if (ply >= MAX_PLY - 1) {
@@ -730,24 +730,24 @@ int negamax(CBoard* node, int depth, int alpha, int beta, Color color,
     }
 
     Color side = color;
-    int originalAlpha = alpha;
-    bool inCheck = isKingInCheck(node, side);
+    int original_alpha = alpha;
+    bool king_in_check = is_king_in_check(node, side);
 
-    TTEntry* ttEntry = probeTT(node->zobristKey);
-    Move ttBestMove = MOVE_NONE;
-    if (ttEntry && ttEntry->zobristKey == node->zobristKey) {
-        ttBestMove = ttEntry->bestMove;
-        int ttScore = fromTTScore(ttEntry->score, ply);
-        if (ttEntry->depth >= depth) {
-            if (ttEntry->bound == TT_PV) {
-                return ttScore;
-            } else if (ttEntry->bound == TT_CUT && ttScore >= beta) {
-                return ttScore;
-            } else if (ttEntry->bound == TT_ALL && ttScore <= alpha) {
-                return ttScore;
+    TTEntry* tt_entry = probe_tt(node->zobrist_key);
+    Move tt_best_move = MOVE_NONE;
+    if (tt_entry && tt_entry->zobrist_key == node->zobrist_key) {
+        tt_best_move = tt_entry->best_move;
+        int tt_score = from_tt_score(tt_entry->score, ply);
+        if (tt_entry->depth >= depth) {
+            if (tt_entry->bound == TT_PV) {
+                return tt_score;
+            } else if (tt_entry->bound == TT_CUT && tt_score >= beta) {
+                return tt_score;
+            } else if (tt_entry->bound == TT_ALL && tt_score <= alpha) {
+                return tt_score;
             }
             if (alpha >= beta) {
-                return ttScore;
+                return tt_score;
             }
         }
     }
@@ -757,110 +757,110 @@ int negamax(CBoard* node, int depth, int alpha, int beta, Color color,
     }
 
     // Null-move pruning (skip in check or near-mate windows)
-    if (!inCheck && depth >= 3 && !isMateScore(alpha) && !isMateScore(beta)) {
+    if (!king_in_check && depth >= 3 && !is_mate_score(alpha) && !is_mate_score(beta)) {
         int reduction = 2 + (depth >= 6 ? 1 : 0);
-        NullMoveUndo nullUndo = makeNullMove(node);
-        Color nextSide = (side == WHITE) ? BLACK : WHITE;
-        int nullScore = -negamax(node, depth - 1 - reduction, -beta, -beta + 1,
-            nextSide, ply + 1);
-        unmakeNullMove(node, nullUndo);
+        NullMoveUndo null_undo_info = make_null_move(node);
+        Color next_side = (side == WHITE) ? BLACK : WHITE;
+        int null_score = -negamax(node, depth - 1 - reduction, -beta, -beta + 1,
+            next_side, ply + 1);
+        unmake_null_move(node, null_undo_info);
 
-        if (nullScore >= beta) {
-            return nullScore;
+        if (null_score >= beta) {
+            return null_score;
         }
     }
 
-    MoveList moveList;
-    initMoveList(&moveList);
-    genAllPseudoLegalMoves(node, &moveList);
-    ScoredMove scoredMoves[256];
-    scoreMoves(node, &moveList, scoredMoves, ttBestMove, ply);
+    MoveList move_list;
+    init_move_list(&move_list);
+    gen_all_pseudolegal_moves(node, &move_list);
+    ScoredMove scored_moves[256];
+    score_moves(node, &move_list, scored_moves, tt_best_move, ply);
 
-    Move bestMoveAtNode = createMove(NO_SQUARE, NO_SQUARE, 0, 0);
-    int maxEval = -MATE_SCORE;
-    int legalMovesSearched = 0;
+    Move best_move_at_node = create_move(NO_SQUARE, NO_SQUARE, 0, 0);
+    int max_eval = -MATE_SCORE;
+    int num_legal_moves_searched = 0;
 
-    for (int i = 0; i < moveList.count; i++) {
-        if (i % 32 == 0 && shouldStopSearch()) {
+    for (int i = 0; i < move_list.count; i++) {
+        if (i % 32 == 0 && should_stop_search()) {
             break;
         }
-        pickNextBestMove(scoredMoves, i, moveList.count);
-        Move move = scoredMoves[i].move;
+        pick_next_best_move(scored_moves, i, move_list.count);
+        Move move = scored_moves[i].move;
 
-        bool quiet = isQuietMove(node, move);
+        bool quiet = is_quiet_move(node, move);
 
         // Make the move
-        UndoInfo undoInfo = makeMove(node, move);
+        UndoInfo undo_info = make_move(node, move);
 
-        if (isKingInCheck(node, side)) {
-            unmakeMove(node, move, undoInfo);
+        if (is_king_in_check(node, side)) {
+            unmake_move(node, move, undo_info);
             continue;
         }
 
-        legalMovesSearched++;
-        Color nextSide = (side == WHITE) ? BLACK : WHITE;
+        num_legal_moves_searched++;
+        Color next_side = (side == WHITE) ? BLACK : WHITE;
         int eval;
 
-        if (legalMovesSearched == 1) {
-            eval = -negamax(node, depth - 1, -beta, -alpha, nextSide, ply + 1);
+        if (num_legal_moves_searched == 1) {
+            eval = -negamax(node, depth - 1, -beta, -alpha, next_side, ply + 1);
         } else {
-            int reducedDepth = depth - 1;
-            bool canReduce = depth >= 3 && legalMovesSearched >= 4 && !inCheck && quiet;
-            if (canReduce) {
-                reducedDepth = depth - 2;
+            int reduced_depth = depth - 1;
+            bool can_reduce_depth = depth >= 3 && num_legal_moves_searched >= 4 && !king_in_check && quiet;
+            if (can_reduce_depth) {
+                reduced_depth = depth - 2;
             }
 
             // PVS scout search
-            eval = -negamax(node, reducedDepth, -alpha - 1, -alpha, nextSide, ply + 1);
+            eval = -negamax(node, reduced_depth, -alpha - 1, -alpha, next_side, ply + 1);
 
             // Re-search if scout failed high
             if (eval > alpha) {
-                eval = -negamax(node, depth - 1, -beta, -alpha, nextSide, ply + 1);
+                eval = -negamax(node, depth - 1, -beta, -alpha, next_side, ply + 1);
             }
         }
 
         // Unmake the move
-        unmakeMove(node, move, undoInfo);
+        unmake_move(node, move, undo_info);
 
-        int alphaBefore = alpha;
+        int prev_alpha = alpha;
 
-        if (eval > maxEval) {
-            maxEval = eval;
-            bestMoveAtNode = move;
+        if (eval > max_eval) {
+            max_eval = eval;
+            best_move_at_node = move;
         }
-        if (maxEval > alpha) {
-            alpha = maxEval;
-        } else if (quiet && eval <= alphaBefore) {
-            penalizeHistory(side, move, depth);
+        if (max_eval > alpha) {
+            alpha = max_eval;
+        } else if (quiet && eval <= prev_alpha) {
+            penalize_history(side, move, depth);
         }
 
         if (alpha >= beta) {
             // Store killer move
             if (ply < MAX_PLY && quiet) {
-                if (killerMoves[ply][0] != move) {
-                    killerMoves[ply][1] = killerMoves[ply][0];
-                    killerMoves[ply][0] = move;
+                if (killer_moves_list[ply][0] != move) {
+                    killer_moves_list[ply][1] = killer_moves_list[ply][0];
+                    killer_moves_list[ply][0] = move;
                 }
-                updateHistory(side, move, depth);
+                update_history(side, move, depth);
             }
             break; // beta cutoff
         }
     }
 
-    if (legalMovesSearched == 0) {
-        if (inCheck) {
+    if (num_legal_moves_searched == 0) {
+        if (king_in_check) {
             return -MATE_SCORE + ply;
         }
         return 0;
     }
 
     TTBound bound = TT_PV;
-    if (maxEval <= originalAlpha) {
+    if (max_eval <= original_alpha) {
         bound = TT_ALL;
-    } else if (maxEval >= beta) {
+    } else if (max_eval >= beta) {
         bound = TT_CUT;
     }
-    storeTT(node->zobristKey, depth, toTTScore(maxEval, ply), bound,
-        bestMoveAtNode);
-    return maxEval;
+    store_tt(node->zobrist_key, depth, to_tt_score(max_eval, ply), bound,
+        best_move_at_node);
+    return max_eval;
 }
