@@ -52,9 +52,7 @@ bool is_square_attacked(CBoard* board, Square square, Color attacker_color)
     // We need to check if pawns of attacker_color can attack this square
     // If white pawns attack diagonally upward, we need to check squares diagonally downward
     // So we use the OPPOSITE color's attack pattern (FLIPPED, like in gen_all_pseudolegal_ep_pawn_moves)
-    Bitboard pawnAttacks = (attacker_color == WHITE)
-        ? get_pawn_attack_bitboard(square, BLACK) // FLIPPED
-        : get_pawn_attack_bitboard(square, WHITE); // FLIPPED
+    Bitboard pawnAttacks = get_pawn_attack_bitboard(square, 1 - attacker_color);
     Bitboard attackerPawns = board->piece_bbs[attacker_color][PAWN];
     if (pawnAttacks & attackerPawns)
         return true;
@@ -93,9 +91,9 @@ bool is_king_in_check(CBoard* board, Color side)
     if (king == 0) {
         return true;
     }
-    Square kingSquare = bitboard_lsb_index_unsafe(king);
-    Color opponentColor = (side == WHITE) ? BLACK : WHITE;
-    return is_square_attacked(board, kingSquare, opponentColor);
+    Square king_square = bitboard_lsb_index_unsafe(king);
+    Color opponent_color = 1 - side;
+    return is_square_attacked(board, king_square, opponent_color);
 }
 
 void generate_legal_moves(CBoard* board, MoveList* out)
@@ -110,7 +108,7 @@ void generate_legal_moves(CBoard* board, MoveList* out)
         // Special handling for castling
         if (move_is_castling(move)) {
             Color side = board->side_to_move;
-            Color opponent = (side == WHITE) ? BLACK : WHITE;
+            Color opponent = 1 - side;
             // Square kingFrom = FROM_SQ(move);
 
             // Cannot castle if in check
@@ -121,14 +119,14 @@ void generate_legal_moves(CBoard* board, MoveList* out)
             // Check squares the king moves through
             if ((side == WHITE && move_get_from_square(move) == E1 && move_get_to_square(move) == G1) || (side == BLACK && move_get_from_square(move) == E8 && move_get_to_square(move) == G8)) // KINGSIDE_CASTLE
             {
-                Square throughSquare = (side == WHITE) ? F1 : F8;
-                if (is_square_attacked(board, throughSquare, opponent)) {
+                Square through_square = (side == WHITE) ? F1 : F8;
+                if (is_square_attacked(board, through_square, opponent)) {
                     continue;
                 }
             } else // QUEENSIDE_CASTLE
             {
-                Square throughSquare = (side == WHITE) ? D1 : D8;
-                if (is_square_attacked(board, throughSquare, opponent)) {
+                Square through_square = (side == WHITE) ? D1 : D8;
+                if (is_square_attacked(board, through_square, opponent)) {
                     continue;
                 }
             }

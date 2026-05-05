@@ -182,13 +182,13 @@ static inline void move_piece_on_cboard(CBoard* board, Square from, Square to, C
  *
  * @param board Pointer to the CBoard struct.
  * @param square The square from which the piece will be removed.
- * @param capturingColor The color of the piece that captured the target piece.
+ * @param capturing_color The color of the piece that captured the target piece.
  * @return PieceType The type of the captured piece, or NO_PIECE if no piece was captured.
 
  */
-static inline PieceType cboard_remove_captured_piece(CBoard* board, Square square, Color capturingColor)
+static inline PieceType cboard_remove_captured_piece(CBoard* board, Square square, Color capturing_color)
 {
-    Color captured_color = (capturingColor == WHITE) ? BLACK : WHITE;
+    Color captured_color = 1 - capturing_color;
 
     PieceType captured_piece = cboard_get_piece_at_square(board, square);
     if (captured_piece == NO_PIECE) {

@@ -129,7 +129,7 @@ void gen_all_pseudolegal_single_pawn_pushes(CBoard* board, MoveList* move_list)
 
     while (single_pawn_pushes_bb) {
         Square to = bitboard_pop_lsb_unsafe(&single_pawn_pushes_bb);
-        Square from = to - (side_to_move == WHITE ? 8 : -8);
+        Square from = to + (8 * (2 * board->side_to_move - 1));
         Move move = create_move(from, to, NORMAL, NO_PIECE);
         move_list->moves[move_list->count++] = move;
     }
@@ -160,7 +160,8 @@ void gen_all_pseudolegal_double_pawn_pushes(CBoard* board, MoveList* move_list)
     // Iterate through each square in the double pushes bitboard
     while (double_pawn_pushes_bb) {
         Square to = bitboard_pop_lsb_unsafe(&double_pawn_pushes_bb);
-        Square from = to - (side_to_move == WHITE ? 16 : -16);
+        Square from = to + (16 * (2 * board->side_to_move - 1));
+        ;
         Move move = create_move(from, to, NORMAL, NO_PIECE);
         move_list->moves[move_list->count++] = move;
     }
@@ -203,7 +204,7 @@ void gen_all_pseudolegal_pawn_promotions(CBoard* board, MoveList* move_list)
 
     while (promotion_pushes_bb) {
         Square to = bitboard_pop_lsb_unsafe(&promotion_pushes_bb);
-        Square from = to - (side_to_move == WHITE ? 8 : -8);
+        Square from = to + (8 * (2 * board->side_to_move - 1));
         // Generate all promotion piece types
         for (PieceType pt = KNIGHT; pt <= QUEEN; pt++) {
             Move move = create_move(from, to, PROMO, pt);
