@@ -56,9 +56,9 @@ static bool should_hash_ep(const CBoard* board, Square ep_square)
         if (ep_square < A6 || ep_square > H6)
             return false;
 
-        if (ep_file > 0 && bitboard_is_bit_set(board->white_pawns_bb, ep_square - 9))
+        if (ep_file > 0 && bitboard_is_bit_set(board->piece_bbs[WHITE][PAWN], ep_square - 9))
             return true;
-        if (ep_file < 7 && bitboard_is_bit_set(board->white_pawns_bb, ep_square - 7))
+        if (ep_file < 7 && bitboard_is_bit_set(board->piece_bbs[WHITE][PAWN], ep_square - 7))
             return true;
         return false;
     }
@@ -66,9 +66,9 @@ static bool should_hash_ep(const CBoard* board, Square ep_square)
     if (ep_square < A3 || ep_square > H3)
         return false;
 
-    if (ep_file > 0 && bitboard_is_bit_set(board->black_pawns_bb, ep_square + 7))
+    if (ep_file > 0 && bitboard_is_bit_set(board->piece_bbs[BLACK][PAWN], ep_square + 7))
         return true;
-    if (ep_file < 7 && bitboard_is_bit_set(board->black_pawns_bb, ep_square + 9))
+    if (ep_file < 7 && bitboard_is_bit_set(board->piece_bbs[BLACK][PAWN], ep_square + 9))
         return true;
     return false;
 }
@@ -89,27 +89,15 @@ void compute_zobrist_key(CBoard* board)
 
     uint64_t key = 0ULL;
 
-    // Map your bitboards to an array of pointers to avoid struct layout issues
-    uint64_t* piece_bbs[12] = {
-        &board->white_pawns_bb, &board->white_knights_bb, &board->white_bishops_bb,
-        &board->white_rooks_bb, &board->white_queens_bb, &board->white_king_bb,
-        &board->black_pawns_bb, &board->black_knights_bb, &board->black_bishops_bb,
-        &board->black_rooks_bb, &board->black_queens_bb, &board->black_king_bb
-    };
-
     for (int piece_type = 0; piece_type < 12; piece_type++) {
-        // Copy the bitboard value into a local variable 'bb'
-        // Changes to 'bb' do NOT affect board->whitePawns, etc.
-        uint64_t bb = *piece_bbs[piece_type];
+        uint64_t bb = board->piece_bbs[piece_type / 6][piece_type % 6];
 
         while (bb) {
             // Find the index of the least significant bit (0-63)
             int sq = __builtin_ctzll(bb);
-
             // XOR the random key for this piece/square combo
             key ^= piece_keys[piece_type][sq];
-
-            // Mathematically clear the bit we just processed in the LOCAL copy
+            // clear the bit we just processed in the LOCAL copy
             bb &= (bb - 1);
         }
     }

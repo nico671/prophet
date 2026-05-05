@@ -68,11 +68,7 @@ bool move_is_capture(CBoard* board, Move move)
         return false;
 
     Square to = move_get_to_square(move);
-    if (board->side_to_move == WHITE) {
-        return bitboard_is_bit_set(board->black_pieces_bb, to) && !move_is_enpassant(move) && !move_is_castling(move) && !move_is_promotion(move);
-    } else {
-        return bitboard_is_bit_set(board->white_pieces_bb, to) && !move_is_enpassant(move) && !move_is_castling(move) && !move_is_promotion(move);
-    }
+    return bitboard_is_bit_set(board->occupancy_bbs[1 - board->side_to_move], to) && !move_is_enpassant(move) && !move_is_castling(move) && !move_is_promotion(move);
 }
 
 bool move_is_quiet(CBoard* board, Move move)

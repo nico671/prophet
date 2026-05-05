@@ -46,41 +46,41 @@ void generate_capture_moves(CBoard* board, MoveList* out)
     }
 }
 
-bool is_square_attacked(CBoard* board, Square square, Color attackerColor)
+bool is_square_attacked(CBoard* board, Square square, Color attacker_color)
 {
     // Check for pawn attacks
-    // We need to check if pawns of attackerColor can attack this square
+    // We need to check if pawns of attacker_color can attack this square
     // If white pawns attack diagonally upward, we need to check squares diagonally downward
     // So we use the OPPOSITE color's attack pattern (FLIPPED, like in gen_all_pseudolegal_ep_pawn_moves)
-    Bitboard pawnAttacks = (attackerColor == WHITE)
+    Bitboard pawnAttacks = (attacker_color == WHITE)
         ? get_pawn_attack_bitboard(square, BLACK) // FLIPPED
         : get_pawn_attack_bitboard(square, WHITE); // FLIPPED
-    Bitboard attackerPawns = (attackerColor == WHITE) ? board->white_pawns_bb : board->black_pawns_bb;
+    Bitboard attackerPawns = board->piece_bbs[attacker_color][PAWN];
     if (pawnAttacks & attackerPawns)
         return true;
 
     // Check for knight attacks
     Bitboard knightAttacks = get_knight_attack_bitboard(square);
-    Bitboard attackerKnights = (attackerColor == WHITE) ? board->white_knights_bb : board->black_knights_bb;
+    Bitboard attackerKnights = board->piece_bbs[attacker_color][KNIGHT];
     if (knightAttacks & attackerKnights)
         return true;
 
     // Check for bishop/queen attacks
-    Bitboard bishopAttacks = get_bishop_attack_bitboard(square, board->all_pieces_bb);
-    Bitboard attackerBishops = (attackerColor == WHITE) ? board->white_bishops_bb : board->black_bishops_bb;
-    Bitboard attackerQueens = (attackerColor == WHITE) ? board->white_queens_bb : board->black_queens_bb;
+    Bitboard bishopAttacks = get_bishop_attack_bitboard(square, board->occupancy_bbs[2]);
+    Bitboard attackerBishops = board->piece_bbs[attacker_color][BISHOP];
+    Bitboard attackerQueens = board->piece_bbs[attacker_color][QUEEN];
     if (bishopAttacks & (attackerBishops | attackerQueens))
         return true;
 
     // Check for rook/queen attacks
-    Bitboard rookAttacks = get_rook_attack_bitboard(square, board->all_pieces_bb);
-    Bitboard attackerRooks = (attackerColor == WHITE) ? board->white_rooks_bb : board->black_rooks_bb;
+    Bitboard rookAttacks = get_rook_attack_bitboard(square, board->occupancy_bbs[2]);
+    Bitboard attackerRooks = board->piece_bbs[attacker_color][ROOK];
     if (rookAttacks & (attackerRooks | attackerQueens))
         return true;
 
     // Check for king attacks
     Bitboard kingAttacks = get_king_attack_bitboard(square);
-    Bitboard attackerKing = (attackerColor == WHITE) ? board->white_king_bb : board->black_king_bb;
+    Bitboard attackerKing = board->piece_bbs[attacker_color][KING];
     if (kingAttacks & attackerKing)
         return true;
 
@@ -89,7 +89,7 @@ bool is_square_attacked(CBoard* board, Square square, Color attackerColor)
 
 bool is_king_in_check(CBoard* board, Color side)
 {
-    Bitboard king = (side == WHITE) ? board->white_king_bb : board->black_king_bb;
+    Bitboard king = board->piece_bbs[side][KING];
     if (king == 0) {
         return true;
     }
@@ -136,7 +136,7 @@ void generate_legal_moves(CBoard* board, MoveList* out)
 
         // Normal legality check for all moves (including castling destination)
         UndoInfo undoInfo = make_move(board, move);
-        if (!is_king_in_check(board, (board->side_to_move == WHITE) ? BLACK : WHITE)) {
+        if (!is_king_in_check(board, 1 - board->side_to_move)) {
             out->moves[out->count++] = move;
         }
         unmake_move(board, move, undoInfo);

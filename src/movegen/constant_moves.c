@@ -4,14 +4,11 @@
 #include "movegen/constant_moves.h"
 #include "movegen/move.h"
 
-#pragma mark region King Move Generation
 void gen_all_pseudolegal_king_noncastling_moves(CBoard* board, MoveList* move_list)
 {
     Color side_to_move = board->side_to_move;
-    Bitboard side_to_move_king_bb = (side_to_move == WHITE) ? board->white_king_bb : board->black_king_bb;
-    Bitboard opponent_pieces_bb = (side_to_move == WHITE)
-        ? (board->black_pieces_bb & ~board->black_king_bb)
-        : (board->white_pieces_bb & ~board->white_king_bb);
+    Bitboard side_to_move_king_bb = board->piece_bbs[side_to_move][KING];
+    Bitboard opponent_pieces_bb = board->occupancy_bbs[1 - side_to_move] & ~(board->piece_bbs[1 - side_to_move][KING]);
     if (side_to_move_king_bb) {
         Square from = bitboard_pop_lsb(&side_to_move_king_bb);
         Bitboard king_attacks_bb = get_king_attack_bitboard(from);
@@ -23,7 +20,7 @@ void gen_all_pseudolegal_king_noncastling_moves(CBoard* board, MoveList* move_li
             move_list->moves[move_list->count++] = move;
         }
 
-        Bitboard king_quite_moves_bb = king_attacks_bb & ~board->all_pieces_bb;
+        Bitboard king_quite_moves_bb = king_attacks_bb & ~(board->occupancy_bbs[2]);
         while (king_quite_moves_bb) {
             Square to = bitboard_pop_lsb(&king_quite_moves_bb);
             Move move = create_move(from, to, NORMAL, NO_PIECE);
@@ -37,19 +34,19 @@ void gen_all_pseudolegal_king_castling_moves(CBoard* board, MoveList* move_list)
 
     // handle white castling
     if (board->side_to_move == WHITE) {
-        if (!board->white_king_bb) {
+        if (!board->piece_bbs[WHITE][KING]) {
             return;
         }
 
         if (CHECK_BIT(board->castling_rights, 3)) {
-            if ((bitboard_lsb_index(board->white_king_bb) == E1) && (bitboard_is_bit_set(board->white_rooks_bb, H1)) && !(bitboard_is_bit_set(board->all_pieces_bb, F1)) && !(bitboard_is_bit_set(board->all_pieces_bb, G1))) {
+            if ((bitboard_lsb_index(board->piece_bbs[WHITE][KING]) == E1) && (bitboard_is_bit_set(board->piece_bbs[WHITE][ROOK], H1)) && !(bitboard_is_bit_set(board->occupancy_bbs[2], F1)) && !(bitboard_is_bit_set(board->occupancy_bbs[2], G1))) {
 
                 Move move = create_move(E1, G1, CASTLE, NO_PIECE);
                 move_list->moves[move_list->count++] = move;
             }
         }
         if (CHECK_BIT(board->castling_rights, 2)) {
-            if ((bitboard_lsb_index(board->white_king_bb) == E1) && (bitboard_is_bit_set(board->white_rooks_bb, A1)) && !(bitboard_is_bit_set(board->all_pieces_bb, D1)) && !(bitboard_is_bit_set(board->all_pieces_bb, C1)) && !(bitboard_is_bit_set(board->all_pieces_bb, B1))) {
+            if ((bitboard_lsb_index(board->piece_bbs[WHITE][KING]) == E1) && (bitboard_is_bit_set(board->piece_bbs[WHITE][ROOK], A1)) && !(bitboard_is_bit_set(board->occupancy_bbs[2], D1)) && !(bitboard_is_bit_set(board->occupancy_bbs[2], C1)) && !(bitboard_is_bit_set(board->occupancy_bbs[2], B1))) {
 
                 Move move = create_move(E1, C1, CASTLE, NO_PIECE);
                 move_list->moves[move_list->count++] = move;
@@ -58,19 +55,19 @@ void gen_all_pseudolegal_king_castling_moves(CBoard* board, MoveList* move_list)
     }
     // handle black castling
     else {
-        if (!board->black_king_bb) {
+        if (!board->piece_bbs[BLACK][KING]) {
             return;
         }
 
         if (CHECK_BIT(board->castling_rights, 1)) {
-            if ((bitboard_lsb_index(board->black_king_bb) == E8) && (bitboard_is_bit_set(board->black_rooks_bb, H8)) && !(bitboard_is_bit_set(board->all_pieces_bb, F8)) && !(bitboard_is_bit_set(board->all_pieces_bb, G8))) {
+            if ((bitboard_lsb_index(board->piece_bbs[BLACK][KING]) == E8) && (bitboard_is_bit_set(board->piece_bbs[BLACK][ROOK], H8)) && !(bitboard_is_bit_set(board->occupancy_bbs[2], F8)) && !(bitboard_is_bit_set(board->occupancy_bbs[2], G8))) {
 
                 Move move = create_move(E8, G8, CASTLE, NO_PIECE);
                 move_list->moves[move_list->count++] = move;
             }
         }
         if (CHECK_BIT(board->castling_rights, 0)) {
-            if ((bitboard_lsb_index(board->black_king_bb) == E8) && (bitboard_is_bit_set(board->black_rooks_bb, A8)) && !(bitboard_is_bit_set(board->all_pieces_bb, D8)) && !(bitboard_is_bit_set(board->all_pieces_bb, C8)) && !(bitboard_is_bit_set(board->all_pieces_bb, B8))) {
+            if ((bitboard_lsb_index(board->piece_bbs[BLACK][KING]) == E8) && (bitboard_is_bit_set(board->piece_bbs[BLACK][ROOK], A8)) && !(bitboard_is_bit_set(board->occupancy_bbs[2], D8)) && !(bitboard_is_bit_set(board->occupancy_bbs[2], C8)) && !(bitboard_is_bit_set(board->occupancy_bbs[2], B8))) {
 
                 Move move = create_move(E8, C8, CASTLE, NO_PIECE);
                 move_list->moves[move_list->count++] = move;
@@ -89,11 +86,9 @@ void gen_all_pseudolegal_king_moves(CBoard* board, MoveList* move_list)
 // This function does NOT check for side_to_move_king_bb safety, so it may generate moves that leave the side_to_move_king_bb in check. It is the caller's responsibility to filter those out if necessary.
 void gen_all_pseudolegal_knight_moves(CBoard* board, MoveList* move_list)
 {
-    Bitboard side_to_move_knights_bb = (board->side_to_move == WHITE) ? board->white_knights_bb : board->black_knights_bb;
-    Bitboard friendly_pieces_bb = (board->side_to_move == WHITE) ? board->white_pieces_bb : board->black_pieces_bb;
-    Bitboard enemy_pieces_bb = (board->side_to_move == WHITE)
-        ? (board->black_pieces_bb & ~board->black_king_bb)
-        : (board->white_pieces_bb & ~board->white_king_bb);
+    Bitboard side_to_move_knights_bb = board->piece_bbs[board->side_to_move][KNIGHT];
+    Bitboard friendly_pieces_bb = board->occupancy_bbs[board->side_to_move];
+    Bitboard enemy_pieces_bb = board->occupancy_bbs[1 - board->side_to_move] & ~(board->piece_bbs[1 - board->side_to_move][KING]);
 
     while (side_to_move_knights_bb) {
         Square from = bitboard_pop_lsb(&side_to_move_knights_bb);
@@ -102,7 +97,7 @@ void gen_all_pseudolegal_knight_moves(CBoard* board, MoveList* move_list)
         knight_attacks_bb &= ~friendly_pieces_bb;
 
         // Separate quiet moves and captures
-        Bitboard knight_quite_moves_bb = knight_attacks_bb & ~board->all_pieces_bb;
+        Bitboard knight_quite_moves_bb = knight_attacks_bb & ~board->occupancy_bbs[2];
         Bitboard knight_captures_bb = knight_attacks_bb & enemy_pieces_bb;
 
         // Generate quiet moves
@@ -124,8 +119,8 @@ void gen_all_pseudolegal_knight_moves(CBoard* board, MoveList* move_list)
 void gen_all_pseudolegal_single_pawn_pushes(CBoard* board, MoveList* move_list)
 {
     Color side_to_move = board->side_to_move;
-    Bitboard side_to_move_pawns_bb = (side_to_move == WHITE) ? board->white_pawns_bb : board->black_pawns_bb;
-    Bitboard empty_squares_bb = ~(board->all_pieces_bb);
+    Bitboard side_to_move_pawns_bb = board->piece_bbs[side_to_move][PAWN];
+    Bitboard empty_squares_bb = ~(board->occupancy_bbs[2]);
     Bitboard promotion_rank_bb = (side_to_move == WHITE) ? RANK_7 : RANK_2;
     side_to_move_pawns_bb &= ~promotion_rank_bb; // exclude side_to_move_pawns_bb on promotion rank
     Bitboard single_pawn_pushes_bb = (side_to_move == WHITE)
@@ -143,8 +138,8 @@ void gen_all_pseudolegal_single_pawn_pushes(CBoard* board, MoveList* move_list)
 void gen_all_pseudolegal_double_pawn_pushes(CBoard* board, MoveList* move_list)
 {
     Color side_to_move = board->side_to_move;
-    Bitboard side_to_move_pawns_bb = (side_to_move == WHITE) ? board->white_pawns_bb : board->black_pawns_bb;
-    Bitboard empty_squares_bb = ~(board->all_pieces_bb);
+    Bitboard side_to_move_pawns_bb = board->piece_bbs[side_to_move][PAWN];
+    Bitboard empty_squares_bb = ~(board->occupancy_bbs[2]);
 
     // Only consider side_to_move_pawns_bb on their starting rank
     side_to_move_pawns_bb &= (side_to_move == WHITE) ? RANK_2 : RANK_7;
@@ -174,12 +169,10 @@ void gen_all_pseudolegal_double_pawn_pushes(CBoard* board, MoveList* move_list)
 void gen_all_pseudolegal_pawn_captures(CBoard* board, MoveList* move_list)
 {
     Color side_to_move = board->side_to_move;
-    Bitboard side_to_move_pawns_bb = (side_to_move == WHITE) ? board->white_pawns_bb : board->black_pawns_bb;
+    Bitboard side_to_move_pawns_bb = board->piece_bbs[side_to_move][PAWN];
     Bitboard promotion_rank_bb = (side_to_move == WHITE) ? RANK_7 : RANK_2;
     side_to_move_pawns_bb &= ~promotion_rank_bb; // exclude side_to_move_pawns_bb on promotion rank, handled in promotions function
-    Bitboard opponent_pieces_bb = (side_to_move == WHITE)
-        ? (board->black_pieces_bb & ~board->black_king_bb)
-        : (board->white_pieces_bb & ~board->white_king_bb);
+    Bitboard opponent_pieces_bb = board->occupancy_bbs[1 - side_to_move] & ~(board->piece_bbs[1 - side_to_move][KING]);
 
     while (side_to_move_pawns_bb) {
         Square from = bitboard_pop_lsb(&side_to_move_pawns_bb);
@@ -196,11 +189,9 @@ void gen_all_pseudolegal_pawn_captures(CBoard* board, MoveList* move_list)
 void gen_all_pseudolegal_pawn_promotions(CBoard* board, MoveList* move_list)
 {
     Color side_to_move = board->side_to_move;
-    Bitboard side_to_move_pawns_bb = (side_to_move == WHITE) ? board->white_pawns_bb : board->black_pawns_bb;
-    Bitboard empty_squares_bb = ~(board->all_pieces_bb);
-    Bitboard opponent_pieces_bb = (side_to_move == WHITE)
-        ? (board->black_pieces_bb & ~board->black_king_bb)
-        : (board->white_pieces_bb & ~board->white_king_bb);
+    Bitboard side_to_move_pawns_bb = board->piece_bbs[side_to_move][PAWN];
+    Bitboard empty_squares_bb = ~(board->occupancy_bbs[2]);
+    Bitboard opponent_pieces_bb = board->occupancy_bbs[1 - side_to_move] & ~(board->piece_bbs[1 - side_to_move][KING]);
 
     Bitboard promotion_rank_bb = (side_to_move == WHITE) ? RANK_7 : RANK_2;
     side_to_move_pawns_bb &= promotion_rank_bb;
@@ -242,7 +233,7 @@ void gen_all_pseudolegal_ep_pawn_moves(CBoard* board, MoveList* move_list)
         return;
 
     Color side_to_move = board->side_to_move;
-    Bitboard side_to_move_pawns_bb = (side_to_move == WHITE) ? board->white_pawns_bb : board->black_pawns_bb;
+    Bitboard side_to_move_pawns_bb = board->piece_bbs[side_to_move][PAWN];
 
     // Get squares that can attack the EP square
     // We need to find which squares our side_to_move_pawns_bb attack FROM to reach epSquare
@@ -268,6 +259,7 @@ void gen_all_pseudolegal_pawn_moves(CBoard* board, MoveList* move_list)
     gen_all_pseudolegal_double_pawn_pushes(board, move_list);
     gen_all_pseudolegal_pawn_captures(board, move_list);
     gen_all_pseudolegal_pawn_promotions(board, move_list);
-    if (board->ep_square != NO_SQUARE)
+    if (board->ep_square != NO_SQUARE) {
         gen_all_pseudolegal_ep_pawn_moves(board, move_list);
+    }
 }

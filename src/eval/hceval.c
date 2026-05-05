@@ -891,18 +891,18 @@ int evaluate_cboard(const CBoard* board)
     int eg[2] = { 0, 0 };
     int game_phase = 0;
 
-    accumulate_piece(board->white_pawns_bb, HC_WHITE_PAWN, mg, eg, &game_phase);
-    accumulate_piece(board->black_pawns_bb, HC_BLACK_PAWN, mg, eg, &game_phase);
-    accumulate_piece(board->white_knights_bb, HC_WHITE_KNIGHT, mg, eg, &game_phase);
-    accumulate_piece(board->black_knights_bb, HC_BLACK_KNIGHT, mg, eg, &game_phase);
-    accumulate_piece(board->white_bishops_bb, HC_WHITE_BISHOP, mg, eg, &game_phase);
-    accumulate_piece(board->black_bishops_bb, HC_BLACK_BISHOP, mg, eg, &game_phase);
-    accumulate_piece(board->white_rooks_bb, HC_WHITE_ROOK, mg, eg, &game_phase);
-    accumulate_piece(board->black_rooks_bb, HC_BLACK_ROOK, mg, eg, &game_phase);
-    accumulate_piece(board->white_queens_bb, HC_WHITE_QUEEN, mg, eg, &game_phase);
-    accumulate_piece(board->black_queens_bb, HC_BLACK_QUEEN, mg, eg, &game_phase);
-    accumulate_piece(board->white_king_bb, HC_WHITE_KING, mg, eg, &game_phase);
-    accumulate_piece(board->black_king_bb, HC_BLACK_KING, mg, eg, &game_phase);
+    accumulate_piece(board->piece_bbs[WHITE][PAWN], HC_WHITE_PAWN, mg, eg, &game_phase);
+    accumulate_piece(board->piece_bbs[BLACK][PAWN], HC_BLACK_PAWN, mg, eg, &game_phase);
+    accumulate_piece(board->piece_bbs[WHITE][KNIGHT], HC_WHITE_KNIGHT, mg, eg, &game_phase);
+    accumulate_piece(board->piece_bbs[BLACK][KNIGHT], HC_BLACK_KNIGHT, mg, eg, &game_phase);
+    accumulate_piece(board->piece_bbs[WHITE][BISHOP], HC_WHITE_BISHOP, mg, eg, &game_phase);
+    accumulate_piece(board->piece_bbs[BLACK][BISHOP], HC_BLACK_BISHOP, mg, eg, &game_phase);
+    accumulate_piece(board->piece_bbs[WHITE][ROOK], HC_WHITE_ROOK, mg, eg, &game_phase);
+    accumulate_piece(board->piece_bbs[BLACK][ROOK], HC_BLACK_ROOK, mg, eg, &game_phase);
+    accumulate_piece(board->piece_bbs[WHITE][QUEEN], HC_WHITE_QUEEN, mg, eg, &game_phase);
+    accumulate_piece(board->piece_bbs[BLACK][QUEEN], HC_BLACK_QUEEN, mg, eg, &game_phase);
+    accumulate_piece(board->piece_bbs[WHITE][KING], HC_WHITE_KING, mg, eg, &game_phase);
+    accumulate_piece(board->piece_bbs[BLACK][KING], HC_BLACK_KING, mg, eg, &game_phase);
 
     int mg_score = mg[board->side_to_move] - mg[OTHER(board->side_to_move)];
     int eg_score = eg[board->side_to_move] - eg[OTHER(board->side_to_move)];

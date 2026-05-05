@@ -3,83 +3,77 @@
 #include "core/bitboard.h"
 #include "movegen/sliding_moves.h"
 
-void gen_all_pseudolegal_bishop_moves(CBoard* board, MoveList* moveList)
+void gen_all_pseudolegal_bishop_moves(CBoard* board, MoveList* move_list)
 {
     Color sideToMove = board->side_to_move;
-    Bitboard bishops = (sideToMove == WHITE) ? board->white_bishops_bb : board->black_bishops_bb;
-    Bitboard opponentPieces = (sideToMove == WHITE)
-        ? (board->black_pieces_bb & ~board->black_king_bb)
-        : (board->white_pieces_bb & ~board->white_king_bb);
+    Bitboard bishops = board->piece_bbs[sideToMove][BISHOP];
+    Bitboard opponentPieces = board->occupancy_bbs[1 - sideToMove] & ~(board->piece_bbs[1 - sideToMove][KING]);
     while (bishops) {
         Square from = bitboard_pop_lsb(&bishops);
-        Bitboard attacks = get_bishop_attack_bitboard(from, board->all_pieces_bb);
+        Bitboard attacks = get_bishop_attack_bitboard(from, board->occupancy_bbs[2]);
 
         Bitboard captures = attacks & opponentPieces;
         while (captures) {
             Square to = bitboard_pop_lsb(&captures);
             Move move = create_move(from, to, NORMAL, NO_PIECE);
-            moveList->moves[moveList->count++] = move;
+            move_list->moves[move_list->count++] = move;
         }
 
-        Bitboard quietMoves = attacks & ~board->all_pieces_bb;
+        Bitboard quietMoves = attacks & ~board->occupancy_bbs[2];
         while (quietMoves) {
             Square to = bitboard_pop_lsb(&quietMoves);
             Move move = create_move(from, to, NORMAL, NO_PIECE);
-            moveList->moves[moveList->count++] = move;
+            move_list->moves[move_list->count++] = move;
         }
     }
 }
 
-void gen_all_pseudolegal_rook_moves(CBoard* board, MoveList* moveList)
+void gen_all_pseudolegal_rook_moves(CBoard* board, MoveList* move_list)
 {
     Color sideToMove = board->side_to_move;
-    Bitboard rooks = (sideToMove == WHITE) ? board->white_rooks_bb : board->black_rooks_bb;
-    Bitboard opponentPieces = (sideToMove == WHITE)
-        ? (board->black_pieces_bb & ~board->black_king_bb)
-        : (board->white_pieces_bb & ~board->white_king_bb);
+    Bitboard rooks = board->piece_bbs[sideToMove][ROOK];
+    Bitboard opponentPieces = board->occupancy_bbs[1 - sideToMove] & ~(board->piece_bbs[1 - sideToMove][KING]);
     while (rooks) {
         Square from = bitboard_pop_lsb(&rooks);
-        Bitboard attacks = get_rook_attack_bitboard(from, board->all_pieces_bb);
+        Bitboard attacks = get_rook_attack_bitboard(from, board->occupancy_bbs[2]);
 
         Bitboard captures = attacks & opponentPieces;
         while (captures) {
             Square to = bitboard_pop_lsb(&captures);
             Move move = create_move(from, to, NORMAL, NO_PIECE);
-            moveList->moves[moveList->count++] = move;
+            move_list->moves[move_list->count++] = move;
         }
 
-        Bitboard quietMoves = attacks & ~board->all_pieces_bb;
+        Bitboard quietMoves = attacks & ~board->occupancy_bbs[2];
         while (quietMoves) {
             Square to = bitboard_pop_lsb(&quietMoves);
             Move move = create_move(from, to, NORMAL, NO_PIECE);
-            moveList->moves[moveList->count++] = move;
+            move_list->moves[move_list->count++] = move;
         }
     }
 }
 
-void gen_all_pseudolegal_queen_moves(CBoard* board, MoveList* moveList)
+void gen_all_pseudolegal_queen_moves(CBoard* board, MoveList* move_list)
 {
     Color sideToMove = board->side_to_move;
-    Bitboard queens = (sideToMove == WHITE) ? board->white_queens_bb : board->black_queens_bb;
-    Bitboard opponentPieces = (sideToMove == WHITE)
-        ? (board->black_pieces_bb & ~board->black_king_bb)
-        : (board->white_pieces_bb & ~board->white_king_bb);
+    Bitboard queens = board->piece_bbs[sideToMove][QUEEN];
+    Bitboard opponentPieces = board->occupancy_bbs[1 - sideToMove] & ~(board->piece_bbs[1 - sideToMove][KING]);
     while (queens) {
         Square from = bitboard_pop_lsb(&queens);
-        Bitboard attacks = get_queen_attack_bitboard(from, board->all_pieces_bb);
+        Bitboard attacks = get_queen_attack_bitboard(from, board->occupancy_bbs[2]);
 
         Bitboard captures = attacks & opponentPieces;
         while (captures) {
             Square to = bitboard_pop_lsb(&captures);
             Move move = create_move(from, to, NORMAL, NO_PIECE);
-            moveList->moves[moveList->count++] = move;
+            move_list->moves[move_list->count++] = move;
         }
 
-        Bitboard quietMoves = attacks & ~board->all_pieces_bb;
+        Bitboard quietMoves = attacks & ~board->occupancy_bbs[2];
         while (quietMoves) {
             Square to = bitboard_pop_lsb(&quietMoves);
             Move move = create_move(from, to, NORMAL, NO_PIECE);
-            moveList->moves[moveList->count++] = move;
+            move_list->moves[move_list->count++] = move;
         }
     }
 }

@@ -53,11 +53,7 @@ static bool is_promotion_capture(const CBoard* board, Move move)
     if (to == NO_SQUARE) {
         return false;
     }
-
-    if (board->side_to_move == WHITE) {
-        return bitboard_is_bit_set(board->black_pieces_bb, to);
-    }
-    return bitboard_is_bit_set(board->white_pieces_bb, to);
+    return bitboard_is_bit_set(board->occupancy_bbs[1 - board->side_to_move], to);
 }
 
 static bool is_capture_like(CBoard* board, Move move)

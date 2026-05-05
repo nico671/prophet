@@ -22,7 +22,7 @@ static UndoInfo save_undo_info(CBoard* board, PieceType captured_piecetype, Move
 static void updateGameState(CBoard* board, Square to, bool is_capture)
 {
     // Update halfmove clock
-    bool is_pawn_move = bitboard_is_bit_set(board->white_pawns_bb, to) || bitboard_is_bit_set(board->black_pawns_bb, to);
+    bool is_pawn_move = bitboard_is_bit_set(board->piece_bbs[WHITE][PAWN], to) || bitboard_is_bit_set(board->piece_bbs[BLACK][PAWN], to);
     if (is_pawn_move || is_capture) {
         board->half_move_clock = 0;
     } else {
@@ -33,7 +33,7 @@ static void updateGameState(CBoard* board, Square to, bool is_capture)
     board->ep_square = NO_SQUARE;
 
     // Switch sides
-    board->side_to_move = (board->side_to_move == WHITE) ? BLACK : WHITE;
+    board->side_to_move = 1 - board->side_to_move;
 
     // Increment fullmove after black moves
     if (board->side_to_move == WHITE) {
@@ -104,7 +104,7 @@ UndoInfo make_capture_move(CBoard* board, Move move)
     zobrist_toggle_piece(&board->zobrist_key, moving_piecetype, board->side_to_move, from);
 
     // Update zobrist: remove captured_piecetype piece from 'to' square
-    Color captured_color = (board->side_to_move == WHITE) ? BLACK : WHITE;
+    Color captured_color = 1 - board->side_to_move;
     zobrist_toggle_piece(&board->zobrist_key, captured_piecetype, captured_color, to);
 
     // Remove old EP square from hash if any
@@ -148,7 +148,7 @@ UndoInfo make_double_pawn_push_move(CBoard* board, Move move)
 
     // Calculate en passant square BEFORE switching sides
     // EP square is the square the pawn skipped over
-    Square ep_square = (board->side_to_move == WHITE) ? to - 8 : to + 8;
+    Square ep_square = to + (8 * (2 * board->side_to_move - 1)); // to + 8 for white, to - 8 for black
 
     // Update zobrist: remove pawn from 'from' square
     zobrist_toggle_piece(&board->zobrist_key, PAWN, board->side_to_move, from);
@@ -192,7 +192,7 @@ UndoInfo make_ep_capture_move(CBoard* board, Move move)
     Square to = move_get_to_square(move);
 
     // Determine the square of the captured_piecetype pawn
-    Square captured_pawn_square = (board->side_to_move == WHITE) ? to - 8 : to + 8;
+    Square captured_pawn_square = to + (8 * (2 * board->side_to_move - 1));
 
     UndoInfo undo_info = save_undo_info(board, PAWN, move);
     undo_info.previous_zobrist_key = board->zobrist_key;
@@ -201,7 +201,7 @@ UndoInfo make_ep_capture_move(CBoard* board, Move move)
     zobrist_toggle_piece(&board->zobrist_key, PAWN, board->side_to_move, from);
 
     // Update zobrist: remove captured_piecetype pawn from its square
-    Color captured_color = (board->side_to_move == WHITE) ? BLACK : WHITE;
+    Color captured_color = 1 - board->side_to_move;
     zobrist_toggle_piece(&board->zobrist_key, PAWN, captured_color, captured_pawn_square);
 
     // Remove old EP square from hash
@@ -245,9 +245,9 @@ UndoInfo make_promotion_move(CBoard* board, Move move)
     // Determine if it's a promotion capture
     bool is_promotion_capture;
     if (board->side_to_move == WHITE) {
-        is_promotion_capture = bitboard_is_bit_set(board->black_pieces_bb, to);
+        is_promotion_capture = bitboard_is_bit_set(board->occupancy_bbs[BLACK], to);
     } else {
-        is_promotion_capture = bitboard_is_bit_set(board->white_pieces_bb, to);
+        is_promotion_capture = bitboard_is_bit_set(board->occupancy_bbs[WHITE], to);
     }
 
     // If capture, remove the captured_piecetype piece first and save its type
@@ -255,7 +255,7 @@ UndoInfo make_promotion_move(CBoard* board, Move move)
     if (is_promotion_capture) {
         captured_piecetype = cboard_remove_captured_piece(board, to, board->side_to_move);
         // Update occupancies for capture
-        Color captured_color = (board->side_to_move == WHITE) ? BLACK : WHITE;
+        Color captured_color = 1 - board->side_to_move;
         cboard_update_occupancies_for_capture(board, to, captured_color);
     }
 
@@ -271,7 +271,7 @@ UndoInfo make_promotion_move(CBoard* board, Move move)
 
     // Update zobrist: if capture, remove captured_piecetype piece from 'to' square
     if (is_promotion_capture && captured_piecetype != NO_PIECE) {
-        Color captured_color = (board->side_to_move == WHITE) ? BLACK : WHITE;
+        Color captured_color = 1 - board->side_to_move;
         zobrist_toggle_piece(&board->zobrist_key, captured_piecetype, captured_color, to);
     }
 
@@ -421,7 +421,7 @@ UndoInfo make_move(CBoard* board, Move move)
         }
     } else if (move_is_enpassant(move)) {
         // since ep flag is set if en passant is possible, we need to verify that the move is actually an en passant capture (should not happen if move generation is correct)
-        Square captured_pawn_square = (board->side_to_move == WHITE) ? to - 8 : to + 8;
+        Square captured_pawn_square = to + (8 * (2 * board->side_to_move - 1)); // to - 8 for white, to + 8 for black
         if (cboard_get_piece_at_square(board, to) != NO_PIECE || cboard_get_piece_at_square(board, captured_pawn_square) != PAWN) {
             // Invalid en passant move, treat as quiet move (should not happen if move generation is correct)
             return make_quiet_move(board, move);
@@ -433,11 +433,11 @@ UndoInfo make_move(CBoard* board, Move move)
     {
         // check for captures
         if (board->side_to_move == WHITE) {
-            if (bitboard_is_bit_set(board->black_pieces_bb, to)) {
+            if (bitboard_is_bit_set(board->occupancy_bbs[BLACK], to)) {
                 return make_capture_move(board, move);
             }
         } else {
-            if (bitboard_is_bit_set(board->white_pieces_bb, to)) {
+            if (bitboard_is_bit_set(board->occupancy_bbs[WHITE], to)) {
                 return make_capture_move(board, move);
             }
         }
@@ -494,7 +494,7 @@ void unmake_move(CBoard* board, Move move, UndoInfo undo_info)
     Square to = move_get_to_square(move);
 
     // Switch side back first (before any checks that depend on sideToMove)
-    board->side_to_move = (board->side_to_move == WHITE) ? BLACK : WHITE;
+    board->side_to_move = 1 - board->side_to_move;
 
     // Restore game state
     board->ep_square = undo_info.previous_ep_square;
@@ -521,18 +521,18 @@ void unmake_move(CBoard* board, Move move, UndoInfo undo_info)
 
         // If promotion capture, restore captured_piecetype piece
         if (is_promotion_capture && undo_info.captured_piecetype != NO_PIECE) {
-            Color opponentColor = (board->side_to_move == WHITE) ? BLACK : WHITE;
-            add_piece_to_cboard(board, to, opponentColor, undo_info.captured_piecetype);
-            if (opponentColor == WHITE)
-                bitboard_set_square_bit(&board->white_pieces_bb, to);
+            Color opponent_color = 1 - board->side_to_move;
+            add_piece_to_cboard(board, to, opponent_color, undo_info.captured_piecetype);
+            if (opponent_color == WHITE)
+                bitboard_set_square_bit(&board->occupancy_bbs[WHITE], to);
             else
-                bitboard_set_square_bit(&board->black_pieces_bb, to);
-            bitboard_set_square_bit(&board->all_pieces_bb, to);
+                bitboard_set_square_bit(&board->occupancy_bbs[BLACK], to);
+            bitboard_set_square_bit(&board->occupancy_bbs[2], to);
         }
     } else if (move_is_enpassant(move)) {
         if (undo_info.captured_piecetype != PAWN) {
             // Invalid undo info for en passant, treat as quiet unmake (should not happen if move generation is correct
-            printf("Warning: Invalid undo info for en passant unmake, treating as quiet unmake\n");
+            // printf("Warning: Invalid undo info for en passant unmake, treating as quiet unmake\n");
             // Move piece back from destination to source
             move_piece_on_cboard(board, to, from, board->side_to_move);
             cboard_update_occupancies_for_move(board, to, from, board->side_to_move);
@@ -543,14 +543,15 @@ void unmake_move(CBoard* board, Move move, UndoInfo undo_info)
         move_piece_on_cboard(board, to, from, board->side_to_move);
         cboard_update_occupancies_for_move(board, to, from, board->side_to_move);
         // Restore captured_piecetype pawn
-        Square captured_pawn_square = (board->side_to_move == WHITE) ? to - 8 : to + 8;
-        Color opponentColor = (board->side_to_move == WHITE) ? BLACK : WHITE;
-        add_piece_to_cboard(board, captured_pawn_square, opponentColor, PAWN);
-        if (opponentColor == WHITE)
-            bitboard_set_square_bit(&board->white_pieces_bb, captured_pawn_square);
+        Square captured_pawn_square = to + (8 * (2 * board->side_to_move - 1));
+
+        Color opponent_color = 1 - board->side_to_move;
+        add_piece_to_cboard(board, captured_pawn_square, opponent_color, PAWN);
+        if (opponent_color == WHITE)
+            bitboard_set_square_bit(&board->occupancy_bbs[WHITE], captured_pawn_square);
         else
-            bitboard_set_square_bit(&board->black_pieces_bb, captured_pawn_square);
-        bitboard_set_square_bit(&board->all_pieces_bb, captured_pawn_square);
+            bitboard_set_square_bit(&board->occupancy_bbs[BLACK], captured_pawn_square);
+        bitboard_set_square_bit(&board->occupancy_bbs[2], captured_pawn_square);
     } else {
         // Unmake regular move (quiet, capture, double pawn push)
         // Move piece back from destination to source
@@ -559,13 +560,13 @@ void unmake_move(CBoard* board, Move move, UndoInfo undo_info)
 
         // If it was a capture, restore the captured_piecetype piece
         if (undo_info.captured_square != NO_SQUARE && undo_info.captured_piecetype != NO_PIECE) {
-            Color opponentColor = (board->side_to_move == WHITE) ? BLACK : WHITE;
-            add_piece_to_cboard(board, to, opponentColor, undo_info.captured_piecetype);
-            if (opponentColor == WHITE)
-                bitboard_set_square_bit(&board->white_pieces_bb, to);
+            Color opponent_color = 1 - board->side_to_move;
+            add_piece_to_cboard(board, to, opponent_color, undo_info.captured_piecetype);
+            if (opponent_color == WHITE)
+                bitboard_set_square_bit(&board->occupancy_bbs[WHITE], to);
             else
-                bitboard_set_square_bit(&board->black_pieces_bb, to);
-            bitboard_set_square_bit(&board->all_pieces_bb, to);
+                bitboard_set_square_bit(&board->occupancy_bbs[BLACK], to);
+            bitboard_set_square_bit(&board->occupancy_bbs[2], to);
         }
     }
 }

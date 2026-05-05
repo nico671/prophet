@@ -20,29 +20,29 @@ void print_cboard(CBoard* board)
             int square_idx = rank * 8 + file; // Fixed calculation
             char piece_char = '.';
             Bitboard square_mask_bb = bitboard_square_mask(square_idx);
-            if (board->white_pawns_bb & square_mask_bb)
+            if (board->piece_bbs[WHITE][PAWN] & square_mask_bb)
                 piece_char = 'P';
-            else if (board->white_knights_bb & square_mask_bb)
+            else if (board->piece_bbs[WHITE][KNIGHT] & square_mask_bb)
                 piece_char = 'N';
-            else if (board->white_bishops_bb & square_mask_bb)
+            else if (board->piece_bbs[WHITE][BISHOP] & square_mask_bb)
                 piece_char = 'B';
-            else if (board->white_rooks_bb & square_mask_bb)
+            else if (board->piece_bbs[WHITE][ROOK] & square_mask_bb)
                 piece_char = 'R';
-            else if (board->white_queens_bb & square_mask_bb)
+            else if (board->piece_bbs[WHITE][QUEEN] & square_mask_bb)
                 piece_char = 'Q';
-            else if (board->white_king_bb & square_mask_bb)
+            else if (board->piece_bbs[WHITE][KING] & square_mask_bb)
                 piece_char = 'K';
-            else if (board->black_pawns_bb & square_mask_bb)
+            else if (board->piece_bbs[BLACK][PAWN] & square_mask_bb)
                 piece_char = 'p';
-            else if (board->black_knights_bb & square_mask_bb)
+            else if (board->piece_bbs[BLACK][KNIGHT] & square_mask_bb)
                 piece_char = 'n';
-            else if (board->black_bishops_bb & square_mask_bb)
+            else if (board->piece_bbs[BLACK][BISHOP] & square_mask_bb)
                 piece_char = 'b';
-            else if (board->black_rooks_bb & square_mask_bb)
+            else if (board->piece_bbs[BLACK][ROOK] & square_mask_bb)
                 piece_char = 'r';
-            else if (board->black_queens_bb & square_mask_bb)
+            else if (board->piece_bbs[BLACK][QUEEN] & square_mask_bb)
                 piece_char = 'q';
-            else if (board->black_king_bb & square_mask_bb)
+            else if (board->piece_bbs[BLACK][KING] & square_mask_bb)
                 piece_char = 'k';
             printf("%c ", piece_char);
         }
@@ -96,63 +96,63 @@ bool fen_string_to_cboard(const char* fen_string, CBoard* board)
         Bitboard square_mask_bb = bitboard_square_mask(square_idx);
         switch (ch) {
         case 'P':
-            board->white_pawns_bb |= square_mask_bb;
-            board->white_pieces_bb |= square_mask_bb;
+            board->piece_bbs[WHITE][PAWN] |= square_mask_bb;
+            board->occupancy_bbs[WHITE] |= square_mask_bb;
             board->piece_at_square[square_idx] = PAWN;
             break;
         case 'N':
-            board->white_knights_bb |= square_mask_bb;
-            board->white_pieces_bb |= square_mask_bb;
+            board->piece_bbs[WHITE][KNIGHT] |= square_mask_bb;
+            board->occupancy_bbs[WHITE] |= square_mask_bb;
             board->piece_at_square[square_idx] = KNIGHT;
             break;
         case 'B':
-            board->white_bishops_bb |= square_mask_bb;
-            board->white_pieces_bb |= square_mask_bb;
+            board->piece_bbs[WHITE][BISHOP] |= square_mask_bb;
+            board->occupancy_bbs[WHITE] |= square_mask_bb;
             board->piece_at_square[square_idx] = BISHOP;
             break;
         case 'R':
-            board->white_rooks_bb |= square_mask_bb;
-            board->white_pieces_bb |= square_mask_bb;
+            board->piece_bbs[WHITE][ROOK] |= square_mask_bb;
+            board->occupancy_bbs[WHITE] |= square_mask_bb;
             board->piece_at_square[square_idx] = ROOK;
             break;
         case 'Q':
-            board->white_queens_bb |= square_mask_bb;
-            board->white_pieces_bb |= square_mask_bb;
+            board->piece_bbs[WHITE][QUEEN] |= square_mask_bb;
+            board->occupancy_bbs[WHITE] |= square_mask_bb;
             board->piece_at_square[square_idx] = QUEEN;
             break;
         case 'K':
-            board->white_king_bb |= square_mask_bb;
-            board->white_pieces_bb |= square_mask_bb;
+            board->piece_bbs[WHITE][KING] |= square_mask_bb;
+            board->occupancy_bbs[WHITE] |= square_mask_bb;
             board->piece_at_square[square_idx] = KING;
             break;
         case 'p':
-            board->black_pawns_bb |= square_mask_bb;
-            board->black_pieces_bb |= square_mask_bb;
+            board->piece_bbs[BLACK][PAWN] |= square_mask_bb;
+            board->occupancy_bbs[BLACK] |= square_mask_bb;
             board->piece_at_square[square_idx] = PAWN;
             break;
         case 'n':
-            board->black_knights_bb |= square_mask_bb;
-            board->black_pieces_bb |= square_mask_bb;
+            board->piece_bbs[BLACK][KNIGHT] |= square_mask_bb;
+            board->occupancy_bbs[BLACK] |= square_mask_bb;
             board->piece_at_square[square_idx] = KNIGHT;
             break;
         case 'b':
-            board->black_bishops_bb |= square_mask_bb;
-            board->black_pieces_bb |= square_mask_bb;
+            board->piece_bbs[BLACK][BISHOP] |= square_mask_bb;
+            board->occupancy_bbs[BLACK] |= square_mask_bb;
             board->piece_at_square[square_idx] = BISHOP;
             break;
         case 'r':
-            board->black_rooks_bb |= square_mask_bb;
-            board->black_pieces_bb |= square_mask_bb;
+            board->piece_bbs[BLACK][ROOK] |= square_mask_bb;
+            board->occupancy_bbs[BLACK] |= square_mask_bb;
             board->piece_at_square[square_idx] = ROOK;
             break;
         case 'q':
-            board->black_queens_bb |= square_mask_bb;
-            board->black_pieces_bb |= square_mask_bb;
+            board->piece_bbs[BLACK][QUEEN] |= square_mask_bb;
+            board->occupancy_bbs[BLACK] |= square_mask_bb;
             board->piece_at_square[square_idx] = QUEEN;
             break;
         case 'k':
-            board->black_king_bb |= square_mask_bb;
-            board->black_pieces_bb |= square_mask_bb;
+            board->piece_bbs[BLACK][KING] |= square_mask_bb;
+            board->occupancy_bbs[BLACK] |= square_mask_bb;
             board->piece_at_square[square_idx] = KING;
             break;
         default:
@@ -168,7 +168,7 @@ bool fen_string_to_cboard(const char* fen_string, CBoard* board)
         return false;
     }
 
-    board->all_pieces_bb = board->white_pieces_bb | board->black_pieces_bb;
+    board->occupancy_bbs[2] = board->occupancy_bbs[WHITE] | board->occupancy_bbs[BLACK];
 
     // now parse remaining fields safely using strtok-like navigation
     const char* p = strchr(fen_string, ' ');
@@ -245,11 +245,11 @@ bool fen_string_to_cboard(const char* fen_string, CBoard* board)
         }
     }
     // ensure exactly one white king and one black king on board
-    if (bitboard_popcount(board->white_king_bb) != 1 || bitboard_popcount(board->black_king_bb) != 1) {
+    if (bitboard_popcount(board->piece_bbs[WHITE][KING]) != 1 || bitboard_popcount(board->piece_bbs[BLACK][KING]) != 1) {
         return false; // Invalid number of kings
     }
     // ensure no pawns on first or last rank
-    if ((board->white_pawns_bb & (RANK_1 | RANK_8)) || (board->black_pawns_bb & (RANK_1 | RANK_8))) {
+    if ((board->piece_bbs[WHITE][PAWN] & (RANK_1 | RANK_8)) || (board->piece_bbs[BLACK][PAWN] & (RANK_1 | RANK_8))) {
         return false; // Pawns cannot be on first or last rank
     }
 
@@ -268,29 +268,29 @@ char* cboard_to_fen(CBoard* board)
             int square_idx = rank * 8 + file;
             Bitboard square_mask_bb = bitboard_square_mask(square_idx);
             char piece_char = '\0';
-            if (board->white_pawns_bb & square_mask_bb)
+            if (board->piece_bbs[WHITE][PAWN] & square_mask_bb)
                 piece_char = 'P';
-            else if (board->white_knights_bb & square_mask_bb)
+            else if (board->piece_bbs[WHITE][KNIGHT] & square_mask_bb)
                 piece_char = 'N';
-            else if (board->white_bishops_bb & square_mask_bb)
+            else if (board->piece_bbs[WHITE][BISHOP] & square_mask_bb)
                 piece_char = 'B';
-            else if (board->white_rooks_bb & square_mask_bb)
+            else if (board->piece_bbs[WHITE][ROOK] & square_mask_bb)
                 piece_char = 'R';
-            else if (board->white_queens_bb & square_mask_bb)
+            else if (board->piece_bbs[WHITE][QUEEN] & square_mask_bb)
                 piece_char = 'Q';
-            else if (board->white_king_bb & square_mask_bb)
+            else if (board->piece_bbs[WHITE][KING] & square_mask_bb)
                 piece_char = 'K';
-            else if (board->black_pawns_bb & square_mask_bb)
+            else if (board->piece_bbs[BLACK][PAWN] & square_mask_bb)
                 piece_char = 'p';
-            else if (board->black_knights_bb & square_mask_bb)
+            else if (board->piece_bbs[BLACK][KNIGHT] & square_mask_bb)
                 piece_char = 'n';
-            else if (board->black_bishops_bb & square_mask_bb)
+            else if (board->piece_bbs[BLACK][BISHOP] & square_mask_bb)
                 piece_char = 'b';
-            else if (board->black_rooks_bb & square_mask_bb)
+            else if (board->piece_bbs[BLACK][ROOK] & square_mask_bb)
                 piece_char = 'r';
-            else if (board->black_queens_bb & square_mask_bb)
+            else if (board->piece_bbs[BLACK][QUEEN] & square_mask_bb)
                 piece_char = 'q';
-            else if (board->black_king_bb & square_mask_bb)
+            else if (board->piece_bbs[BLACK][KING] & square_mask_bb)
                 piece_char = 'k';
 
             if (piece_char) {
@@ -364,7 +364,7 @@ PieceType cboard_get_piece_at_square(const CBoard* board, Square square)
     }
 
     // Mailbox-backed lookup with occupancy validation.
-    if (!bitboard_is_bit_set(board->all_pieces_bb, square)) {
+    if (!bitboard_is_bit_set(board->occupancy_bbs[2], square)) {
         return NO_PIECE;
     }
 
@@ -376,34 +376,34 @@ Bitboard* cboard_get_piece_bitboard(CBoard* board, Color color, PieceType piece)
     if (color == WHITE) {
         switch (piece) {
         case PAWN:
-            return &board->white_pawns_bb;
+            return &board->piece_bbs[WHITE][PAWN];
         case KNIGHT:
-            return &board->white_knights_bb;
+            return &board->piece_bbs[WHITE][KNIGHT];
         case BISHOP:
-            return &board->white_bishops_bb;
+            return &board->piece_bbs[WHITE][BISHOP];
         case ROOK:
-            return &board->white_rooks_bb;
+            return &board->piece_bbs[WHITE][ROOK];
         case QUEEN:
-            return &board->white_queens_bb;
+            return &board->piece_bbs[WHITE][QUEEN];
         case KING:
-            return &board->white_king_bb;
+            return &board->piece_bbs[WHITE][KING];
         default:
             return NULL;
         }
     } else {
         switch (piece) {
         case PAWN:
-            return &board->black_pawns_bb;
+            return &board->piece_bbs[BLACK][PAWN];
         case KNIGHT:
-            return &board->black_knights_bb;
+            return &board->piece_bbs[BLACK][KNIGHT];
         case BISHOP:
-            return &board->black_bishops_bb;
+            return &board->piece_bbs[BLACK][BISHOP];
         case ROOK:
-            return &board->black_rooks_bb;
+            return &board->piece_bbs[BLACK][ROOK];
         case QUEEN:
-            return &board->black_queens_bb;
+            return &board->piece_bbs[BLACK][QUEEN];
         case KING:
-            return &board->black_king_bb;
+            return &board->piece_bbs[BLACK][KING];
         default:
             return NULL;
         }
@@ -458,25 +458,16 @@ PieceType cboard_remove_captured_piece(CBoard* board, Square square, Color captu
 
 void cboard_update_occupancies_for_move(CBoard* board, Square from, Square to, Color color)
 {
-    if (color == WHITE) {
-        bitboard_clear_square_bit(&board->white_pieces_bb, from);
-        bitboard_set_square_bit(&board->white_pieces_bb, to);
-    } else {
-        bitboard_clear_square_bit(&board->black_pieces_bb, from);
-        bitboard_set_square_bit(&board->black_pieces_bb, to);
-    }
-    bitboard_clear_square_bit(&board->all_pieces_bb, from);
-    bitboard_set_square_bit(&board->all_pieces_bb, to);
+    bitboard_clear_square_bit(&board->occupancy_bbs[color], from);
+    bitboard_set_square_bit(&board->occupancy_bbs[color], to);
+    bitboard_clear_square_bit(&board->occupancy_bbs[2], from);
+    bitboard_set_square_bit(&board->occupancy_bbs[2], to);
 }
 
 void cboard_update_occupancies_for_capture(CBoard* board, Square square, Color captured_color)
 {
-    if (captured_color == WHITE) {
-        bitboard_clear_square_bit(&board->white_pieces_bb, square);
-    } else {
-        bitboard_clear_square_bit(&board->black_pieces_bb, square);
-    }
-    bitboard_clear_square_bit(&board->all_pieces_bb, square);
+    bitboard_clear_square_bit(&board->occupancy_bbs[captured_color], square);
+    bitboard_clear_square_bit(&board->occupancy_bbs[2], square);
 }
 
 void cboard_update_occupancies_for_promotion(CBoard* board, Square from, Square to, Color color)
@@ -487,30 +478,23 @@ void cboard_update_occupancies_for_promotion(CBoard* board, Square from, Square 
 void cboard_update_occupancies_for_castling(CBoard* board, Square king_from, Square king_to,
     Square rook_from, Square rook_to, Color color)
 {
-    if (color == WHITE) {
-        bitboard_clear_square_bit(&board->white_pieces_bb, king_from);
-        bitboard_clear_square_bit(&board->white_pieces_bb, rook_from);
-        bitboard_set_square_bit(&board->white_pieces_bb, king_to);
-        bitboard_set_square_bit(&board->white_pieces_bb, rook_to);
-    } else {
-        bitboard_clear_square_bit(&board->black_pieces_bb, king_from);
-        bitboard_clear_square_bit(&board->black_pieces_bb, rook_from);
-        bitboard_set_square_bit(&board->black_pieces_bb, king_to);
-        bitboard_set_square_bit(&board->black_pieces_bb, rook_to);
-    }
-    bitboard_clear_square_bit(&board->all_pieces_bb, king_from);
-    bitboard_clear_square_bit(&board->all_pieces_bb, rook_from);
-    bitboard_set_square_bit(&board->all_pieces_bb, king_to);
-    bitboard_set_square_bit(&board->all_pieces_bb, rook_to);
+    bitboard_clear_square_bit(&board->occupancy_bbs[color], king_from);
+    bitboard_clear_square_bit(&board->occupancy_bbs[color], rook_from);
+    bitboard_set_square_bit(&board->occupancy_bbs[color], king_to);
+    bitboard_set_square_bit(&board->occupancy_bbs[color], rook_to);
+    bitboard_clear_square_bit(&board->occupancy_bbs[2], king_from);
+    bitboard_clear_square_bit(&board->occupancy_bbs[2], rook_from);
+    bitboard_set_square_bit(&board->occupancy_bbs[2], king_to);
+    bitboard_set_square_bit(&board->occupancy_bbs[2], rook_to);
 }
 
 void cboard_update_castling_rights(CBoard* board, Square from, Square to)
 {
     // If king moved, lose all castling
-    if (bitboard_is_bit_set(board->white_king_bb, to)) {
+    if (bitboard_is_bit_set(board->piece_bbs[WHITE][KING], to)) {
         CLEAR_BIT(board->castling_rights, 3);
         CLEAR_BIT(board->castling_rights, 2);
-    } else if (bitboard_is_bit_set(board->black_king_bb, to)) {
+    } else if (bitboard_is_bit_set(board->piece_bbs[BLACK][KING], to)) {
         CLEAR_BIT(board->castling_rights, 1);
         CLEAR_BIT(board->castling_rights, 0);
     }

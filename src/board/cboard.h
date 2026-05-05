@@ -31,24 +31,26 @@
  */
 typedef struct CBoard {
     // --- Piece Placements ---
-    Bitboard white_pawns_bb; /**< Bitboard: White pawns */
-    Bitboard white_knights_bb; /**< Bitboard: White knights */
-    Bitboard white_bishops_bb; /**< Bitboard: White bishops */
-    Bitboard white_rooks_bb; /**< Bitboard: White rooks */
-    Bitboard white_queens_bb; /**< Bitboard: White queens */
-    Bitboard white_king_bb; /**< Bitboard: White king */
+    // Bitboard white_pawns_bb; /**< Bitboard: White pawns */
+    // Bitboard white_knights_bb; /**< Bitboard: White knights */
+    // Bitboard white_bishops_bb; /**< Bitboard: White bishops */
+    // Bitboard white_rooks_bb; /**< Bitboard: White rooks */
+    // Bitboard white_queens_bb; /**< Bitboard: White queens */
+    // Bitboard white_king_bb; /**< Bitboard: White king */
 
-    Bitboard black_pawns_bb; /**< Bitboard: Black pawns */
-    Bitboard black_knights_bb; /**< Bitboard: Black knights */
-    Bitboard black_bishops_bb; /**< Bitboard: Black bishops */
-    Bitboard black_rooks_bb; /**< Bitboard: Black rooks */
-    Bitboard black_queens_bb; /**< Bitboard: Black queens */
-    Bitboard black_king_bb; /**< Bitboard: Black king */
+    // Bitboard black_pawns_bb; /**< Bitboard: Black pawns */
+    // Bitboard black_knights_bb; /**< Bitboard: Black knights */
+    // Bitboard black_bishops_bb; /**< Bitboard: Black bishops */
+    // Bitboard black_rooks_bb; /**< Bitboard: Black rooks */
+    // Bitboard black_queens_bb; /**< Bitboard: Black queens */
+    // Bitboard black_king_bb; /**< Bitboard: Black king */
+    Bitboard piece_bbs[2][7]; /**< 2D array of bitboards indexed by color and piece type for compact storage. Uses [2][7] because NO_PIECE = 0, and would rather waste 16 bytes of memory than have to do - 1 operation required for [2][6]  */
 
     // --- Occupancy Cache ---
-    Bitboard white_pieces_bb; /**< Combined bitboard of all white pieces */
-    Bitboard black_pieces_bb; /**< Combined bitboard of all black pieces */
-    Bitboard all_pieces_bb; /**< Combined bitboard of every piece on board */
+    // Bitboard white_pieces_bb; /**< Combined bitboard of all white pieces */
+    // Bitboard black_pieces_bb; /**< Combined bitboard of all black pieces */
+    // Bitboard all_pieces_bb; /**< Combined bitboard of every piece on board */
+    Bitboard occupancy_bbs[3]; /**< Array of occupancy bitboards indexed by color then 2 = all */
 
     PieceType piece_at_square[64]; /**< Array mapping each square index to the piece type occupying it, or NONE if empty */
 
