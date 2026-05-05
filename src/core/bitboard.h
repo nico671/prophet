@@ -31,23 +31,35 @@ static inline int bitboard_popcount(Bitboard bb)
  * @param bb The bitboard to analyze.
  * @return int The index of the least significant 1 bit.
  */
-static inline int bitboard_lsb_index(Bitboard bb)
+static inline int bitboard_lsb_index_unsafe(Bitboard bb)
 {
     return __builtin_ctzll(bb);
+}
+
+/**
+ * @brief Returns the index (0-63) of the least significant 1 bit in a bitboard.
+ * @note  This function is safe to use even if the bitboard is empty.
+ *
+ * @param bb The bitboard to analyze.
+ * @return int The index of the least significant 1 bit, or NO_SQUARE if the bitboard is empty.
+ */
+static inline int bitboard_lsb_index_safe(Bitboard bb)
+{
+    return bb ? __builtin_ctzll(bb) : NO_SQUARE;
 }
 
 /**
  * @brief Pops and returns the index (0-63) of the least significant 1 bit in a bitboard.
  *        The bitboard is modified in place by clearing the least significant 1 bit.
  *
+ * @note This function does not check if the bitboard is empty before popping. It should only be used when the caller is certain that the bitboard contains at least one piece, as calling it on an empty bitboard will result in undefined behavior.
+ *
  * @param bb The bitboard to pop from.
  * @return int The index of the least significant 1 bit, or NO_SQUARE if the bitboard is empty.
  */
-static inline int bitboard_pop_lsb(Bitboard* bb)
+static inline int bitboard_pop_lsb_unsafe(Bitboard* bb)
 {
-    if (bitboard_is_empty(*bb))
-        return NO_SQUARE;
-    int idx = __builtin_ctzll(*bb); // count trailing zeros, built-in function
+    int idx = __builtin_ctzll(*bb);
     *bb &= *bb - 1;
     return idx;
 }

@@ -339,7 +339,7 @@ static int extract_mask_bit_positions(Bitboard mask, int* positions, int max_pos
             assert(count < max_positions);
             break;
         }
-        positions[count++] = bitboard_lsb_index(mask);
+        positions[count++] = bitboard_lsb_index_unsafe(mask);
         mask &= mask - 1;
     }
     return count;
