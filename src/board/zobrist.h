@@ -46,7 +46,7 @@ void compute_zobrist_key(CBoard* board);
  */
 static inline int get_piece_index(PieceType piece, Color color)
 {
-    return piece + (color == BLACK ? 6 : 0);
+    return piece + (color * 6);
 }
 
 /**
