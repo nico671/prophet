@@ -5,7 +5,6 @@
 #include <stdint.h>
 
 #include "core/bitboard.h"
-#include "core/bitops.h"
 #include "core/chess_types.h"
 
 /**
@@ -70,6 +69,12 @@ typedef struct CBoard {
     // --- Optimization ---
     uint64_t zobrist_key; /**< Unique hash key for the current position */
 } CBoard;
+
+// Bit manipulation macros for castling rights, stored in a single uint8_t for compactness
+#define U8_BIT_MASK(pos) ((uint8_t)(1u << (uint8_t)(pos)))
+#define U8_SET_BIT(var, pos) ((var) = (uint8_t)((var) | U8_BIT_MASK(pos)))
+#define U8_CLEAR_BIT(var, pos) ((var) = (uint8_t)((var) & (uint8_t)~U8_BIT_MASK(pos)))
+#define U8_CHECK_BIT(var, pos) ((uint8_t)(((var) >> (uint8_t)(pos)) & 1u))
 
 /**
  * @brief Prints a human-readable representation of a chess board to standard output, displaying the piece layout from rank 8 to rank 1 using standard chess notation characters (uppercase for white, lowercase for black, '.' for empty squares), followed by game state information including side to move, en passant square, halfmove clock, fullmove number, castling rights, and the Zobrist hash key.
@@ -274,31 +279,31 @@ static inline void cboard_update_castling_rights(CBoard* board, Square from, Squ
 {
     // If king moved, lose all castling
     if (bitboard_is_bit_set(board->piece_bbs[WHITE][KING], to)) {
-        CLEAR_BIT(board->castling_rights, 3);
-        CLEAR_BIT(board->castling_rights, 2);
+        U8_CLEAR_BIT(board->castling_rights, 3);
+        U8_CLEAR_BIT(board->castling_rights, 2);
     } else if (bitboard_is_bit_set(board->piece_bbs[BLACK][KING], to)) {
-        CLEAR_BIT(board->castling_rights, 1);
-        CLEAR_BIT(board->castling_rights, 0);
+        U8_CLEAR_BIT(board->castling_rights, 1);
+        U8_CLEAR_BIT(board->castling_rights, 0);
     }
 
     // If rook moved from corner, lose that side's castling
     if (from == H1)
-        CLEAR_BIT(board->castling_rights, 3);
+        U8_CLEAR_BIT(board->castling_rights, 3);
     if (from == A1)
-        CLEAR_BIT(board->castling_rights, 2);
+        U8_CLEAR_BIT(board->castling_rights, 2);
     if (from == H8)
-        CLEAR_BIT(board->castling_rights, 1);
+        U8_CLEAR_BIT(board->castling_rights, 1);
     if (from == A8)
-        CLEAR_BIT(board->castling_rights, 0);
+        U8_CLEAR_BIT(board->castling_rights, 0);
 
     // If rook was captured on corner square, lose that side's castling
     if (to == H1)
-        CLEAR_BIT(board->castling_rights, 3);
+        U8_CLEAR_BIT(board->castling_rights, 3);
     if (to == A1)
-        CLEAR_BIT(board->castling_rights, 2);
+        U8_CLEAR_BIT(board->castling_rights, 2);
     if (to == H8)
-        CLEAR_BIT(board->castling_rights, 1);
+        U8_CLEAR_BIT(board->castling_rights, 1);
     if (to == A8)
-        CLEAR_BIT(board->castling_rights, 0);
+        U8_CLEAR_BIT(board->castling_rights, 0);
 }
 #endif // CBOARD_H

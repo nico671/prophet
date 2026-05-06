@@ -54,10 +54,10 @@ void print_cboard(CBoard* board)
     printf("Halfmove clock: %d\n", board->half_move_clock);
     printf("Fullmove number: %d\n", board->full_move_number);
     printf("Castling rights: %s%s%s%s\n",
-        CHECK_BIT(board->castling_rights, 3) ? "K" : "",
-        CHECK_BIT(board->castling_rights, 2) ? "Q" : "",
-        CHECK_BIT(board->castling_rights, 1) ? "k" : "",
-        CHECK_BIT(board->castling_rights, 0) ? "q" : "");
+        U8_CHECK_BIT(board->castling_rights, 3) ? "K" : "",
+        U8_CHECK_BIT(board->castling_rights, 2) ? "Q" : "",
+        U8_CHECK_BIT(board->castling_rights, 1) ? "k" : "",
+        U8_CHECK_BIT(board->castling_rights, 0) ? "q" : "");
     printf("Zobrist Key: %llu\n", board->zobrist_key);
 }
 
@@ -193,16 +193,16 @@ bool fen_string_to_cboard(const char* fen_string, CBoard* board)
         while (*p && *p != ' ') {
             switch (*p) {
             case 'K':
-                SET_BIT(board->castling_rights, 3);
+                U8_SET_BIT(board->castling_rights, 3);
                 break;
             case 'Q':
-                SET_BIT(board->castling_rights, 2);
+                U8_SET_BIT(board->castling_rights, 2);
                 break;
             case 'k':
-                SET_BIT(board->castling_rights, 1);
+                U8_SET_BIT(board->castling_rights, 1);
                 break;
             case 'q':
-                SET_BIT(board->castling_rights, 0);
+                U8_SET_BIT(board->castling_rights, 0);
                 break;
             default:
                 return false; // Invalid castling right character
@@ -319,19 +319,19 @@ char* cboard_to_fen(CBoard* board)
 
     // castling rights
     bool any = false;
-    if (CHECK_BIT(board->castling_rights, 3)) {
+    if (U8_CHECK_BIT(board->castling_rights, 3)) {
         *p++ = 'K';
         any = true;
     }
-    if (CHECK_BIT(board->castling_rights, 2)) {
+    if (U8_CHECK_BIT(board->castling_rights, 2)) {
         *p++ = 'Q';
         any = true;
     }
-    if (CHECK_BIT(board->castling_rights, 1)) {
+    if (U8_CHECK_BIT(board->castling_rights, 1)) {
         *p++ = 'k';
         any = true;
     }
-    if (CHECK_BIT(board->castling_rights, 0)) {
+    if (U8_CHECK_BIT(board->castling_rights, 0)) {
         *p++ = 'q';
         any = true;
     }

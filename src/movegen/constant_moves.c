@@ -38,14 +38,14 @@ void gen_all_pseudolegal_king_castling_moves(CBoard* board, MoveList* move_list)
             return;
         }
 
-        if (CHECK_BIT(board->castling_rights, 3)) {
+        if (U8_CHECK_BIT(board->castling_rights, 3)) {
             if ((bitboard_lsb_index_unsafe(board->piece_bbs[WHITE][KING]) == E1) && (bitboard_is_bit_set(board->piece_bbs[WHITE][ROOK], H1)) && !(bitboard_is_bit_set(board->occupancy_bbs[2], F1)) && !(bitboard_is_bit_set(board->occupancy_bbs[2], G1))) {
 
                 Move move = create_move(E1, G1, CASTLE, NO_PIECE);
                 move_list->moves[move_list->count++] = move;
             }
         }
-        if (CHECK_BIT(board->castling_rights, 2)) {
+        if (U8_CHECK_BIT(board->castling_rights, 2)) {
             if ((bitboard_lsb_index_unsafe(board->piece_bbs[WHITE][KING]) == E1) && (bitboard_is_bit_set(board->piece_bbs[WHITE][ROOK], A1)) && !(bitboard_is_bit_set(board->occupancy_bbs[2], D1)) && !(bitboard_is_bit_set(board->occupancy_bbs[2], C1)) && !(bitboard_is_bit_set(board->occupancy_bbs[2], B1))) {
 
                 Move move = create_move(E1, C1, CASTLE, NO_PIECE);
@@ -59,14 +59,14 @@ void gen_all_pseudolegal_king_castling_moves(CBoard* board, MoveList* move_list)
             return;
         }
 
-        if (CHECK_BIT(board->castling_rights, 1)) {
+        if (U8_CHECK_BIT(board->castling_rights, 1)) {
             if ((bitboard_lsb_index_unsafe(board->piece_bbs[BLACK][KING]) == E8) && (bitboard_is_bit_set(board->piece_bbs[BLACK][ROOK], H8)) && !(bitboard_is_bit_set(board->occupancy_bbs[2], F8)) && !(bitboard_is_bit_set(board->occupancy_bbs[2], G8))) {
 
                 Move move = create_move(E8, G8, CASTLE, NO_PIECE);
                 move_list->moves[move_list->count++] = move;
             }
         }
-        if (CHECK_BIT(board->castling_rights, 0)) {
+        if (U8_CHECK_BIT(board->castling_rights, 0)) {
             if ((bitboard_lsb_index_unsafe(board->piece_bbs[BLACK][KING]) == E8) && (bitboard_is_bit_set(board->piece_bbs[BLACK][ROOK], A8)) && !(bitboard_is_bit_set(board->occupancy_bbs[2], D8)) && !(bitboard_is_bit_set(board->occupancy_bbs[2], C8)) && !(bitboard_is_bit_set(board->occupancy_bbs[2], B8))) {
 
                 Move move = create_move(E8, C8, CASTLE, NO_PIECE);

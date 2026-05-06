@@ -379,11 +379,11 @@ UndoInfo make_castling_move(CBoard* board, Move move)
     }
     // Update castling rights (castling removes all rights for this color)
     if (board->side_to_move == WHITE) {
-        CLEAR_BIT(board->castling_rights, 3);
-        CLEAR_BIT(board->castling_rights, 2);
+        U8_CLEAR_BIT(board->castling_rights, 3);
+        U8_CLEAR_BIT(board->castling_rights, 2);
     } else {
-        CLEAR_BIT(board->castling_rights, 1);
-        CLEAR_BIT(board->castling_rights, 0);
+        U8_CLEAR_BIT(board->castling_rights, 1);
+        U8_CLEAR_BIT(board->castling_rights, 0);
     }
 
     // Update zobrist for castling rights change
