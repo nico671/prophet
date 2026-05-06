@@ -16,11 +16,9 @@
  *
  * Field groups:
  *
- * - White piece bitboards: white_pawns_bb, white_knights_bb, white_bishops_bb, white_rooks_bb, white_queens_bb, white_king_bb
+ * - Piece placements: piece_bbs[2][7] indexed by color and piece type for compact storage
  *
- * - Black piece bitboards: black_pawns_bb, black_knights_bb, black_bishops_bb, black_rooks_bb, black_queens_bb, black_king_bb
- *
- * - Occupancies: white_pieces_bb, black_pieces_bb, all_pieces_bb
+ * - Occupancies: occupancy_bbs[3] indexed by color then 2 = all, for quick access to occupancy bitboards without needing to OR piece bitboards together
  *
  * - Square piece mapping: piece_at_square[64] for O(1) piece type retrieval at any square without bitboard checks
  *
@@ -29,28 +27,13 @@
  * - Hash: zobrist_key
  */
 typedef struct CBoard {
-    // --- Piece Placements ---
-    // Bitboard white_pawns_bb; /**< Bitboard: White pawns */
-    // Bitboard white_knights_bb; /**< Bitboard: White knights */
-    // Bitboard white_bishops_bb; /**< Bitboard: White bishops */
-    // Bitboard white_rooks_bb; /**< Bitboard: White rooks */
-    // Bitboard white_queens_bb; /**< Bitboard: White queens */
-    // Bitboard white_king_bb; /**< Bitboard: White king */
-
-    // Bitboard black_pawns_bb; /**< Bitboard: Black pawns */
-    // Bitboard black_knights_bb; /**< Bitboard: Black knights */
-    // Bitboard black_bishops_bb; /**< Bitboard: Black bishops */
-    // Bitboard black_rooks_bb; /**< Bitboard: Black rooks */
-    // Bitboard black_queens_bb; /**< Bitboard: Black queens */
-    // Bitboard black_king_bb; /**< Bitboard: Black king */
+    // --- Piece Placement ---
     Bitboard piece_bbs[2][7]; /**< 2D array of bitboards indexed by color and piece type for compact storage. Uses [2][7] because NO_PIECE = 0, and would rather waste 16 bytes of memory than have to do - 1 operation required for [2][6]  */
 
     // --- Occupancy Cache ---
-    // Bitboard white_pieces_bb; /**< Combined bitboard of all white pieces */
-    // Bitboard black_pieces_bb; /**< Combined bitboard of all black pieces */
-    // Bitboard all_pieces_bb; /**< Combined bitboard of every piece on board */
     Bitboard occupancy_bbs[3]; /**< Array of occupancy bitboards indexed by color then 2 = all */
 
+    // --- Square Piece Mapping ---
     PieceType piece_at_square[64]; /**< Array mapping each square index to the piece type occupying it, or NONE if empty */
 
     // --- Game State Metadata ---
