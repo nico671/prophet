@@ -47,19 +47,12 @@ prophet/
 └── README.md
 ```
 
-## Technical note: tapered evaluation
+## Rough Roadmap
 
-The interpolation form is:
-
-$$
-\mathrm{Score} = \frac{\mathrm{MG} \times \mathrm{Phase} + \mathrm{EG} \times (24 - \mathrm{Phase})}{24}
-$$
-
-## Near-term focus
-
-- Strength/tuning work in search and move ordering
-- Evaluation improvements (mobility, pawn/king structure, etc.)
-- UCI robustness and testing coverage
+- [ ] Benchmarking speed of search
+- [ ] NNUE Training (seperate repo, not yet public)
+- [ ] ELO estimation via self-play
+- [ ] Connection to Lichess API for online play and testing
 
 ## Credits
 

@@ -43,6 +43,7 @@ static Square algebraic_notation_to_square(const char* algebraic_square_str)
     return (Square)(rank_idx * 8 + file_idx);
 }
 
+// Engine state (owned and managed by the engine module).
 static EngineState engine_state = { 0 };
 
 void engine_init(void)

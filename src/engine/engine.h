@@ -7,10 +7,18 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-// Global, thread-safe flags to interrupt the search
+// Global, thread-safe flag to interrupt the search
 extern atomic_bool search_stop_flag;
+
+// Set when the engine is pondering and receives a ponderhit command, so the search thread can react appropriately
 extern atomic_bool search_is_pondering;
 
+/**
+ * @brief This struct encapsulates all the parameters that can be specified in a UCI "go" command, including time controls, depth limits, node limits, and specific moves to search for.
+ *
+ * It is used to communicate the search parameters from the main thread (which handles UCI commands) to the search thread that performs the actual search.
+ * The search thread will read these limits and use them to determine when to stop searching and how to prioritize moves.
+ */
 typedef struct SearchLimits {
     bool ponder;
     bool infinite_search;
@@ -26,7 +34,12 @@ typedef struct SearchLimits {
     MoveList search_moves;
 } SearchLimits;
 
-// Engine state (owned and managed by the engine module).
+/**
+ * @brief Represents the state of the chess engine.
+ *
+ * This struct holds the current board position, the search thread handle, and flags for whether a search is active and whether debug mode is enabled.
+ * It serves as a central repository for the engine's state that can be accessed and modified by various functions throughout the engine's operation.
+ */
 typedef struct EngineState {
     CBoard board; // Engine-managed root position
     pthread_t search_thread;
@@ -95,6 +108,7 @@ void engine_handle_ponder_hit(void);
 
 /**
  * @brief Resize the transposition table. Returns the applied size (clamped).
+ *
  */
 bool engine_set_hash_mb(long requested_mb, long* applied_mb);
 
@@ -108,7 +122,18 @@ void engine_clear_hash(void);
  */
 void engine_print_board(void);
 
+/**
+ * @brief Enable or disable debug mode, which causes the engine to print additional information about its internal state and search process to the console.
+ *
+ * @param enabled Whether to enable debug mode.
+ */
 void engine_set_debug_mode(bool enabled);
+
+/**
+ * @brief Check if debug mode is currently enabled.
+ *
+ * @return true if debug mode is enabled, false otherwise.
+ */
 bool engine_is_debug_mode(void);
 
 #endif // ENGINE_H
