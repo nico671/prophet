@@ -6,27 +6,13 @@
 #include <string.h>
 
 #include "engine/engine.h"
-#include "movegen/move.h"
-#include "movegen/move_make.h"
-#include "movegen/movegen.h"
-#include "search/search.h"
-#include "search/tt.h"
 #include "uci/uci.h"
-
-#define START_FEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
 void skip_whitespace(const char** str);
 
-static void stop_search_if_running(UCIState* state)
+static void stop_search_if_running(void)
 {
-    if (!state->is_searching) {
-        return;
-    }
-
-    atomic_store(&engine_stop_search, true);
-    pthread_join(state->search_thread, NULL);
-    state->is_searching = false;
-    atomic_store(&engine_is_pondering, false);
+    engine_stop_search();
 }
 
 static bool next_token(const char** command, char* out, size_t out_size)
@@ -75,7 +61,7 @@ static bool equals_ignore_case(const char* a, const char* b)
     return *a == '\0' && *b == '\0';
 }
 
-static void handle_set_option_command(UCIState* state, const char* command)
+static void handle_set_option_command(const char* command)
 {
     command += 9; // Skip "setoption"
 
@@ -118,8 +104,6 @@ static void handle_set_option_command(UCIState* state, const char* command)
     }
 
     if (equals_ignore_case(name, "Hash")) {
-        stop_search_if_running(state);
-
         if (value[0] == '\0') {
             printf("info string setoption Hash requires a value\n");
             fflush(stdout);
@@ -135,21 +119,20 @@ static void handle_set_option_command(UCIState* state, const char* command)
             return;
         }
 
-        if (mb < 1) {
-            mb = 1;
-        } else if (mb > 1024) {
-            mb = 1024;
+        long applied_mb = mb;
+        if (!engine_set_hash_mb(mb, &applied_mb)) {
+            printf("info string Failed to set Hash value\n");
+            fflush(stdout);
+            return;
         }
 
-        init_tt((size_t)mb);
-        printf("info string Hash set to %ld MB\n", mb);
+        printf("info string Hash set to %ld MB\n", applied_mb);
         fflush(stdout);
         return;
     }
 
     if (equals_ignore_case(name, "Clear Hash")) {
-        stop_search_if_running(state);
-        clear_tt();
+        engine_clear_hash();
         printf("info string Hash cleared\n");
         fflush(stdout);
         return;
@@ -178,76 +161,10 @@ void skip_whitespace(const char** str)
     }
 }
 
-Square algebraic_notation_to_square(const char* algebraic_square_str)
-{
-    if (strlen(algebraic_square_str) < 2) {
-        return NO_SQUARE;
-    }
-    char file = algebraic_square_str[0];
-    char rank = algebraic_square_str[1];
-    if (file < 'a' || file > 'h' || rank < '1' || rank > '8') {
-        return NO_SQUARE;
-    }
-    int file_idx = file - 'a';
-    int rank_idx = rank - '1';
-    return (Square)(rank_idx * 8 + file_idx);
-}
-
-Move parse_long_algebraic_move_str(const CBoard* board, const char* algebraic_move_str)
-{
-    if (strlen(algebraic_move_str) < 4) {
-        printf("info string Invalid move format: %s\n", algebraic_move_str);
-        return create_move(NO_SQUARE, NO_SQUARE, NORMAL, NO_PIECE);
-    }
-
-    Square from = algebraic_notation_to_square(algebraic_move_str);
-    Square to = algebraic_notation_to_square(algebraic_move_str + 2);
-    if (from == NO_SQUARE || to == NO_SQUARE) {
-        printf("info string Invalid move format: %s\n", algebraic_move_str);
-        return create_move(NO_SQUARE, NO_SQUARE, NORMAL, NO_PIECE);
-    }
-
-    // generate_legal_moves() temporarily makes/unmakes moves internally.
-    // Work on a copy here so parsing cannot accidentally perturb live board
-    // state.
-    CBoard board_copy = *board;
-    MoveList move_list;
-    init_move_list(&move_list);
-    generate_legal_moves(&board_copy, &move_list);
-
-    char promotion_char = '\0';
-    if (strlen(algebraic_move_str) >= 5) {
-        promotion_char = (char)tolower((unsigned char)algebraic_move_str[4]);
-    }
-
-    for (int i = 0; i < move_list.count; i++) {
-        if (move_get_from_square(move_list.moves[i]) == from && move_get_to_square(move_list.moves[i]) == to) {
-            if (promotion_char == '\0') {
-                return move_list.moves[i];
-            }
-
-            if (!move_is_promotion(move_list.moves[i])) {
-                continue;
-            }
-
-            PieceType promo_piecetype = move_get_promotion_piecetype(move_list.moves[i]);
-            bool promotion_matches = (promotion_char == 'n' && promo_piecetype == KNIGHT) || (promotion_char == 'b' && promo_piecetype == BISHOP) || (promotion_char == 'r' && promo_piecetype == ROOK) || (promotion_char == 'q' && promo_piecetype == QUEEN);
-
-            if (promotion_matches) {
-                return move_list.moves[i];
-            }
-            continue;
-        }
-    }
-    printf("info string Move not in legal moves list: %s\n", algebraic_move_str);
-    return create_move(NO_SQUARE, NO_SQUARE, NORMAL, NO_PIECE);
-}
-
-void handle_go_command(UCIState* state, const char* command)
+void handle_go_command(const char* command)
 {
     command += 2; // Skip "go"
     SearchLimits go_cmd = { 0 };
-    init_move_list(&go_cmd.search_moves);
     bool search_moves_specified = false;
 
     char token[64];
@@ -266,13 +183,14 @@ void handle_go_command(UCIState* state, const char* command)
                     break;
                 }
 
-                Move move = parse_long_algebraic_move_str(&state->board, moveToken);
-                if (move_get_from_square(move) != NO_SQUARE && move_get_to_square(move) != NO_SQUARE) {
+                Move move = MOVE_NONE;
+                char error_buf[128] = "";
+                if (engine_parse_uci_move(moveToken, &move, error_buf, sizeof(error_buf))) {
                     if (go_cmd.search_moves.count < 256) {
                         go_cmd.search_moves.moves[go_cmd.search_moves.count++] = move;
                     }
-                } else if (state->is_debug_mode) {
-                    printf("info string Invalid move in go searchmoves: %s\n", moveToken);
+                } else if (engine_is_debug_mode()) {
+                    printf("info string Invalid move in go searchmoves: %s (%s)\n", moveToken, error_buf[0] ? error_buf : "invalid");
                 }
             }
         } else if (!strcmp(token, "ponder")) {
@@ -297,7 +215,7 @@ void handle_go_command(UCIState* state, const char* command)
             parse_next_int_token(&command, &go_cmd.search_for_mate_in_n_moves);
         } else if (!strcmp(token, "movetime")) {
             parse_next_int_token(&command, &go_cmd.time_limit_ms);
-        } else if (state->is_debug_mode) {
+        } else if (engine_is_debug_mode()) {
             printf("info string Ignoring unknown go token: %s\n", token);
         }
     }
@@ -309,7 +227,7 @@ void handle_go_command(UCIState* state, const char* command)
     }
 
     // handle go command with the parsed parameters in goCmd struct
-    if (state->is_debug_mode) {
+    if (engine_is_debug_mode()) {
         printf("info string Parsed go command parameters:\n");
         printf("  ponder: %d\n", go_cmd.ponder);
         printf("  infinite_search: %d\n", go_cmd.infinite_search);
@@ -326,17 +244,21 @@ void handle_go_command(UCIState* state, const char* command)
         printf("  search_moves count: %d\n", go_cmd.search_moves.count);
     }
 
-    search_on_go_command(state, go_cmd);
+    char error_buf[128] = "";
+    if (!engine_start_search(&go_cmd, error_buf, sizeof(error_buf))) {
+        printf("info string %s\n", error_buf[0] ? error_buf : "failed to start search");
+        fflush(stdout);
+    }
 }
-void handle_position_command(UCIState* state, const char* command)
+void handle_position_command(const char* command)
 {
-    stop_search_if_running(state);
+    stop_search_if_running();
 
     command += 8; // Skip "position"
     skip_whitespace(&command);
 
     if (!strncmp(command, "startpos", 8) && (command[8] == '\0' || isspace((unsigned char)command[8]))) {
-        bool success = fen_string_to_cboard(START_FEN, &state->board);
+        bool success = engine_set_position_startpos();
         if (!success) {
             printf("info string Failed to parse start position FEN\n");
         }
@@ -359,13 +281,13 @@ void handle_position_command(UCIState* state, const char* command)
         }
         strncpy(fen_copy, command, fen_length);
         fen_copy[fen_length] = '\0';
-        bool success = fen_string_to_cboard(fen_copy, &state->board);
+        bool success = engine_set_position_fen(fen_copy);
         if (!success) {
             printf("info string Failed to parse FEN: %s\n", fen_copy);
         }
         command += fen_length;
 
-        if (state->is_debug_mode) {
+        if (engine_is_debug_mode()) {
             printf("info string Parsed FEN: %s\n", fen_copy);
             printf("info string Command after FEN: '%s'\n", command);
         }
@@ -387,11 +309,13 @@ void handle_position_command(UCIState* state, const char* command)
 
             strncpy(algebraic_move_str, command, move_length);
             algebraic_move_str[move_length] = '\0';
-            Move move = parse_long_algebraic_move_str(&state->board, algebraic_move_str);
-            if (move_get_from_square(move) != NO_SQUARE && move_get_to_square(move) != NO_SQUARE) {
-                make_move(&state->board, move);
-            } else {
-                printf("info string Invalid move in position command: %s\n", algebraic_move_str);
+            char error_buf[128] = "";
+            if (!engine_apply_uci_move(algebraic_move_str, error_buf, sizeof(error_buf))) {
+                printf("info string Invalid move in position command: %s", algebraic_move_str);
+                if (error_buf[0] != '\0') {
+                    printf(" (%s)", error_buf);
+                }
+                printf("\n");
             }
             command += move_length;
             skip_whitespace(&command);
@@ -403,18 +327,6 @@ void uci_loop(void)
 {
     static char line_input[8192]; // Buffer for reading input lines (max UCI
                                   // command length is 512 characters)
-
-    UCIState state = { 0 };
-    state.initialized = false;
-    state.is_debug_mode = false;
-    state.ready = false;
-    state.quitting = false;
-    state.is_searching = false;
-    bool init_success = fen_string_to_cboard(START_FEN, &state.board);
-    if (!init_success) {
-        printf("info string Failed to parse start position FEN\n");
-        return;
-    }
     while (safe_line_read(line_input)) {
         const char* p = line_input;
         skip_whitespace(&p);
@@ -423,17 +335,15 @@ void uci_loop(void)
             continue; // blank line
         }
         if (!strncmp(p, "quit", 4) && (p[4] == '\0' || isspace((unsigned char)p[4]))) {
-            stop_search_if_running(&state);
-            state.quitting = true;
+            engine_shutdown();
             break;
         }
 
         else if (!strncmp(p, "isready", 7) && (p[7] == '\0' || isspace((unsigned char)p[7]))) {
             printf("readyok\n");
             fflush(stdout);
-            state.ready = true;
         } else if (!strncmp(p, "uci", 3) && (p[3] == '\0' || isspace((unsigned char)p[3]))) {
-            init_engine();
+            engine_init();
 
             // Fallback if VERSION is not defined by the build system.
 #ifndef VERSION
@@ -446,54 +356,43 @@ void uci_loop(void)
             printf("option name Clear Hash type button\n");
             printf("uciok\n");
             fflush(stdout);
-            state.initialized = true;
         } else if (!strncmp(p, "setoption", 9) && (p[9] == '\0' || isspace((unsigned char)p[9]))) {
-            handle_set_option_command(&state, p);
+            handle_set_option_command(p);
         } else if (!strncmp(p, "ucinewgame", 10) && (p[10] == '\0' || isspace((unsigned char)p[10]))) {
-            stop_search_if_running(&state);
-            bool success = fen_string_to_cboard(START_FEN, &state.board);
-
-            if (!success) {
-                printf("info string Failed to reset board to start position\n");
-                fflush(stdout);
-            }
-            clear_tt();
-            clear_search_heuristics();
-            // Board/game state is reset via START_FEN, and search state via
-            // TT/heuristic clears.
+            engine_new_game();
         } else if (!strncmp(p, "position", 8) && (p[8] == '\0' || isspace((unsigned char)p[8]))) {
-            handle_position_command(&state, p);
+            handle_position_command(p);
         } else if (!strncmp(p, "go", 2) && (p[2] == '\0' || isspace((unsigned char)p[2]))) {
-            handle_go_command(&state, p);
+            handle_go_command(p);
         } else if (!strncmp(p, "stop", 4) && (p[4] == '\0' || isspace((unsigned char)p[4]))) {
-            stop_search_if_running(&state);
+            engine_stop_search();
         } else if (!strncmp(p, "ponderhit", 9) && (p[9] == '\0' || isspace((unsigned char)p[9]))) {
-            on_ponder_hit();
-            if (state.is_debug_mode) {
+            engine_handle_ponder_hit();
+            if (engine_is_debug_mode()) {
                 printf("info string ponderhit received\n");
             }
         } else if (!strncmp(p, "debug", 5) && (p[5] == '\0' || isspace((unsigned char)p[5]))) {
             p += 5;
             skip_whitespace(&p);
             if (!strncmp(p, "on", 2) && (p[2] == '\0' || isspace((unsigned char)p[2]))) {
-                state.is_debug_mode = true;
+                engine_set_debug_mode(true);
                 printf("info string Debug mode enabled\n");
             } else if (!strncmp(p, "off", 3) && (p[3] == '\0' || isspace((unsigned char)p[3]))) {
-                state.is_debug_mode = false;
+                engine_set_debug_mode(false);
                 printf("info string Debug mode disabled\n");
             } else {
                 printf("info string Invalid debug command: %s\n", p);
             }
         } else if (!strncmp(p, "printboard", 10) && (p[10] == '\0' || isspace((unsigned char)p[10]))) {
-            if (state.is_debug_mode) {
-                print_cboard(&state.board);
+            if (engine_is_debug_mode()) {
+                engine_print_board();
                 fflush(stdout);
             } else {
                 printf("info string 'printboard' command only works in debug mode\n");
                 fflush(stdout);
             }
         } else {
-            if (state.is_debug_mode) {
+            if (engine_is_debug_mode()) {
                 printf("info string Ignoring unknown command: %s\n", p);
                 fflush(stdout);
             }

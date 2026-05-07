@@ -209,18 +209,18 @@ static bool move_allowed_by_search_moves(Move move, const MoveList* search_moves
 
 static bool should_stop_search(void)
 {
-    if (atomic_load(&engine_stop_search)) {
+    if (atomic_load(&search_stop_flag)) {
         return true;
     }
 
     if (active_search_limits.node_limit > 0 && atomic_load(&search_node_count) >= active_search_limits.node_limit) {
-        atomic_store(&engine_stop_search, true);
+        atomic_store(&search_stop_flag, true);
         return true;
     }
 
     long long deadline = atomic_load(&search_deadline_ms);
-    if (!atomic_load(&engine_is_pondering) && deadline >= 0 && now_ms() >= deadline) {
-        atomic_store(&engine_stop_search, true);
+    if (!atomic_load(&search_is_pondering) && deadline >= 0 && now_ms() >= deadline) {
+        atomic_store(&search_stop_flag, true);
         return true;
     }
 
@@ -229,7 +229,7 @@ static bool should_stop_search(void)
 
 void on_ponder_hit(void)
 {
-    atomic_store(&engine_is_pondering, false);
+    atomic_store(&search_is_pondering, false);
 
     Color side = (Color)atomic_load(&active_search_side_to_move);
     if (side != WHITE && side != BLACK) {
@@ -441,10 +441,6 @@ static int search_root_best_move(CBoard* board, int depth, Move* prev_best_move)
     return best_score;
 }
 
-// Define the global atomic flag here
-atomic_bool engine_stop_search = false;
-atomic_bool engine_is_pondering = false;
-
 // The entry point for the search thread
 void* search_worker(void* arg)
 {
@@ -471,6 +467,7 @@ void* search_worker(void* arg)
     int current_depth = 1;
     int best_score = 0;
     Move best_move = create_move(NO_SQUARE, NO_SQUARE, 0, 0);
+    Move ponder_move = MOVE_NONE;
 
     int max_depth;
     if (search_limits.depth_limit > 0) {
@@ -499,6 +496,9 @@ void* search_worker(void* arg)
         long long nps = elapsed > 0 ? (nodes * 1000LL) / elapsed : nodes;
         Move pv_line[256];
         int pv_length = extract_pv_line(&search_board, pv_line, current_depth);
+        if (pv_length >= 2 && pv_line[0] == best_move) {
+            ponder_move = pv_line[1];
+        }
         char pv_string[2048] = "";
         for (int i = 0; i < pv_length; i++) {
             char move_str[6];
@@ -525,7 +525,7 @@ void* search_worker(void* arg)
             break;
         }
 
-        if (!atomic_load(&engine_is_pondering) && search_limits.search_for_mate_in_n_moves > 0 && abs(best_score) > 100000000) {
+        if (!atomic_load(&search_is_pondering) && search_limits.search_for_mate_in_n_moves > 0 && abs(best_score) > 100000000) {
             int mate_moves = (MATE_SCORE - abs(best_score)) / 2;
             if (mate_moves <= search_limits.search_for_mate_in_n_moves) {
                 break;
@@ -535,42 +535,16 @@ void* search_worker(void* arg)
 
     char best_move_uci_string[6];
     move_to_uci_string(best_move, best_move_uci_string);
-    printf("bestmove %s\n", best_move_uci_string);
+    if (move_get_from_square(ponder_move) != NO_SQUARE && move_get_to_square(ponder_move) != NO_SQUARE) {
+        char ponder_move_uci_string[6];
+        move_to_uci_string(ponder_move, ponder_move_uci_string);
+        printf("bestmove %s ponder %s\n", best_move_uci_string, ponder_move_uci_string);
+    } else {
+        printf("bestmove %s\n", best_move_uci_string);
+    }
     fflush(stdout);
 
     return NULL;
-}
-
-void search_on_go_command(UCIState* state, SearchLimits go_cmd)
-{
-    // if search running, stop it before starting a new one
-    if (state->is_searching) {
-        atomic_store(&engine_stop_search, true);
-        pthread_join(state->search_thread, NULL);
-    }
-
-    // Prepare for the new search
-    atomic_store(&engine_stop_search, false);
-    atomic_store(&engine_is_pondering, go_cmd.ponder);
-    state->is_searching = true;
-    // 3. Allocate the thread payload. (Using malloc so it safely survives the
-    // thread launch)
-    SearchThreadData* thread_data = malloc(sizeof(SearchThreadData));
-    if (thread_data == NULL) {
-        printf("info string memory allocation failed\n");
-        return;
-    }
-
-    // snapshot of the board state. This prevents race conditions if the GUI
-    // suddenly sends another "position" command while pondering.
-    thread_data->board = state->board;
-    thread_data->search_limits = go_cmd;
-
-    if (pthread_create(&state->search_thread, NULL, search_worker, thread_data) != 0) {
-        printf("info string failed to create search thread\n");
-        free(thread_data);
-        state->is_searching = false;
-    }
 }
 
 void score_moves(CBoard* board, MoveList* move_list, ScoredMove* scored_moves,
