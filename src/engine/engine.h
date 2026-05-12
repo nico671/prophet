@@ -123,6 +123,11 @@ void engine_clear_hash(void);
 void engine_print_board(void);
 
 /**
+ * @brief Copy the current engine board state into the provided output struct.
+ */
+bool engine_copy_board(CBoard* out_board);
+
+/**
  * @brief Enable or disable debug mode, which causes the engine to print additional information about its internal state and search process to the console.
  *
  * @param enabled Whether to enable debug mode.

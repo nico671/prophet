@@ -24,4 +24,5 @@ int negamax(CBoard* node, int depth, int alpha, int beta, Color color, int ply);
 void pick_next_best_move(ScoredMove* scored_moves, int start, int count);
 void clear_search_heuristics(void);
 void on_ponder_hit(void);
+
 #endif // SEARCH_H

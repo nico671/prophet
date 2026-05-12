@@ -1,10 +1,7 @@
-#include "attacks/sliding_attacks.h"
-#include "board/cboard.h"
 #include "engine/engine.h"
-#include "movegen/move_make.h"
-#include "movegen/movegen.h"
+#include "perft/perft.h"
 #include "perft_test.h"
-#include "tests/testing_utils.h"
+#include "search/search.h" //TODO: remove dependence on the string manipulation function here
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -111,64 +108,6 @@ PerftTest test_suite[] = {
         .max_depth = 5,
     }
 };
-
-uint64_t perft(CBoard* board, int depth)
-{
-    if (depth == 0)
-        return 1;
-    MoveList moveList;
-    init_move_list(&moveList);
-    generate_legal_moves(board, &moveList);
-    if (depth == 1)
-        return moveList.count;
-
-    uint64_t nodes = 0;
-    for (int i = 0; i < moveList.count; i++) {
-        Move move = moveList.moves[i];
-
-        // Make the move
-        UndoInfo undoInfo;
-        undoInfo = make_move(board, move);
-
-        // Recurse
-        nodes += perft(board, depth - 1);
-
-        // Unmake the move
-        unmake_move(board, move, undoInfo);
-    }
-
-    return nodes;
-}
-
-uint64_t divide(CBoard* board, int depth)
-{
-    MoveList moveList;
-    init_move_list(&moveList);
-    generate_legal_moves(board, &moveList);
-
-    uint64_t totalNodes = 0;
-    for (int i = 0; i < moveList.count; i++) {
-        Move move = moveList.moves[i];
-
-        // Make the move
-        UndoInfo undoInfo;
-        undoInfo = make_move(board, move);
-
-        // Recurse
-        uint64_t nodes = perft(board, depth - 1);
-        totalNodes += nodes;
-
-        // Print the move and its node count
-        char* moveStr = moveToStringCoordinate(move);
-        printf("%s: %llu\n", moveStr, nodes);
-
-        // Unmake the move
-        unmake_move(board, move, undoInfo);
-    }
-
-    printf("Total nodes: %llu\n", totalNodes);
-    return totalNodes;
-}
 
 int main()
 {

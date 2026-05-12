@@ -245,6 +245,16 @@ void engine_print_board(void)
     print_cboard(&engine_state.board);
 }
 
+bool engine_copy_board(CBoard* out_board)
+{
+    if (!out_board) {
+        return false;
+    }
+
+    *out_board = engine_state.board;
+    return true;
+}
+
 void engine_set_debug_mode(bool enabled)
 {
     engine_state.is_debug_mode = enabled;

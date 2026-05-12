@@ -1,9 +1,15 @@
-// printMove(Move) - print move in coordinate notation (e2e4)
-#include "testing_utils.h"
+#ifndef PERFT_CORE_H
+#define PERFT_CORE_H
 
+#include "board/cboard.h"
+#include "movegen/move.h"
+#include "movegen/move_make.h"
+#include "movegen/movegen.h"
+#include <stdint.h>
 #include <stdio.h>
-
-char* moveToStringCoordinate(Move move)
+uint64_t perft(CBoard* board, int depth);
+uint64_t divide(CBoard* board, int depth);
+static inline char* moveToStringCoordinate(Move move)
 {
     static char str[5];
     char files[] = "abcdefgh";
@@ -16,7 +22,7 @@ char* moveToStringCoordinate(Move move)
     return str;
 }
 
-char* moveToStringAlgebraic(Move move)
+static inline char* moveToStringAlgebraic(Move move)
 {
     static char moveStr[10];
     const char* files = "abcdefgh";
@@ -61,3 +67,5 @@ char* moveToStringAlgebraic(Move move)
 
     return moveStr;
 }
+
+#endif // PERFT_CORE_H
