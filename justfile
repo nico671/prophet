@@ -12,7 +12,7 @@ cstd := "-std=c17"
 warnflags := "-Wall -Wextra"
 cppflags := "-I src"
 
-debug_cflags := "-O0 -g3 -fno-omit-frame-pointer -Wall -Wextra -Wpedantic -Wshadow -O3 -flto"
+debug_cflags := "-O0 -g3 -fno-omit-frame-pointer -Wall -Wextra -Wpedantic -Wshadow -flto"
 dev_cflags := "-O3 -g1 -DNDEBUG"
 release_cflags := "-O3 -DNDEBUG -flto"
 
