@@ -1,6 +1,6 @@
 # Prophet
 
-Prophet is a UCI chess engine written in C17. It uses bitboards, incremental board state, and a modern alpha-beta search pipeline with iterative deepening.
+Prophet is a UCI chess engine written in C17.
 
 ## Current engine status
 

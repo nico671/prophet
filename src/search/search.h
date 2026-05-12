@@ -11,9 +11,7 @@ typedef struct {
 // killer moves storage
 #define MAX_KILLER_MOVES 2
 #define MAX_PLY 64
-extern Move killer_moves_list[MAX_PLY]
-                             [MAX_KILLER_MOVES]; // [depth][idx] where 0 is newest
-                                                 // killer, 1 is previous killer
+extern Move killer_moves_list[MAX_PLY][MAX_KILLER_MOVES]; // [depth][idx] where 0 is newest killer, 1 is previous killer
 
 extern int history_heuristic[2][64][64]; // [color][from][to]
 

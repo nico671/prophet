@@ -9,20 +9,20 @@ void gen_all_pseudolegal_king_noncastling_moves(CBoard* board, MoveList* move_li
     Color side_to_move = board->side_to_move;
     Bitboard side_to_move_king_bb = board->piece_bbs[side_to_move][KING];
     Bitboard opponent_pieces_bb = board->occupancy_bbs[1 - side_to_move] & ~(board->piece_bbs[1 - side_to_move][KING]);
-    if (side_to_move_king_bb) {
-        Square from = bitboard_pop_lsb_unsafe(&side_to_move_king_bb);
+    if (!bitboard_is_empty(side_to_move_king_bb)) {
+        Square from = bitboard_pop_lsb_unsafe(&side_to_move_king_bb); // because of if gaurd, we know there exists some lsb, so use unsafe version for efficiency
         Bitboard king_attacks_bb = get_king_attack_bitboard(from);
 
         Bitboard king_captures_bb = king_attacks_bb & opponent_pieces_bb;
         while (king_captures_bb) {
-            Square to = bitboard_pop_lsb_unsafe(&king_captures_bb);
+            Square to = bitboard_pop_lsb_unsafe(&king_captures_bb); // because of while condition, we know there exists some lsb, so use unsafe version for efficiency
             Move move = create_move(from, to, NORMAL, NO_PIECE);
             move_list->moves[move_list->count++] = move;
         }
 
         Bitboard king_quite_moves_bb = king_attacks_bb & ~(board->occupancy_bbs[2]);
         while (king_quite_moves_bb) {
-            Square to = bitboard_pop_lsb_unsafe(&king_quite_moves_bb);
+            Square to = bitboard_pop_lsb_unsafe(&king_quite_moves_bb); // because of while condition, we know there exists some lsb, so use unsafe version for efficiency
             Move move = create_move(from, to, NORMAL, NO_PIECE);
             move_list->moves[move_list->count++] = move;
         }
@@ -31,7 +31,7 @@ void gen_all_pseudolegal_king_noncastling_moves(CBoard* board, MoveList* move_li
 
 void gen_all_pseudolegal_king_castling_moves(CBoard* board, MoveList* move_list)
 {
-
+    // TODO: is there a way to get rid of the side to move differences?
     // handle white castling
     if (board->side_to_move == WHITE) {
         if (!board->piece_bbs[WHITE][KING]) {
@@ -82,8 +82,6 @@ void gen_all_pseudolegal_king_moves(CBoard* board, MoveList* move_list)
     gen_all_pseudolegal_king_castling_moves(board, move_list);
 }
 
-// Generates all pseudo-legal knight moves (both quiet moves and captures) for the side to move on the given board.
-// This function does NOT check for side_to_move_king_bb safety, so it may generate moves that leave the side_to_move_king_bb in check. It is the caller's responsibility to filter those out if necessary.
 void gen_all_pseudolegal_knight_moves(CBoard* board, MoveList* move_list)
 {
     Bitboard side_to_move_knights_bb = board->piece_bbs[board->side_to_move][KNIGHT];
@@ -161,7 +159,6 @@ void gen_all_pseudolegal_double_pawn_pushes(CBoard* board, MoveList* move_list)
     while (double_pawn_pushes_bb) {
         Square to = bitboard_pop_lsb_unsafe(&double_pawn_pushes_bb);
         Square from = to + (16 * (2 * board->side_to_move - 1));
-        ;
         Move move = create_move(from, to, NORMAL, NO_PIECE);
         move_list->moves[move_list->count++] = move;
     }
