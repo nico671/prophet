@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ENGINE_BIN=${1:-./build/prophet/prophet}
+ENGINE_BIN=${1:-./outs/prophet/prophet}
 MAX_DEPTH=${2:-5}
 
 if [[ ! -x "$ENGINE_BIN" ]]; then

@@ -20,7 +20,8 @@ debug_ldflags := ""
 dev_ldflags := ""
 release_ldflags := ""
 
-default: all
+default:
+    @just --list
 
 all build_mode="dev": dirs
     #!/usr/bin/env fish
