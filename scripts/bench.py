@@ -1,9 +1,5 @@
 import subprocess
 
-ENGINE = "./outs/prophet/prophet"
-DEPTH = 15
-
-
 # yoinked from: https://github.com/official-stockfish/Stockfish/blob/master/src/benchmark.cpp
 FENS = [
     "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
@@ -62,65 +58,87 @@ FENS = [
     "7k/7P/6K1/8/3B4/8/8/8 b - -",
 ]
 
-total_nodes = 0
-total_time_ms = 0
 
-print(f"Running benchmark to depth {DEPTH}...")
+def main(engine_path, depth):
+    pass
+    total_nodes = 0
+    total_time_ms = 0
 
-for fen in FENS:
-    print(f"Position: {fen}")
+    print(f"Running benchmark to depth {depth}...")
 
-    # Start the engine process
-    process = subprocess.Popen(
-        [ENGINE],
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        bufsize=1,
+    for fen in FENS:
+        print(f"Position: {fen}")
+
+        # Start the engine process
+        process = subprocess.Popen(
+            [engine_path],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1,
+        )
+
+        # Send position and go command
+        process.stdin.write(f"position fen {fen}\n")
+        process.stdin.write(f"go depth {depth}\n")
+        process.stdin.flush()
+
+        nodes = 0
+        time_ms = 0
+
+        # Read output line by line until bestmove is found
+        for line in process.stdout:
+            line = line.strip()
+
+            # Capture the info line for our target depth
+            if line.startswith(f"info depth {depth} "):
+                parts = line.split()
+                if "nodes" in parts:
+                    nodes = int(parts[parts.index("nodes") + 1])
+                if "time" in parts:
+                    time_ms = int(parts[parts.index("time") + 1])
+
+            # Stop reading when the search finishes
+            if line.startswith("bestmove"):
+                break
+
+        print(
+            f"Depth: {depth}, Nodes: {nodes}, Time: {time_ms}ms, NPS: {int(nodes / (time_ms / 1000.0)) if time_ms > 0 else 0}"
+        )
+
+        total_nodes += nodes
+        total_time_ms += time_ms
+
+        # Safely close the engine
+        process.stdin.write("quit\n")
+        process.stdin.flush()
+        process.wait()
+
+    total_time_sec = total_time_ms / 1000.0
+    nps = int(total_nodes / total_time_sec) if total_time_sec > 0 else 0
+
+    print("===========================")
+    print(f"Total Time (ms) : {total_time_ms}")
+    print(f"Total Nodes : {total_nodes}")
+    print(f"Bench NPS   : {nps}")
+    print("===========================")
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Run a benchmark on the chess engine.")
+    parser.add_argument(
+        "--engine",
+        type=str,
+        default="./outs/prophet/prophet",
+        help="Path to the chess engine executable",
     )
-
-    # Send position and go command
-    process.stdin.write(f"position fen {fen}\n")
-    process.stdin.write(f"go depth {DEPTH}\n")
-    process.stdin.flush()
-
-    nodes = 0
-    time_ms = 0
-
-    # Read output line by line until bestmove is found
-    for line in process.stdout:
-        line = line.strip()
-
-        # Capture the info line for our target depth
-        if line.startswith(f"info depth {DEPTH} "):
-            parts = line.split()
-            if "nodes" in parts:
-                nodes = int(parts[parts.index("nodes") + 1])
-            if "time" in parts:
-                time_ms = int(parts[parts.index("time") + 1])
-
-        # Stop reading when the search finishes
-        if line.startswith("bestmove"):
-            break
-
-    print(
-        f"Depth: {DEPTH}, Nodes: {nodes}, Time: {time_ms}ms, NPS: {int(nodes / (time_ms / 1000.0)) if time_ms > 0 else 0}"
+    parser.add_argument(
+        "--depth", type=int, default=12, help="Search depth for the benchmark"
     )
-
-    total_nodes += nodes
-    total_time_ms += time_ms
-
-    # Safely close the engine
-    process.stdin.write("quit\n")
-    process.stdin.flush()
-    process.wait()
-
-total_time_sec = total_time_ms / 1000.0
-nps = int(total_nodes / total_time_sec) if total_time_sec > 0 else 0
-
-print("===========================")
-print(f"Total Time (ms) : {total_time_ms}")
-print(f"Total Nodes : {total_nodes}")
-print(f"Bench NPS   : {nps}")
-print("===========================")
+    args = parser.parse_args()
+    engine_path = args.engine
+    depth = args.depth
+    main(engine_path, depth)
