@@ -5,7 +5,7 @@ set shell := ["fish", "-c"]
 cc := "gcc"
 srdir := "src"
 builddir := "build"
-target := "outs/prophet/prophet"
+target := "build/prophet"
 magic_target := "magic_gen"
 
 cstd := "-std=c17"
