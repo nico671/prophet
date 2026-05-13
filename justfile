@@ -103,7 +103,7 @@ _build-main:
     @cp build/prophet {{artifacts_dir}}/main/prophet
     @git checkout $current_branch
 
-# The Master Workflow
+
 # Usage: just publish-feature "v1.1.0"
 publish-feature version:
     @begin; \
@@ -147,19 +147,34 @@ publish-feature version:
         echo "Did the feature pass SPRT (H1 Accepted)? Press ENTER to merge and release, or Ctrl+C to abort."; \
         read; \
         \
-        echo "\n=== 6. Merging, Tagging, and Pushing ==="; \
+        echo "\n=== 6. Merging into Main ==="; \
         git checkout main; \
         git merge $branch_name; \
+        \
+        echo "\n=== 7. Updating Benchmarks CSV ==="; \
+        set -l csv_file "benchmarks.csv"; \
+        if not test -f $csv_file; \
+            echo "Version,Date,Total Time (s),Total Nodes,Bench NPS" > $csv_file; \
+        end; \
+        set -l time_val (grep "Total Time" {{artifacts_dir}}/$branch_name/bench.txt | awk '{print $4}'); \
+        set -l nodes_val (grep "Total Nodes" {{artifacts_dir}}/$branch_name/bench.txt | awk '{print $4}'); \
+        set -l nps_val (grep "Bench NPS" {{artifacts_dir}}/$branch_name/bench.txt | awk '{print $4}'); \
+        set -l date_val (date "+%Y-%m-%d"); \
+        echo "{{version}},$date_val,$time_val,$nodes_val,$nps_val" >> $csv_file; \
+        git add $csv_file; \
+        git commit -m "chore: track benchmarks for {{version}}"; \
+        \
+        echo "\n=== 8. Tagging Release ==="; \
         git tag -a {{version}} -m "Release {{version}} (from $branch_name)"; \
         \
-        echo "\n=== 7. Storing Final Release Artifacts ==="; \
+        echo "\n=== 9. Storing Final Release Artifacts ==="; \
         mkdir -p {{artifacts_dir}}/{{version}}; \
         just release; \
         cp build/prophet {{artifacts_dir}}/{{version}}/prophet-{{version}}; \
         cp {{artifacts_dir}}/$branch_name/bench.txt {{artifacts_dir}}/{{version}}/; \
         cp {{artifacts_dir}}/$branch_name/sprt.log {{artifacts_dir}}/{{version}}/; \
         \
-        echo "\n=== 8. Pushing to origin ==="; \
+        echo "\n=== 10. Pushing to origin ==="; \
         git push origin main --tags; \
         echo "\n🚀 Successfully released {{version}}!"; \
     end
