@@ -1,4 +1,5 @@
 build/
 .env
-
-refs/plan-versionedRelease.prompt.md
+artifacts/
+bench*.txt
+sprt.log
