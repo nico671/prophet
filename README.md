@@ -18,8 +18,6 @@ prophet/
 │   ├── uci/       # UCI parsing and command loop
 │   ├── utils/     # Utility modules (PRNG, etc.)
 │   └── main.c     # Program entry point
-├── docs/
-│   └── workflow.md
 ├── justfile
 └── README.md
 ```
