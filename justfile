@@ -98,7 +98,9 @@ _build-main:
     @echo "Checking out main to build baseline..."
     @set -l current_branch (git branch --show-current)
     @git checkout main
-    @just _build-to-artifact "main"
+    @just release
+    @mkdir -p {{artifacts_dir}}/main
+    @cp build/prophet {{artifacts_dir}}/main/prophet
     @git checkout $current_branch
 
 # The Master Workflow
