@@ -124,9 +124,9 @@ publish-feature version:
         \
         echo "\n=== 4. Benchmarking Regression Check ==="; \
         echo "Benching main..."; \
-        uv run scripts/bench.py --engine="{{artifacts_dir}}/main/prophet" --depth=14 > {{artifacts_dir}}/main/bench.txt; \
+        uv run scripts/bench.py --engine "{{artifacts_dir}}/main/prophet" --depth 14 > {{artifacts_dir}}/main/bench.txt; \
         echo "Benching feature..."; \
-        uv run scripts/bench.py --engine="{{artifacts_dir}}/$branch_name/prophet" --depth=14 > {{artifacts_dir}}/$branch_name/bench.txt; \
+        uv run scripts/bench.py --engine "{{artifacts_dir}}/$branch_name/prophet" --depth 14 > {{artifacts_dir}}/$branch_name/bench.txt; \
         echo "--- NPS Comparison ---"; \
         grep "Bench NPS" {{artifacts_dir}}/main/bench.txt; \
         grep "Bench NPS" {{artifacts_dir}}/$branch_name/bench.txt; \
