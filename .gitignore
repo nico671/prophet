@@ -1,2 +1,5 @@
 build/
 .env
+artifacts/
+bench*.txt
+sprt.log
