@@ -25,8 +25,8 @@ Move killer_moves_list[MAX_PLY][MAX_KILLER_MOVES]; // [depth][idx] where 0 is ne
 int history_heuristic[2][64][64]; // [color][from][to]
 
 static int piece_value(PieceType piece);
-static long long compute_time_budget_ms(const CBoard* board, SearchLimits search_limits);
-
+// static long long compute_time_budget_ms(const CBoard* board, SearchLimits search_limits);
+static TimeLimits compute_time_limits(SearchLimits search_limits, Color side_to_move);
 static const int TT_MOVE_SCORE = 2000000;
 static const int GOOD_CAPTURE_BASE_SCORE = 1200000;
 static const int KILLER_1_SCORE = 900000;
@@ -188,7 +188,8 @@ static int piece_value(PieceType piece)
 static SearchLimits active_search_limits;
 static atomic_llong search_node_count = 0;
 static long long search_start_ms = 0;
-static atomic_llong search_deadline_ms = -1;
+static atomic_llong search_hard_deadline_ms = -1;
+static atomic_llong active_soft_limit_ms = -1;
 static atomic_int active_search_side_to_move = WHITE;
 
 static long long now_ms(void)
@@ -226,8 +227,8 @@ static bool should_stop_search(void)
     }
     // only check the actual time every 2048 nodes to avoid now_ms() overhead on every node
     if ((nodes & 2047) == 0) {
-        long long deadline = atomic_load(&search_deadline_ms);
-        if (!atomic_load(&search_is_pondering) && deadline >= 0 && now_ms() >= deadline) {
+        long long hard_deadline = atomic_load(&search_hard_deadline_ms);
+        if (!atomic_load(&search_is_pondering) && hard_deadline >= 0 && now_ms() >= hard_deadline) {
             atomic_store(&search_stop_flag, true);
             return true;
         }
@@ -242,19 +243,28 @@ void on_ponder_hit(void)
 
     Color side = (Color)atomic_load(&active_search_side_to_move);
     if (side != WHITE && side != BLACK) {
-        atomic_store(&search_deadline_ms, -1);
+        atomic_store(&search_hard_deadline_ms, -1);
+        atomic_store(&active_soft_limit_ms, -1);
         return;
     }
 
-    CBoard budget_cboard = { 0 };
-    budget_cboard.side_to_move = side;
+    // Use our new struct and calculation function
+    TimeLimits limits = compute_time_limits(active_search_limits, side);
 
-    long long budget_ms = compute_time_budget_ms(&budget_cboard, active_search_limits);
-    long long deadline_ms = (budget_ms > 0) ? (now_ms() + budget_ms) : -1;
-    atomic_store(&search_deadline_ms, deadline_ms);
+    long long hard_deadline_ms = -1;
+    long long soft_limit = -1;
+
+    if (limits.hard_limit_ms > 0) {
+        hard_deadline_ms = now_ms() + limits.hard_limit_ms;
+        soft_limit = limits.soft_limit_ms;
+    }
+
+    // Push the new limits to the global atomic variables
+    atomic_store(&search_hard_deadline_ms, hard_deadline_ms);
+    atomic_store(&active_soft_limit_ms, soft_limit);
 }
 
-static TimeLimits compute_time_limits(const CBoard* board, SearchLimits search_limits)
+static TimeLimits compute_time_limits(SearchLimits search_limits, Color side_to_move)
 {
     TimeLimits limits = { -1, -1 };
 
@@ -265,15 +275,15 @@ static TimeLimits compute_time_limits(const CBoard* board, SearchLimits search_l
         return limits;
     }
 
+    int time_remaining_ms = (side_to_move == WHITE) ? search_limits.time_for_white_ms
+                                                    : search_limits.time_for_black_ms;
     // if infinite search return -1 for both limits, default value to ignore time checks
-    if (search_limits.infinite_search) {
+    if (search_limits.infinite_search || time_remaining_ms == 0) {
         return limits;
     }
 
-    int time_remaining_ms = (board->side_to_move == WHITE) ? search_limits.time_for_white_ms
-                                                           : search_limits.time_for_black_ms;
-    int increment_ms = (board->side_to_move == WHITE) ? search_limits.increment_for_white_ms
-                                                      : search_limits.increment_for_black_ms;
+    int increment_ms = (side_to_move == WHITE) ? search_limits.increment_for_white_ms
+                                               : search_limits.increment_for_black_ms;
     int moves_to_go = search_limits.moves_until_next_time_control > 0 ? search_limits.moves_until_next_time_control : 50;
 
     // Subtract a constant overhead (curr 50ms) to account for move overhead / latency
@@ -476,18 +486,31 @@ void* search_worker(void* arg)
     SearchThreadData* data = (SearchThreadData*)arg;
     CBoard search_board = data->board;
     SearchLimits search_limits = data->search_limits;
+
     // clear all killer moves
     clear_search_heuristics();
     active_search_limits = search_limits;
     atomic_store(&active_search_side_to_move, (int)search_board.side_to_move);
     atomic_store(&search_node_count, 0);
     search_start_ms = now_ms();
-    long long deadline_ms = -1;
+
+    // declare time tracking variables in the outer scope
+    TimeLimits time_limits = { -1, -1 };
+    long long hard_deadline_ms = -1;
+    long long soft_limit_ms = -1;
+
     if (!search_limits.ponder) {
-        long long budget_ms = compute_time_budget_ms(&search_board, search_limits);
-        deadline_ms = (budget_ms > 0) ? (search_start_ms + budget_ms) : -1;
+        time_limits = compute_time_limits(search_limits, search_board.side_to_move);
+
+        if (time_limits.hard_limit_ms > 0) {
+            hard_deadline_ms = search_start_ms + time_limits.hard_limit_ms;
+            soft_limit_ms = time_limits.soft_limit_ms;
+        }
     }
-    atomic_store(&search_deadline_ms, deadline_ms);
+
+    // Initialize the global atomics correctly at the start of the search
+    atomic_store(&search_hard_deadline_ms, hard_deadline_ms);
+    atomic_store(&active_soft_limit_ms, soft_limit_ms);
 
     // We copied the data to local stack variables, so free the allocated payload
     free(data);
@@ -496,6 +519,9 @@ void* search_worker(void* arg)
     int best_score = 0;
     Move best_move = create_move(NO_SQUARE, NO_SQUARE, 0, 0);
     Move ponder_move = MOVE_NONE;
+
+    // for the instability check
+    Move previous_best_move = MOVE_NONE;
 
     int max_depth;
     if (search_limits.depth_limit > 0) {
@@ -506,7 +532,7 @@ void* search_worker(void* arg)
         max_depth = 100;
     }
 
-    // The Iterative Deepening Loop
+    // id loop
     while (current_depth <= max_depth) {
         if (should_stop_search()) {
             break;
@@ -527,6 +553,7 @@ void* search_worker(void* arg)
         if (pv_length >= 2 && pv_line[0] == best_move) {
             ponder_move = pv_line[1];
         }
+
         char pv_string[2048] = "";
         for (int i = 0; i < pv_length; i++) {
             char move_str[6];
@@ -534,6 +561,7 @@ void* search_worker(void* arg)
             strcat(pv_string, move_str);
             strcat(pv_string, " ");
         }
+
         if (abs(best_score) > 100000000) {
             int mate_moves = (MATE_SCORE - abs(best_score)) / 2;
             int mate_score = best_score >= 0 ? mate_moves : -mate_moves;
@@ -546,12 +574,32 @@ void* search_worker(void* arg)
         }
 
         age_history();
-
         current_depth++;
 
-        if (search_limits.time_limit_ms > 0 && should_stop_search()) {
-            break;
+        // time management checks after each depth iteration
+        long long current_soft_limit = atomic_load(&active_soft_limit_ms);
+
+        if (search_limits.time_limit_ms == 0 && current_soft_limit > 0) {
+
+            // dynamically increase the soft limit if we detect instability in the root move (best move changes from previous iteration) after depth 2
+            if (current_depth > 2 && best_move != previous_best_move) {
+                current_soft_limit += current_soft_limit / 2;
+                atomic_store(&active_soft_limit_ms, current_soft_limit); // Save the extended time
+            }
+
+            // Soft Limit Break
+            if (elapsed >= current_soft_limit) {
+                break;
+            }
+
+            // Early Abort Optimization
+            if (time_limits.hard_limit_ms > 0 && elapsed > (time_limits.hard_limit_ms * 0.6)) {
+                break;
+            }
         }
+
+        //  update previous_best_move for the next depth's instability check
+        previous_best_move = best_move;
 
         if (!atomic_load(&search_is_pondering) && search_limits.search_for_mate_in_n_moves > 0 && abs(best_score) > 100000000) {
             int mate_moves = (MATE_SCORE - abs(best_score)) / 2;
