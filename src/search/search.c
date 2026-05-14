@@ -213,15 +213,18 @@ static bool should_stop_search(void)
         return true;
     }
 
-    if (active_search_limits.node_limit > 0 && atomic_load(&search_node_count) >= active_search_limits.node_limit) {
+    long long nodes = atomic_load(&search_node_count);
+    if (active_search_limits.node_limit > 0 && nodes >= active_search_limits.node_limit) {
         atomic_store(&search_stop_flag, true);
         return true;
     }
-
-    long long deadline = atomic_load(&search_deadline_ms);
-    if (!atomic_load(&search_is_pondering) && deadline >= 0 && now_ms() >= deadline) {
-        atomic_store(&search_stop_flag, true);
-        return true;
+    // only check the actual time every 2048 nodes to avoid now_ms() overhead on every node
+    if ((nodes & 2047) == 0) {
+        long long deadline = atomic_load(&search_deadline_ms);
+        if (!atomic_load(&search_is_pondering) && deadline >= 0 && now_ms() >= deadline) {
+            atomic_store(&search_stop_flag, true);
+            return true;
+        }
     }
 
     return false;
@@ -247,6 +250,7 @@ void on_ponder_hit(void)
 
 static long long compute_time_budget_ms(const CBoard* board, SearchLimits search_limits)
 {
+    // if a specific time limit was set, use that directly
     if (search_limits.time_limit_ms > 0) {
         return search_limits.time_limit_ms;
     }
@@ -660,7 +664,7 @@ int quiescence(CBoard* node, int alpha, int beta, int ply)
     score_moves(node, &move_list, scored_moves, tt_best_move, ply);
 
     for (int i = 0; i < move_list.count; i++) {
-        if (i % 32 == 0 && should_stop_search()) {
+        if (should_stop_search()) {
             break;
         }
 
@@ -751,7 +755,7 @@ int negamax(CBoard* node, int depth, int alpha, int beta, Color color,
     int num_legal_moves_searched = 0;
 
     for (int i = 0; i < move_list.count; i++) {
-        if (i % 32 == 0 && should_stop_search()) {
+        if (should_stop_search()) {
             break;
         }
         pick_next_best_move(scored_moves, i, move_list.count);
