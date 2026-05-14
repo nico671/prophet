@@ -14,6 +14,12 @@
 #include "search/search.h"
 #include "search/tt.h"
 
+// time limits struct for soft / hard time control limits
+typedef struct {
+    long long soft_limit_ms;
+    long long hard_limit_ms;
+} TimeLimits;
+
 Move killer_moves_list[MAX_PLY][MAX_KILLER_MOVES]; // [depth][idx] where 0 is newest
                                                    // killer, 1 is previous killer
 int history_heuristic[2][64][64]; // [color][from][to]
@@ -29,7 +35,7 @@ static const int BAD_CAPTURE_BASE_SCORE = 100000;
 static const int HISTORY_MAX = 200000;
 static const int MATE_SCORE = 200000000;
 static const int MATE_THRESHOLD = 199999000;
-
+static const int MOVE_OVERHEAD_DEFAULT_MS = 50;
 static PieceType captured_piece_for_move(const CBoard* board, Move move)
 {
     if (move_is_enpassant(move)) {
@@ -248,40 +254,58 @@ void on_ponder_hit(void)
     atomic_store(&search_deadline_ms, deadline_ms);
 }
 
-static long long compute_time_budget_ms(const CBoard* board, SearchLimits search_limits)
+static TimeLimits compute_time_limits(const CBoard* board, SearchLimits search_limits)
 {
+    TimeLimits limits = { -1, -1 };
+
     // if a specific time limit was set, use that directly
     if (search_limits.time_limit_ms > 0) {
-        return search_limits.time_limit_ms;
+        limits.soft_limit_ms = search_limits.time_limit_ms;
+        limits.hard_limit_ms = search_limits.time_limit_ms;
+        return limits;
     }
 
+    // if infinite search return -1 for both limits, default value to ignore time checks
     if (search_limits.infinite_search) {
-        return -1;
+        return limits;
     }
 
-    int remaining = (board->side_to_move == WHITE) ? search_limits.time_for_white_ms
-                                                   : search_limits.time_for_black_ms;
-    int increment = (board->side_to_move == WHITE) ? search_limits.increment_for_white_ms
-                                                   : search_limits.increment_for_black_ms;
-    int moves_to_go = search_limits.moves_until_next_time_control > 0
-        ? search_limits.moves_until_next_time_control
-        : 30;
+    int time_remaining_ms = (board->side_to_move == WHITE) ? search_limits.time_for_white_ms
+                                                           : search_limits.time_for_black_ms;
+    int increment_ms = (board->side_to_move == WHITE) ? search_limits.increment_for_white_ms
+                                                      : search_limits.increment_for_black_ms;
+    int moves_to_go = search_limits.moves_until_next_time_control > 0 ? search_limits.moves_until_next_time_control : 50;
 
-    if (remaining <= 0) {
-        return -1;
+    // Subtract a constant overhead (curr 50ms) to account for move overhead / latency
+    int safe_remaining = time_remaining_ms - MOVE_OVERHEAD_DEFAULT_MS;
+    // less than 50 ms remaining so , set a very short time limit to at least try to make a move instead of flagging
+    if (safe_remaining <= 0) {
+        limits.soft_limit_ms = 15;
+        limits.hard_limit_ms = 15;
+        return limits;
     }
 
-    long long budget = (long long)remaining / moves_to_go + (long long)increment / 2;
-    if (budget < 10) {
-        budget = 10;
+    // soft limit, trying to spend fraction of remaining time plus some of the increment (curr .5 of increment)
+    long long soft_limit_ms = (long long)(safe_remaining / moves_to_go) + (long long)(increment_ms / 2);
+
+    // hard limit, never spend more than abt 1/3 of remaining time on single move
+    long long absolute_max_time_ms = (long long)(safe_remaining / 3);
+
+    // The hard limit is 3x the soft time, capped by the absolute max
+    long long hard_time_limit_ms = soft_limit_ms * 3;
+    if (hard_time_limit_ms > absolute_max_time_ms) {
+        hard_time_limit_ms = absolute_max_time_ms;
     }
 
-    long long max_spend = (long long)remaining - 5;
-    if (max_spend > 0 && budget > max_spend) {
-        budget = max_spend;
+    limits.soft_limit_ms = soft_limit_ms;
+    limits.hard_limit_ms = hard_time_limit_ms;
+
+    // Sanity check
+    if (limits.soft_limit_ms > limits.hard_limit_ms) {
+        limits.soft_limit_ms = limits.hard_limit_ms;
     }
 
-    return budget;
+    return limits;
 }
 
 typedef struct {
