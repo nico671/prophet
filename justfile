@@ -68,7 +68,7 @@ all build_mode="dev": dirs
 run: all
     ./{{target}}
 
-perft max_depth="5":
+perft max_depth="5": all 
     ./scripts/perft.sh {{target}} {{max_depth}}
 
 debug:
