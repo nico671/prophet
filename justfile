@@ -141,9 +141,9 @@ publish-feature version:
             -openings file=artifacts/noob_3moves.epd format=epd order=random \
             -games 2000 -rounds 1000 -repeat -concurrency 4 \
             -resign movecount=3 score=400 \
-            -pgnout {{artifacts_dir}}/$branch_name/games.pgn min \
             -draw movenumber=34 movecount=8 score=20 \
-            -sprt elo0=0 elo1=5 alpha=0.05 beta=0.05 \
+            -pgnout {{artifacts_dir}}/$branch_name/games.pgn min \
+            -sprt elo0=0 elo1=2 alpha=0.05 beta=0.05 \
             | tee {{artifacts_dir}}/$branch_name/sprt.log; \
         echo "Did the feature pass SPRT (H1 Accepted)? Press ENTER to merge and release, or Ctrl+C to abort."; \
         read; \
