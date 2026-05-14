@@ -137,7 +137,7 @@ publish-feature version:
         cutechess-cli \
             -engine cmd={{artifacts_dir}}/$branch_name/prophet name=$branch_name \
             -engine cmd={{artifacts_dir}}/main/prophet name=main \
-            -each proto=uci tc=10+0.1 \
+            -each proto=uci tc=30+0.3 \
             -openings file=artifacts/noob_3moves.epd format=epd order=random \
             -games 2000 -rounds 1000 -repeat -concurrency 4 \
             -resign movecount=3 score=400 \
