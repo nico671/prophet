@@ -10,7 +10,8 @@
 #include "engine/engine.h"
 #include "perft/perft.h"
 #include "uci/uci.h"
-
+// standard starting position FEN string
+#define START_FEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 void skip_whitespace(const char** str);
 
 static void stop_search_if_running(void)
@@ -186,9 +187,10 @@ void handle_go_command(const char* command)
                     break;
                 }
 
-                Move move = MOVE_NONE;
                 char error_buf[128] = "";
-                if (engine_parse_uci_move(moveToken, &move, error_buf, sizeof(error_buf))) {
+                Move move = engine_parse_and_create_uci_move(moveToken, error_buf, sizeof(error_buf));
+
+                if (move_get_from_square(move) != NO_SQUARE && move_get_to_square(move) != NO_SQUARE) {
                     if (go_cmd.search_moves.count < 256) {
                         go_cmd.search_moves.moves[go_cmd.search_moves.count++] = move;
                     }
@@ -254,38 +256,38 @@ void handle_go_command(const char* command)
     }
 }
 
-static void handle_perft_command(const char* command)
-{
-    stop_search_if_running();
-    command += 5; // Skip "perft"
+// static void handle_perft_command(const char* command)
+// {
+//     stop_search_if_running();
+//     command += 5; // Skip "perft"
 
-    int max_depth = 0;
-    if (!parse_next_int_token(&command, &max_depth) || max_depth <= 0) {
-        printf("info string Usage: perft <max_depth>\n");
-        fflush(stdout);
-        return;
-    }
+//     int max_depth = 0;
+//     if (!parse_next_int_token(&command, &max_depth) || max_depth <= 0) {
+//         printf("info string Usage: perft <max_depth>\n");
+//         fflush(stdout);
+//         return;
+//     }
 
-    CBoard base_board;
-    if (!engine_copy_board(&base_board)) {
-        printf("info string Failed to copy board for perft\n");
-        fflush(stdout);
-        return;
-    }
+//     CBoard base_board;
+//     if (!engine_copy_board(&base_board)) {
+//         printf("info string Failed to copy board for perft\n");
+//         fflush(stdout);
+//         return;
+//     }
 
-    for (int depth = 1; depth <= max_depth; depth++) {
-        CBoard board = base_board;
-        clock_t start = clock();
-        uint64_t nodes = perft(&board, depth);
-        clock_t end = clock();
-        double elapsed = (double)(end - start) / CLOCKS_PER_SEC;
-        double nps = elapsed > 0 ? nodes / elapsed : 0;
+//     for (int depth = 1; depth <= max_depth; depth++) {
+//         CBoard board = base_board;
+//         clock_t start = clock();
+//         uint64_t nodes = perft(&board, depth);
+//         clock_t end = clock();
+//         double elapsed = (double)(end - start) / CLOCKS_PER_SEC;
+//         double nps = elapsed > 0 ? nodes / elapsed : 0;
 
-        printf("perft depth %d nodes %" PRIu64 " nps %.0f time %.3f\n",
-            depth, nodes, nps, elapsed);
-        fflush(stdout);
-    }
-}
+//         printf("perft depth %d nodes %" PRIu64 " nps %.0f time %.3f\n",
+//             depth, nodes, nps, elapsed);
+//         fflush(stdout);
+//     }
+// }
 void handle_position_command(const char* command)
 {
     stop_search_if_running();
@@ -294,7 +296,7 @@ void handle_position_command(const char* command)
     skip_whitespace(&command);
 
     if (!strncmp(command, "startpos", 8) && (command[8] == '\0' || isspace((unsigned char)command[8]))) {
-        bool success = engine_set_position_startpos();
+        bool success = engine_set_position_fen(START_FEN);
         if (!success) {
             printf("info string Failed to parse start position FEN\n");
         }
@@ -347,11 +349,8 @@ void handle_position_command(const char* command)
             algebraic_move_str[move_length] = '\0';
             char error_buf[128] = "";
             if (!engine_apply_uci_move(algebraic_move_str, error_buf, sizeof(error_buf))) {
-                printf("info string Invalid move in position command: %s", algebraic_move_str);
-                if (error_buf[0] != '\0') {
-                    printf(" (%s)", error_buf);
-                }
-                printf("\n");
+                printf("info string error: %s, making move %s\n", error_buf, algebraic_move_str);
+                fflush(stdout);
             }
             command += move_length;
             skip_whitespace(&command);
@@ -401,7 +400,8 @@ void uci_loop(void)
         } else if (!strncmp(p, "go", 2) && (p[2] == '\0' || isspace((unsigned char)p[2]))) {
             handle_go_command(p);
         } else if (!strncmp(p, "perft", 5) && (p[5] == '\0' || isspace((unsigned char)p[5]))) {
-            handle_perft_command(p);
+            // handle_perft_command(p);
+            continue; // Ignore perft command for now, can be re-enabled for debugging or testing purposes.
         } else if (!strncmp(p, "stop", 4) && (p[4] == '\0' || isspace((unsigned char)p[4]))) {
             engine_stop_search();
         } else if (!strncmp(p, "ponderhit", 9) && (p[9] == '\0' || isspace((unsigned char)p[9]))) {

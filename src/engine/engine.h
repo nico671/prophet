@@ -64,20 +64,19 @@ void engine_init(void);
 void engine_shutdown(void);
 
 /**
- * @brief Reset the engine position to the standard starting position.
- */
-bool engine_set_position_startpos(void);
-
-/**
  * @brief Set the engine position from a FEN string.
  */
 bool engine_set_position_fen(const char* fen);
 
 /**
  * @brief Parse a UCI move string into a Move using the current engine position.
+ *
+ * @note This function generates all legal moves in the current position and checks if any of them match the provided UCI move string.
+ * This ensures that the move is not only syntactically valid but also legal in the current position (e.g., not moving a piece that isn't there, not leaving the king in check, etc.).
+ *
+ * @returns parsed Move if successful, or a Move with NO_SQUARE from/to if the move was invalid or illegal. If the move string is valid but the move is not legal in the current position, an error message will be written to error_buf.
  */
-bool engine_parse_uci_move(const char* move_str, Move* out_move,
-    char* error_buf, size_t error_buf_size);
+Move engine_parse_and_create_uci_move(const char* move_str, char* error_buf, size_t error_buf_size);
 
 /**
  * @brief Apply a UCI move string to the engine position if it is legal.
