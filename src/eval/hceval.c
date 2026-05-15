@@ -1,12 +1,13 @@
-// adapted from: https://www.chessprogramming.org/PeSTO%27s_Evaluation_Function
-// more improvements can be made later
-
-#include "hceval.h"
-
-#include <stdbool.h>
+// Adapted from: https://www.chessprogramming.org/PeSTO%27s_Evaluation_Function
+// PeSTO relies heavily on highly-tuned Piece-Square Tables (PSQT) rather than
+// complex, hand-coded heuristics (like checking for isolated pawns or open files).
 
 #include "board/cboard.h"
+#include "hceval.h"
+#include <stdbool.h>
 
+// Piece codes for indexing into the PSQT tables. We use a single array for both colors, so white pieces are at even indices and black pieces are at odd indices.
+// This allows us to easily flip the square index for black pieces and reuse the same tables, since the PSQT values are typically mirrored vertically for black and white.
 enum {
     HC_WHITE_PAWN = 0,
     HC_BLACK_PAWN = 1,
@@ -22,14 +23,18 @@ enum {
     HC_BLACK_KING = 11,
 };
 
-#define PCOLOR(p) ((p) & 1)
-#define FLIP(sq) ((sq) ^ 56)
-#define OTHER(side) ((side) ^ 1)
+// Utility macros for table lookups and color math
+#define PCOLOR(p) ((p) & 1) // Extracts color (0 for White, 1 for Black)
+#define FLIP(sq) ((sq) ^ 56) // Flips a square vertically (e.g., A1 -> A8) to mirror tables for Black
+#define OTHER(side) ((side) ^ 1) // Flips the side to move
 
+// Base material values for Midgame (mg) and Endgame (eg).
 static const int mg_value[6] = { 82, 337, 365, 477, 1025, 0 };
 static const int eg_value[6] = { 94, 281, 297, 512, 936, 0 };
 
 // piece-square tables (Rofchade)
+// These tables provide positional bonuses.
+
 static const int mg_pawn_table[64] = {
     0,
     0,
@@ -875,22 +880,53 @@ void hc_eval_init(void)
     tables_initialized = true;
 }
 
-static inline void accumulate_piece(Bitboard bb, int pc, int mg[2], int eg[2], int* game_phase)
+/**
+ * @brief Helper function to process all pieces of a specific type.
+ *
+ * This function uses bitboard operations to rapidly find all pieces of a given
+ * type and color.
+ *
+ * For each piece found, it adds its pre-calculated midgame
+ * and endgame scores to the running totals, and updates the game phase.
+ * @param bb The bitboard representing all pieces of a specific type and color.
+ * @param piece_type The internal HC_ enum piece type.
+ * @param mg Array holding the running midgame scores [White, Black].
+ * @param eg Array holding the running endgame scores [White, Black].
+ * @param phase Pointer to the running game phase accumulator.
+ */
+static void accumulate_piece(Bitboard bb, int piece_type, int mg[2], int eg[2], int* phase)
 {
+    // Determine which color we are accumulating for
+    int color = PCOLOR(piece_type);
+
     while (!bitboard_is_empty(bb)) {
-        int sq = bitboard_pop_lsb_unsafe(&bb);
-        mg[PCOLOR(pc)] += mg_table[pc][sq];
-        eg[PCOLOR(pc)] += eg_table[pc][sq];
-        *game_phase += game_phase_inc[pc];
+        Square sq = bitboard_lsb_index_unsafe(bb); // Get the index of the least significant 1-bit (the next piece), can use unsafe version since we check for empty beforehand
+
+        // Add the pre-initialized PSQT values for this square to the color's total
+        mg[color] += mg_table[piece_type][sq];
+        eg[color] += eg_table[piece_type][sq];
+
+        // Add the phase weight of this piece to the total game phase.
+        // Pawns and Kings have a phase weight of 0 (they don't trigger the endgame).
+        *phase += game_phase_inc[piece_type];
+
+        bitboard_clear_square_bit(&bb, sq); // Clear the bit for this piece to move on to the next one
     }
 }
 
 int evaluate_cboard(const CBoard* board)
 {
+    // Track separate scores for the Midgame (mg) and Endgame (eg).
+    // Array indices: [0] = White's score, [1] = Black's score.
     int mg[2] = { 0, 0 };
     int eg[2] = { 0, 0 };
+
+    // game_phase tracks how much material is left.
+    // Max phase = standard starting position.
+    // 0 phase = pure pawn/king endgame.
     int game_phase = 0;
 
+    // Accumulate positional and material scores for every piece on the board
     accumulate_piece(board->piece_bbs[WHITE][PAWN], HC_WHITE_PAWN, mg, eg, &game_phase);
     accumulate_piece(board->piece_bbs[BLACK][PAWN], HC_BLACK_PAWN, mg, eg, &game_phase);
     accumulate_piece(board->piece_bbs[WHITE][KNIGHT], HC_WHITE_KNIGHT, mg, eg, &game_phase);
@@ -904,12 +940,15 @@ int evaluate_cboard(const CBoard* board)
     accumulate_piece(board->piece_bbs[WHITE][KING], HC_WHITE_KING, mg, eg, &game_phase);
     accumulate_piece(board->piece_bbs[BLACK][KING], HC_BLACK_KING, mg, eg, &game_phase);
 
+    // Interpolate between the midgame and endgame scores based on the current game phase.
     int mg_score = mg[board->side_to_move] - mg[OTHER(board->side_to_move)];
     int eg_score = eg[board->side_to_move] - eg[OTHER(board->side_to_move)];
     int mg_phase = game_phase;
+    // Clamp the game phase to a maximum of 24, which corresponds to the standard starting position (2 knights + 2 bishops + 2 rooks + 1 queen = 24 phase points). This prevents division by zero and ensures that we don't extrapolate beyond the intended range of the evaluation function.
     if (mg_phase > 24) {
         mg_phase = 24;
     }
     int eg_phase = 24 - mg_phase;
-    return (mg_score * mg_phase + eg_score * eg_phase) / 24;
+    // The final evaluation is a weighted average of the midgame and endgame scores, where the weights are determined by how much material is left on the board.
+    return (mg_score * mg_phase + eg_score * eg_phase) / 24; // score flipping is handled by search.c
 }
