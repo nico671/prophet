@@ -14,12 +14,21 @@
 #include "search/search.h"
 #include "search/tt.h"
 
+// standard starting position FEN string
 #define START_FEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
-// Define the global atomic flags here
+// atomic flag for controlling search thread shutdown
 atomic_bool search_stop_flag = false;
+
+// atomic flag to indicate if the search thread is currently pondering (used for ponderhit handling)
 atomic_bool search_is_pondering = false;
 
+/**
+ * @brief Sets the error message in the provided buffer.
+ * @param error_buf The buffer to store the error message.
+ * @param error_buf_size The size of the error buffer.
+ * @param message The error message to set.
+ */
 static void set_error(char* error_buf, size_t error_buf_size, const char* message)
 {
     if (!error_buf || error_buf_size == 0) {
@@ -28,6 +37,13 @@ static void set_error(char* error_buf, size_t error_buf_size, const char* messag
     snprintf(error_buf, error_buf_size, "%s", message);
 }
 
+// TODO: This function is duplicated in cboard.c, consider refactoring to a common utility location
+/**
+ * @brief Converts algebraic notation to a square.
+ *
+ * @param algebraic_square_str The algebraic notation string (e.g., "e4").
+ * @return The corresponding square, or NO_SQUARE if the input is invalid.
+ */
 static Square algebraic_notation_to_square(const char* algebraic_square_str)
 {
     if (strlen(algebraic_square_str) < 2) {
@@ -52,7 +68,7 @@ void engine_init(void)
     init_sliding_attacks();
     init_zobrist_keys();
     hc_eval_init();
-    init_tt(64); // 64 MB TT by default, can be overridden by UCI option later
+    init_tt(64); // initialize 64 MB TT by default, can be overridden by UCI option later
     atomic_store(&search_stop_flag, false);
     atomic_store(&search_is_pondering, false);
 
@@ -64,6 +80,7 @@ void engine_init(void)
 void engine_shutdown(void)
 {
     engine_stop_search();
+    free_tt();
 }
 
 void engine_stop_search(void)

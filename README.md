@@ -14,7 +14,7 @@ prophet/
 │   ├── eval/      # Hand-crafted tapered evaluation
 │   ├── movegen/   # Move representation, generation, make/unmake
 │   ├── search/    # Search, move ordering, pruning, TT
-│   ├── tests/     # Perft harness and test helpers
+│   ├── tests/     # Perft harness
 │   ├── uci/       # UCI parsing and command loop
 │   ├── utils/     # Utility modules (PRNG, etc.)
 │   └── main.c     # Program entry point

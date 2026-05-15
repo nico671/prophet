@@ -35,3 +35,4 @@ void init_tt(size_t megabytes);
 void clear_tt(void);
 void store_tt(uint64_t key, int depth, int score, TTBound bound, Move best_move);
 TTEntry* probe_tt(uint64_t key);
+void free_tt(void);

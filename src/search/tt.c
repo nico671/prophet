@@ -142,3 +142,12 @@ int extract_pv_line(CBoard* board, Move* pv_move_list, int max_depth)
 
     return count;
 }
+
+void free_tt(void)
+{
+    if (tt_table != NULL) {
+        free(tt_table);
+        tt_table = NULL;
+        tt_size = 0;
+    }
+}

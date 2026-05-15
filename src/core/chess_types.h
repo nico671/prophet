@@ -71,6 +71,11 @@ typedef enum {
     G8,
     H8
 } Square;
+
+/**
+ * @brief Constant representing an invalid square, used as a sentinel value in various contexts such as move generation and board representation. It is set to 64, which is outside the valid range of 0-63 for squares on an 8x8 chessboard.
+ *
+ */
 #define NO_SQUARE 64
 
 /**
