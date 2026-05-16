@@ -12,7 +12,7 @@
 #include "movegen/move_make.h"
 #include "movegen/movegen.h"
 #include "search/search.h"
-#include "search/tt.h"
+#include "tt/tt.h"
 
 // standard starting position FEN string
 #define START_FEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"

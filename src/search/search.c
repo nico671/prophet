@@ -12,7 +12,7 @@
 #include "movegen/move_make.h"
 #include "movegen/movegen.h"
 #include "search/search.h"
-#include "search/tt.h"
+#include "tt/tt.h"
 
 // time limits struct for soft / hard time control limits
 typedef struct {
