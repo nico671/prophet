@@ -256,38 +256,48 @@ void handle_go_command(const char* command)
     }
 }
 
-// static void handle_perft_command(const char* command)
-// {
-//     stop_search_if_running();
-//     command += 5; // Skip "perft"
+static void handle_perft_command(const char* command)
+{
+    stop_search_if_running();
+    command += 5; // Skip "perft"
 
-//     int max_depth = 0;
-//     if (!parse_next_int_token(&command, &max_depth) || max_depth <= 0) {
-//         printf("info string Usage: perft <max_depth>\n");
-//         fflush(stdout);
-//         return;
-//     }
+    skip_whitespace(&command);
 
-//     CBoard base_board;
-//     if (!engine_copy_board(&base_board)) {
-//         printf("info string Failed to copy board for perft\n");
-//         fflush(stdout);
-//         return;
-//     }
+    // check for "suite" keyword for running all perft tests defined in perft.h
+    if (!strncmp(command, "suite", 5) && (command[5] == '\0' || isspace((unsigned char)command[5]))) {
+        command += 5;
+        skip_whitespace(&command);
+        run_perft_test_suite();
+        return;
+    }
 
-//     for (int depth = 1; depth <= max_depth; depth++) {
-//         CBoard board = base_board;
-//         clock_t start = clock();
-//         uint64_t nodes = perft(&board, depth);
-//         clock_t end = clock();
-//         double elapsed = (double)(end - start) / CLOCKS_PER_SEC;
-//         double nps = elapsed > 0 ? nodes / elapsed : 0;
+    int max_depth = 0;
+    if (!parse_next_int_token(&command, &max_depth) || max_depth <= 0) {
+        printf("info string Usage: perft <max_depth> (run perft on current position to <max_depth>) or perft suite (run all perft tests, predefined)\n");
+        fflush(stdout);
+        return;
+    }
 
-//         printf("perft depth %d nodes %" PRIu64 " nps %.0f time %.3f\n",
-//             depth, nodes, nps, elapsed);
-//         fflush(stdout);
-//     }
-// }
+    CBoard base_board;
+    if (!engine_copy_board(&base_board)) {
+        printf("info string Failed to copy board for perft\n");
+        fflush(stdout);
+        return;
+    }
+
+    for (int depth = 1; depth <= max_depth; depth++) {
+        CBoard board = base_board;
+        clock_t start = clock();
+        uint64_t nodes = perft(&board, depth);
+        clock_t end = clock();
+        double elapsed = (double)(end - start) / CLOCKS_PER_SEC;
+        double nps = elapsed > 0 ? nodes / elapsed : 0;
+
+        printf("perft depth %d nodes %" PRIu64 " nps %.0f time %.3f\n",
+            depth, nodes, nps, elapsed);
+        fflush(stdout);
+    }
+}
 void handle_position_command(const char* command)
 {
     stop_search_if_running();
@@ -400,8 +410,7 @@ void uci_loop(void)
         } else if (!strncmp(p, "go", 2) && (p[2] == '\0' || isspace((unsigned char)p[2]))) {
             handle_go_command(p);
         } else if (!strncmp(p, "perft", 5) && (p[5] == '\0' || isspace((unsigned char)p[5]))) {
-            // handle_perft_command(p);
-            continue; // Ignore perft command for now, can be re-enabled for debugging or testing purposes.
+            handle_perft_command(p);
         } else if (!strncmp(p, "stop", 4) && (p[4] == '\0' || isspace((unsigned char)p[4]))) {
             engine_stop_search();
         } else if (!strncmp(p, "ponderhit", 9) && (p[9] == '\0' || isspace((unsigned char)p[9]))) {

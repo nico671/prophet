@@ -68,4 +68,13 @@ static inline char* moveToStringAlgebraic(Move move)
     return moveStr;
 }
 
+typedef struct
+{
+    const char* name;
+    const char* fen;
+    uint64_t* expected_nodes;
+    int max_depth;
+} PerftTest;
+
+void run_perft_test_suite(void);
 #endif // PERFT_CORE_H
