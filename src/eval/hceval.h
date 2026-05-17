@@ -18,7 +18,7 @@ typedef struct CBoard CBoard;
  * values with square-centric positional bonuses. This avoids doing redundant
  * arithmetic during the search phase.
  * * @note This function is idempotent (safe to call multiple times) but MUST
- * be called at least once before `evaluate_cboard` is invoked.
+ * be called at least once before `hc_evaluate_cboard` is invoked.
  */
 void hc_eval_init(void);
 
@@ -30,9 +30,9 @@ void hc_eval_init(void);
  * material is left on the board).
  *
  * @param board Pointer to the board state to evaluate.
- * @return int The centipawn evaluation score. A positive score means White is better,
- * a negative score means Black is better.
+ * @return int The centipawn evaluation score.
+ * Side to move handled by search.c, so this function always returns a score from the perspective of the side to move (positive = good for side to move, negative = bad for side to move).
  */
-int evaluate_cboard(const CBoard* board);
+int hc_evaluate_cboard(const CBoard* board);
 
 #endif // HCEVAL_H

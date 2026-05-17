@@ -124,6 +124,14 @@ def main(engine_path, depth):
     print(f"Bench NPS   : {nps}")
     print("===========================")
 
+    # write to bench.txt in format printed
+    with open("bench.txt", "w") as f:
+        f.write("===========================\n")
+        f.write(f"Total Time (ms) : {total_time_ms}\n")
+        f.write(f"Total Nodes : {total_nodes}\n")
+        f.write(f"Bench NPS   : {nps}\n")
+        f.write("===========================\n")
+
 
 if __name__ == "__main__":
     import argparse

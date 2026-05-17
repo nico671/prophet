@@ -1,18 +1,18 @@
 #include "engine/engine.h"
 
-#include <ctype.h>
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include "attacks/sliding_attacks.h"
 #include "board/zobrist.h"
 #include "eval/hceval.h"
 #include "movegen/move_make.h"
 #include "movegen/movegen.h"
+#include "nnue/nnue.h"
 #include "search/search.h"
 #include "tt/tt.h"
+#include <ctype.h>
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 // standard starting position FEN string
 #define START_FEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
@@ -70,7 +70,8 @@ void engine_init(void)
     // all functions are idempotent
     init_sliding_attacks();
     init_zobrist_keys();
-    hc_eval_init();
+    // hc_eval_init();
+    nnue_init("/Users/nicocarbone/Documents/dev/prophet-nnue/outs/all_piece_featureset/nnue_weights.bin");
 
     // initialize 64 MB TT by default, can be overridden by UCI option later
     init_tt(64);

@@ -914,7 +914,7 @@ static void accumulate_piece(Bitboard bb, int piece_type, int mg[2], int eg[2], 
     }
 }
 
-int evaluate_cboard(const CBoard* board)
+int hc_evaluate_cboard(const CBoard* board)
 {
     // Track separate scores for the Midgame (mg) and Endgame (eg).
     // Array indices: [0] = White's score, [1] = Black's score.
