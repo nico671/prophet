@@ -124,8 +124,11 @@ def main(engine_path, depth):
     print(f"Bench NPS   : {nps}")
     print("===========================")
 
-    # write to bench.txt in format printed
-    with open("bench.txt", "w") as f:
+    # write to engine_path/bench.txt in format printed
+    # must remove executable name from engine_path if it exists
+    split = engine_path.split("/")
+    engine_path_no_exe = "/".join(split[:-1]) if len(split) > 1 else "."
+    with open(f"{engine_path_no_exe}/bench.txt", "w") as f:
         f.write("===========================\n")
         f.write(f"Total Time (ms) : {total_time_ms}\n")
         f.write(f"Total Nodes : {total_nodes}\n")
