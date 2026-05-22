@@ -1,0 +1,3 @@
+[submodule "prophet-nnue"]
+	path = prophet-nnue
+	url = https://github.com/nico671/prophet-nnue.git
