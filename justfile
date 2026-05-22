@@ -33,8 +33,7 @@ build build_mode="dev":
     } }}
 
 clean:
-    rm -rf {{builddir}} artifacts/
-
+    rm -rf {{builddir}} artifacts/{{branch}}/prophet-*
 
 # Run perft testing using the engine's standard output
 perft build_mode="dev":

@@ -3,26 +3,37 @@
 #include "engine/engine.h"
 #include "movegen/move.h"
 
-typedef struct {
-    Move move;
-    int score;
-} ScoredMove;
-
-// killer moves storage
+// Search tuning constants
 #define MAX_KILLER_MOVES 2
 #define MAX_PLY 64
-extern Move killer_moves_list[MAX_PLY][MAX_KILLER_MOVES]; // [depth][idx] where 0 is newest killer, 1 is previous killer
+#define MAX_LEGAL_MOVES 256
+#define TT_MOVE_SCORE 2000000
+#define GOOD_CAPTURE_BASE_SCORE 1200000
+#define KILLER_1_SCORE 900000
+#define KILLER_2_SCORE 800000
+#define BAD_CAPTURE_BASE_SCORE 100000
+#define HISTORY_MAX 200000
+#define MATE_SCORE 200000000
+#define MATE_THRESHOLD 199999000
+#define MOVE_OVERHEAD_DEFAULT_MS 50
 
-extern int history_heuristic[2][64][64]; // [color][from][to]
-
+/**
+ * @brief The main thread worker function that executes the search.
+ *
+ * Handles Iterative Deepening, time management tracking, dynamic soft-limit extensions
+ * (instability checks), and UCI `info` and `bestmove` string reporting.
+ *
+ * @param arg Pointer to a SearchThreadData struct containing the board state and limits.
+ * @return NULL upon completion.
+ */
 void* search_worker(void* arg);
 
-void score_moves(CBoard* board, MoveList* move_list, ScoredMove* scored_moves,
-    Move tt_move, int ply);
-int quiescence(CBoard* node, int alpha, int beta, int ply);
-int negamax(CBoard* node, int depth, int alpha, int beta, Color color, int ply);
-void pick_next_best_move(ScoredMove* scored_moves, int start, int count);
-void clear_search_heuristics(void);
+/**
+ * @brief Handle a UCI "ponderhit" event by applying real-time controls.
+ *
+ * This updates the active search thread's soft/hard time limits so it can
+ * continue searching with the proper time budget instead of pondering.
+ */
 void on_ponder_hit(void);
 
 #endif // SEARCH_H

@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -15,28 +16,50 @@
 #include "search/search.h"
 #include "tt/tt.h"
 
-// time limits struct for soft / hard time control limits
+typedef struct {
+    Move move;
+    int score;
+} ScoredMove;
+
 typedef struct {
     long long soft_limit_ms;
     long long hard_limit_ms;
 } TimeLimits;
 
-Move killer_moves_list[MAX_PLY][MAX_KILLER_MOVES]; // [depth][idx] where 0 is newest
-                                                   // killer, 1 is previous killer
-int history_heuristic[2][64][64]; // [color][from][to]
+/**
+ * @brief Thread-local search state for a single search instance.
+ *
+ * All mutable search data (limits, timers, heuristics, counters) live here so
+ * concurrent searches do not overwrite each other.
+ */
+typedef struct {
+    CBoard board; // Working copy of the root board
+    SearchLimits limits;
+    Color root_side_to_move;
+    long long start_time_ms;
+    atomic_llong node_count;
+    atomic_llong hard_deadline_ms;
+    atomic_llong soft_limit_ms;
+    Move killer_moves[MAX_PLY][MAX_KILLER_MOVES];
+    int history[2][64][64];
+} SearchContext;
+
+static _Atomic(SearchContext*) active_search_context = NULL;
 
 static int piece_value(PieceType piece);
-// static long long compute_time_budget_ms(const CBoard* board, SearchLimits search_limits);
 static TimeLimits compute_time_limits(SearchLimits search_limits, Color side_to_move);
-static const int TT_MOVE_SCORE = 2000000;
-static const int GOOD_CAPTURE_BASE_SCORE = 1200000;
-static const int KILLER_1_SCORE = 900000;
-static const int KILLER_2_SCORE = 800000;
-static const int BAD_CAPTURE_BASE_SCORE = 100000;
-static const int HISTORY_MAX = 200000;
-static const int MATE_SCORE = 200000000;
-static const int MATE_THRESHOLD = 199999000;
-static const int MOVE_OVERHEAD_DEFAULT_MS = 50;
+static bool should_stop_search(SearchContext* ctx);
+static int search_root_best_move(SearchContext* ctx, CBoard* board, int depth, Move* prev_best_move);
+static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int beta, Color color, int ply);
+static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int ply);
+static void score_moves(SearchContext* ctx, CBoard* board, MoveList* move_list, ScoredMove* scored_moves,
+    Move tt_move, int ply);
+static void pick_next_best_move(ScoredMove* scored_moves, int start, int count);
+static void clear_search_heuristics(SearchContext* ctx);
+static void age_history(SearchContext* ctx);
+static void update_history(SearchContext* ctx, Color side, Move move, int depth);
+static void penalize_history(SearchContext* ctx, Color side, Move move, int depth);
+
 static PieceType captured_piece_for_move(const CBoard* board, Move move)
 {
     if (move_is_enpassant(move)) {
@@ -78,6 +101,25 @@ static bool is_mate_score(int score)
     return score >= MATE_THRESHOLD || score <= -MATE_THRESHOLD;
 }
 
+static inline bool is_valid_square_index(Square square)
+{
+    int idx = (int)square;
+    return idx >= 0 && idx < 64;
+}
+
+static int* history_entry(SearchContext* ctx, Color side, Square from, Square to)
+{
+    if (side != WHITE && side != BLACK) {
+        return NULL;
+    }
+    if (!is_valid_square_index(from) || !is_valid_square_index(to)) {
+        return NULL;
+    }
+    assert((int)from >= 0 && (int)from < 64);
+    assert((int)to >= 0 && (int)to < 64);
+    return &ctx->history[(int)side][(int)from][(int)to];
+}
+
 static int to_tt_score(int score, int ply)
 {
     if (score >= MATE_THRESHOLD) {
@@ -100,20 +142,16 @@ static int from_tt_score(int score, int ply)
     return score;
 }
 
-static void update_history(Color side, Move move, int depth)
+static void update_history(SearchContext* ctx, Color side, Move move, int depth)
 {
-    if (side != WHITE && side != BLACK) {
-        return;
-    }
-
     Square from = move_get_from_square(move);
     Square to = move_get_to_square(move);
-    if (from == NO_SQUARE || to == NO_SQUARE) {
+    int* entry = history_entry(ctx, side, from, to);
+    if (!entry) {
         return;
     }
 
     int bonus = depth * depth;
-    int* entry = &history_heuristic[(int)side][(int)from][(int)to];
     long long updated = (long long)(*entry) + bonus;
     if (updated > HISTORY_MAX) {
         updated = HISTORY_MAX;
@@ -123,20 +161,16 @@ static void update_history(Color side, Move move, int depth)
     *entry = (int)updated;
 }
 
-static void penalize_history(Color side, Move move, int depth)
+static void penalize_history(SearchContext* ctx, Color side, Move move, int depth)
 {
-    if (side != WHITE && side != BLACK) {
-        return;
-    }
-
     Square from = move_get_from_square(move);
     Square to = move_get_to_square(move);
-    if (from == NO_SQUARE || to == NO_SQUARE) {
+    int* entry = history_entry(ctx, side, from, to);
+    if (!entry) {
         return;
     }
 
     int malus = depth * depth;
-    int* entry = &history_heuristic[(int)side][(int)from][(int)to];
     long long updated = (long long)(*entry) - malus;
     if (updated > HISTORY_MAX) {
         updated = HISTORY_MAX;
@@ -146,24 +180,24 @@ static void penalize_history(Color side, Move move, int depth)
     *entry = (int)updated;
 }
 
-static void age_history(void)
+static void age_history(SearchContext* ctx)
 {
     for (int side = 0; side < 2; side++) {
         for (int from = 0; from < 64; from++) {
             for (int to = 0; to < 64; to++) {
-                history_heuristic[side][from][to] /= 2;
+                ctx->history[side][from][to] /= 2;
             }
         }
     }
 }
 
-void clear_search_heuristics(void)
+static void clear_search_heuristics(SearchContext* ctx)
 {
     for (int ply = 0; ply < MAX_PLY; ply++) {
-        killer_moves_list[ply][0] = MOVE_NONE;
-        killer_moves_list[ply][1] = MOVE_NONE;
+        ctx->killer_moves[ply][0] = MOVE_NONE;
+        ctx->killer_moves[ply][1] = MOVE_NONE;
     }
-    memset(history_heuristic, 0, sizeof(history_heuristic));
+    memset(ctx->history, 0, sizeof(ctx->history));
 }
 
 static int piece_value(PieceType piece)
@@ -185,13 +219,6 @@ static int piece_value(PieceType piece)
         return 0;
     }
 }
-
-static SearchLimits active_search_limits;
-static atomic_llong search_node_count = 0;
-static long long search_start_ms = 0;
-static atomic_llong search_hard_deadline_ms = -1;
-static atomic_llong active_soft_limit_ms = -1;
-static atomic_int active_search_side_to_move = WHITE;
 
 static long long now_ms(void)
 {
@@ -215,20 +242,26 @@ static bool move_allowed_by_search_moves(Move move, const MoveList* search_moves
     return false;
 }
 
-static bool should_stop_search(void)
+/**
+ * @brief Determine whether the current search should stop.
+ *
+ * Checks the global stop flag, node limit, and hard deadline. The time check
+ * is throttled to reduce `now_ms()` overhead.
+ */
+static bool should_stop_search(SearchContext* ctx)
 {
     if (atomic_load(&search_stop_flag)) {
         return true;
     }
 
-    long long nodes = atomic_load(&search_node_count);
-    if (active_search_limits.node_limit > 0 && nodes >= active_search_limits.node_limit) {
+    long long nodes = atomic_load(&ctx->node_count);
+    if (ctx->limits.node_limit > 0 && nodes >= ctx->limits.node_limit) {
         atomic_store(&search_stop_flag, true);
         return true;
     }
     // only check the actual time every 2048 nodes to avoid now_ms() overhead on every node
     if ((nodes & 2047) == 0) {
-        long long hard_deadline = atomic_load(&search_hard_deadline_ms);
+        long long hard_deadline = atomic_load(&ctx->hard_deadline_ms);
         if (!atomic_load(&search_is_pondering) && hard_deadline >= 0 && now_ms() >= hard_deadline) {
             atomic_store(&search_stop_flag, true);
             return true;
@@ -242,15 +275,20 @@ void on_ponder_hit(void)
 {
     atomic_store(&search_is_pondering, false);
 
-    Color side = (Color)atomic_load(&active_search_side_to_move);
+    SearchContext* ctx = atomic_load(&active_search_context);
+    if (!ctx) {
+        return;
+    }
+
+    Color side = ctx->root_side_to_move;
     if (side != WHITE && side != BLACK) {
-        atomic_store(&search_hard_deadline_ms, -1);
-        atomic_store(&active_soft_limit_ms, -1);
+        atomic_store(&ctx->hard_deadline_ms, -1);
+        atomic_store(&ctx->soft_limit_ms, -1);
         return;
     }
 
     // Use our new struct and calculation function
-    TimeLimits limits = compute_time_limits(active_search_limits, side);
+    TimeLimits limits = compute_time_limits(ctx->limits, side);
 
     long long hard_deadline_ms = -1;
     long long soft_limit = -1;
@@ -261,13 +299,18 @@ void on_ponder_hit(void)
     }
 
     // Push the new limits to the global atomic variables
-    atomic_store(&search_hard_deadline_ms, hard_deadline_ms);
-    atomic_store(&active_soft_limit_ms, soft_limit);
+    atomic_store(&ctx->hard_deadline_ms, hard_deadline_ms);
+    atomic_store(&ctx->soft_limit_ms, soft_limit);
 }
 
+/**
+ * @brief Compute soft/hard time limits for the current move.
+ *
+ * Returns {-1, -1} when running in infinite/ponder mode without time controls.
+ */
 static TimeLimits compute_time_limits(SearchLimits search_limits, Color side_to_move)
 {
-    TimeLimits limits = { -1, -1 };
+    TimeLimits limits = { .soft_limit_ms = -1, .hard_limit_ms = -1 };
 
     // if a specific time limit was set, use that directly
     if (search_limits.time_limit_ms > 0) {
@@ -322,8 +365,8 @@ static TimeLimits compute_time_limits(SearchLimits search_limits, Color side_to_
 typedef struct {
     uint8_t previous_ep_square;
     uint16_t previous_halfmove_clock;
-    uint16_t previousFullmoveNumber;
-    Color previousSideToMove;
+    uint16_t previous_fullmove_number;
+    Color previous_side_to_move;
     uint64_t previous_zobrist_key;
 } NullMoveUndo;
 
@@ -332,8 +375,8 @@ static NullMoveUndo make_null_move(CBoard* board)
     NullMoveUndo undo;
     undo.previous_ep_square = board->ep_square;
     undo.previous_halfmove_clock = board->half_move_clock;
-    undo.previousFullmoveNumber = board->full_move_number;
-    undo.previousSideToMove = board->side_to_move;
+    undo.previous_fullmove_number = board->full_move_number;
+    undo.previous_side_to_move = board->side_to_move;
     undo.previous_zobrist_key = board->zobrist_key;
 
     zobrist_toggle_ep(&board->zobrist_key, board, board->ep_square);
@@ -354,8 +397,8 @@ static void unmake_null_move(CBoard* board, NullMoveUndo undo)
 {
     board->ep_square = undo.previous_ep_square;
     board->half_move_clock = undo.previous_halfmove_clock;
-    board->full_move_number = undo.previousFullmoveNumber;
-    board->side_to_move = undo.previousSideToMove;
+    board->full_move_number = undo.previous_fullmove_number;
+    board->side_to_move = undo.previous_side_to_move;
     board->zobrist_key = undo.previous_zobrist_key;
 }
 
@@ -391,11 +434,18 @@ static void move_to_uci_string(Move move, char* out)
     out[4] = '\0';
 }
 
-static int search_root_best_move(CBoard* board, int depth, Move* prev_best_move)
+/**
+ * @brief Root search for the best move at a given depth.
+ *
+ * Applies move ordering, iterates legal root moves, and updates the TT with
+ * the best score found at this depth.
+ */
+static int search_root_best_move(SearchContext* ctx, CBoard* board, int depth, Move* prev_best_move)
 {
     MoveList move_list;
     init_move_list(&move_list);
     generate_legal_moves(board, &move_list);
+    assert(move_list.count <= MAX_LEGAL_MOVES);
 
     if (move_list.count == 0) {
         *prev_best_move = create_move(NO_SQUARE, NO_SQUARE, 0, 0);
@@ -425,39 +475,34 @@ static int search_root_best_move(CBoard* board, int depth, Move* prev_best_move)
         }
     }
 
-    ScoredMove scored_moves[256];
-    score_moves(board, &move_list, scored_moves, tt_move, 0);
+    ScoredMove scored_moves[MAX_LEGAL_MOVES];
+    score_moves(ctx, board, &move_list, scored_moves, tt_move, 0);
 
-    int alpha = -200000000;
-    int beta = 200000000;
+    int alpha = -MATE_SCORE;
+    int beta = MATE_SCORE;
     int best_score = -MATE_SCORE;
     Move best_move = create_move(NO_SQUARE, NO_SQUARE, 0, 0);
     bool has_searched_at_least_one_move = false;
     for (int i = 0; i < move_list.count; i++) {
-        if (should_stop_search()) {
+        if (should_stop_search(ctx)) {
             break;
         }
         pick_next_best_move(scored_moves, i, move_list.count);
 
         Move move = scored_moves[i].move;
 
-        char curr_move_uci_string[6];
-        move_to_uci_string(move, curr_move_uci_string);
-        // printf("info depth %d currmove %s currmovenumber %d\n", depth,
-        // curr_move_uci_string, i + 1);
-
         // Skip moves that aren't in the search_moves list (if search_moves is
         // non-empty)
-        if (!move_allowed_by_search_moves(move, &active_search_limits.search_moves)) {
+        if (!move_allowed_by_search_moves(move, &ctx->limits.search_moves)) {
             continue;
         }
 
         UndoInfo undo_info = make_move(board, move);
-        int eval = -negamax(board, depth - 1, -beta, -alpha, board->side_to_move, 1);
+        int eval = -negamax(ctx, board, depth - 1, -beta, -alpha, board->side_to_move, 1);
         unmake_move(board, move, undo_info);
         has_searched_at_least_one_move = true;
 
-        if (should_stop_search()) {
+        if (should_stop_search(ctx)) {
             break;
         }
 
@@ -485,33 +530,39 @@ void* search_worker(void* arg)
 {
     // Cast and extract the data
     SearchThreadData* data = (SearchThreadData*)arg;
-    CBoard search_board = data->board;
-    SearchLimits search_limits = data->search_limits;
+    SearchContext ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    ctx.board = data->board;
+    ctx.limits = data->search_limits;
+    ctx.root_side_to_move = ctx.board.side_to_move;
+    ctx.start_time_ms = now_ms();
+    atomic_init(&ctx.node_count, 0);
+    atomic_init(&ctx.hard_deadline_ms, -1);
+    atomic_init(&ctx.soft_limit_ms, -1);
 
-    // clear all killer moves
-    clear_search_heuristics();
-    active_search_limits = search_limits;
-    atomic_store(&active_search_side_to_move, (int)search_board.side_to_move);
-    atomic_store(&search_node_count, 0);
-    search_start_ms = now_ms();
+    // clear all killer moves / history for this search instance
+    clear_search_heuristics(&ctx);
+
+    // publish the active context for ponderhit updates
+    atomic_store(&active_search_context, &ctx);
 
     // declare time tracking variables in the outer scope
-    TimeLimits time_limits = { -1, -1 };
+    TimeLimits time_limits = { .soft_limit_ms = -1, .hard_limit_ms = -1 };
     long long hard_deadline_ms = -1;
     long long soft_limit_ms = -1;
 
-    if (!search_limits.ponder) {
-        time_limits = compute_time_limits(search_limits, search_board.side_to_move);
+    if (!ctx.limits.ponder) {
+        time_limits = compute_time_limits(ctx.limits, ctx.root_side_to_move);
 
         if (time_limits.hard_limit_ms > 0) {
-            hard_deadline_ms = search_start_ms + time_limits.hard_limit_ms;
+            hard_deadline_ms = ctx.start_time_ms + time_limits.hard_limit_ms;
             soft_limit_ms = time_limits.soft_limit_ms;
         }
     }
 
-    // Initialize the global atomics correctly at the start of the search
-    atomic_store(&search_hard_deadline_ms, hard_deadline_ms);
-    atomic_store(&active_soft_limit_ms, soft_limit_ms);
+    // Initialize the context atomics at the start of the search
+    atomic_store(&ctx.hard_deadline_ms, hard_deadline_ms);
+    atomic_store(&ctx.soft_limit_ms, soft_limit_ms);
 
     // We copied the data to local stack variables, so free the allocated payload
     free(data);
@@ -525,9 +576,9 @@ void* search_worker(void* arg)
     Move previous_best_move = MOVE_NONE;
 
     int max_depth;
-    if (search_limits.depth_limit > 0) {
-        max_depth = search_limits.depth_limit;
-    } else if (search_limits.infinite_search || search_limits.ponder) {
+    if (ctx.limits.depth_limit > 0) {
+        max_depth = ctx.limits.depth_limit;
+    } else if (ctx.limits.infinite_search || ctx.limits.ponder) {
         max_depth = INT_MAX;
     } else {
         max_depth = 100;
@@ -535,22 +586,22 @@ void* search_worker(void* arg)
 
     // id loop
     while (current_depth <= max_depth) {
-        if (should_stop_search()) {
+        if (should_stop_search(&ctx)) {
             break;
         }
 
         Move depth_best_move = best_move;
-        int score = search_root_best_move(&search_board, current_depth, &depth_best_move);
-        if (!should_stop_search() && move_get_from_square(depth_best_move) != NO_SQUARE) {
+        int score = search_root_best_move(&ctx, &ctx.board, current_depth, &depth_best_move);
+        if (!should_stop_search(&ctx) && move_get_from_square(depth_best_move) != NO_SQUARE) {
             best_move = depth_best_move;
             best_score = score;
         }
 
-        long long elapsed = now_ms() - search_start_ms;
-        long long nodes = atomic_load(&search_node_count);
+        long long elapsed = now_ms() - ctx.start_time_ms;
+        long long nodes = atomic_load(&ctx.node_count);
         long long nps = elapsed > 0 ? (nodes * 1000LL) / elapsed : nodes;
-        Move pv_line[256];
-        int pv_length = extract_pv_line(&search_board, pv_line, current_depth);
+        Move pv_line[MAX_LEGAL_MOVES];
+        int pv_length = extract_pv_line(&ctx.board, pv_line, current_depth);
         if (pv_length >= 2 && pv_line[0] == best_move) {
             ponder_move = pv_line[1];
         }
@@ -563,7 +614,7 @@ void* search_worker(void* arg)
             strcat(pv_string, " ");
         }
 
-        if (abs(best_score) > 100000000) {
+        if (is_mate_score(best_score)) {
             int mate_moves = (MATE_SCORE - abs(best_score)) / 2;
             int mate_score = best_score >= 0 ? mate_moves : -mate_moves;
             printf(
@@ -574,18 +625,18 @@ void* search_worker(void* arg)
                 current_depth, best_score, nodes, elapsed, nps, pv_string);
         }
 
-        age_history();
+        age_history(&ctx);
         current_depth++;
 
         // time management checks after each depth iteration
-        long long current_soft_limit = atomic_load(&active_soft_limit_ms);
+        long long current_soft_limit = atomic_load(&ctx.soft_limit_ms);
 
-        if (search_limits.time_limit_ms == 0 && current_soft_limit > 0) {
+        if (ctx.limits.time_limit_ms == 0 && current_soft_limit > 0) {
 
             // dynamically increase the soft limit if we detect instability in the root move (best move changes from previous iteration) after depth 2
             if (current_depth > 2 && best_move != previous_best_move) {
                 current_soft_limit += current_soft_limit / 2;
-                atomic_store(&active_soft_limit_ms, current_soft_limit); // Save the extended time
+                atomic_store(&ctx.soft_limit_ms, current_soft_limit); // Save the extended time
             }
 
             // Soft Limit Break
@@ -602,9 +653,9 @@ void* search_worker(void* arg)
         //  update previous_best_move for the next depth's instability check
         previous_best_move = best_move;
 
-        if (!atomic_load(&search_is_pondering) && search_limits.search_for_mate_in_n_moves > 0 && abs(best_score) > 100000000) {
+        if (!atomic_load(&search_is_pondering) && ctx.limits.search_for_mate_in_n_moves > 0 && is_mate_score(best_score)) {
             int mate_moves = (MATE_SCORE - abs(best_score)) / 2;
-            if (mate_moves <= search_limits.search_for_mate_in_n_moves) {
+            if (mate_moves <= ctx.limits.search_for_mate_in_n_moves) {
                 break;
             }
         }
@@ -621,11 +672,14 @@ void* search_worker(void* arg)
     }
     fflush(stdout);
 
+    // clear active context reference before returning
+    atomic_store(&active_search_context, NULL);
+
     return NULL;
 }
 
-void score_moves(CBoard* board, MoveList* move_list, ScoredMove* scored_moves,
-    Move tt_move, int ply)
+static void score_moves(SearchContext* ctx, CBoard* board, MoveList* move_list,
+    ScoredMove* scored_moves, Move tt_move, int ply)
 {
     Color side = board->side_to_move;
 
@@ -655,29 +709,31 @@ void score_moves(CBoard* board, MoveList* move_list, ScoredMove* scored_moves,
                 score = BAD_CAPTURE_BASE_SCORE + mvv_lva + promo_bonus;
             }
         } else if (ply < MAX_PLY) {
-            if (curr_move == killer_moves_list[ply][0]) {
+            if (curr_move == ctx->killer_moves[ply][0]) {
                 score = KILLER_1_SCORE;
-            } else if (curr_move == killer_moves_list[ply][1]) {
+            } else if (curr_move == ctx->killer_moves[ply][1]) {
                 score = KILLER_2_SCORE;
             } else {
                 Square from = move_get_from_square(curr_move);
                 Square to = move_get_to_square(curr_move);
-                if (from != NO_SQUARE && to != NO_SQUARE) {
-                    score = history_heuristic[(int)side][(int)from][(int)to];
+                int* entry = history_entry(ctx, side, from, to);
+                if (entry) {
+                    score = *entry;
                 }
             }
         } else {
             Square from = move_get_from_square(curr_move);
             Square to = move_get_to_square(curr_move);
-            if (from != NO_SQUARE && to != NO_SQUARE) {
-                score = history_heuristic[(int)side][(int)from][(int)to];
+            int* entry = history_entry(ctx, side, from, to);
+            if (entry) {
+                score = *entry;
             }
         }
         scored_moves[i].score = score;
     }
 }
 
-void pick_next_best_move(ScoredMove* scored_moves, int start, int count)
+static void pick_next_best_move(ScoredMove* scored_moves, int start, int count)
 {
     for (int i = start; i < count; i++) {
         if (scored_moves[i].score > scored_moves[start].score) {
@@ -689,11 +745,17 @@ void pick_next_best_move(ScoredMove* scored_moves, int start, int count)
     }
 }
 
-int quiescence(CBoard* node, int alpha, int beta, int ply)
+/**
+ * @brief Quiescence search to stabilize tactical positions.
+ *
+ * Searches captures/promotions (and evasions if in check) to mitigate the
+ * horizon effect.
+ */
+static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int ply)
 {
-    atomic_fetch_add(&search_node_count, 1);
+    atomic_fetch_add(&ctx->node_count, 1);
 
-    if (should_stop_search()) {
+    if (should_stop_search(ctx)) {
         return nnue_evaluate_cboard(node);
     }
 
@@ -733,11 +795,12 @@ int quiescence(CBoard* node, int alpha, int beta, int ply)
         tt_best_move = tt_entry->best_move;
     }
 
-    ScoredMove scored_moves[256];
-    score_moves(node, &move_list, scored_moves, tt_best_move, ply);
+    assert(move_list.count <= MAX_LEGAL_MOVES);
+    ScoredMove scored_moves[MAX_LEGAL_MOVES];
+    score_moves(ctx, node, &move_list, scored_moves, tt_best_move, ply);
 
     for (int i = 0; i < move_list.count; i++) {
-        if (should_stop_search()) {
+        if (should_stop_search(ctx)) {
             break;
         }
 
@@ -749,7 +812,7 @@ int quiescence(CBoard* node, int alpha, int beta, int ply)
         }
 
         UndoInfo undo_info = make_move(node, move);
-        int eval = -quiescence(node, -beta, -alpha, ply + 1);
+        int eval = -quiescence(ctx, node, -beta, -alpha, ply + 1);
         unmake_move(node, move, undo_info);
 
         if (eval >= beta) {
@@ -763,17 +826,20 @@ int quiescence(CBoard* node, int alpha, int beta, int ply)
     return alpha;
 }
 
-int negamax(CBoard* node, int depth, int alpha, int beta, Color color,
-    int ply)
+/**
+ * @brief Alpha-beta negamax with TT, null-move pruning, and PVS/LMR.
+ */
+static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int beta,
+    Color color, int ply)
 {
-    atomic_fetch_add(&search_node_count, 1);
+    atomic_fetch_add(&ctx->node_count, 1);
 
-    if (should_stop_search()) {
+    if (should_stop_search(ctx)) {
         return nnue_evaluate_cboard(node);
     }
 
     if (ply >= MAX_PLY - 1) {
-        return quiescence(node, alpha, beta, ply);
+        return quiescence(ctx, node, alpha, beta, ply);
     }
 
     Color side = color;
@@ -800,7 +866,7 @@ int negamax(CBoard* node, int depth, int alpha, int beta, Color color,
     }
 
     if (depth == 0) {
-        return quiescence(node, alpha, beta, ply);
+        return quiescence(ctx, node, alpha, beta, ply);
     }
 
     // Null-move pruning (skip in check or near-mate windows)
@@ -808,7 +874,7 @@ int negamax(CBoard* node, int depth, int alpha, int beta, Color color,
         int reduction = 2 + (depth >= 6 ? 1 : 0);
         NullMoveUndo null_undo_info = make_null_move(node);
         Color next_side = 1 - side;
-        int null_score = -negamax(node, depth - 1 - reduction, -beta, -beta + 1,
+        int null_score = -negamax(ctx, node, depth - 1 - reduction, -beta, -beta + 1,
             next_side, ply + 1);
         unmake_null_move(node, null_undo_info);
 
@@ -820,15 +886,16 @@ int negamax(CBoard* node, int depth, int alpha, int beta, Color color,
     MoveList move_list;
     init_move_list(&move_list);
     gen_all_pseudolegal_moves(node, &move_list);
-    ScoredMove scored_moves[256];
-    score_moves(node, &move_list, scored_moves, tt_best_move, ply);
+    assert(move_list.count <= MAX_LEGAL_MOVES);
+    ScoredMove scored_moves[MAX_LEGAL_MOVES];
+    score_moves(ctx, node, &move_list, scored_moves, tt_best_move, ply);
 
     Move best_move_at_node = create_move(NO_SQUARE, NO_SQUARE, 0, 0);
     int max_eval = -MATE_SCORE;
     int num_legal_moves_searched = 0;
 
     for (int i = 0; i < move_list.count; i++) {
-        if (should_stop_search()) {
+        if (should_stop_search(ctx)) {
             break;
         }
         pick_next_best_move(scored_moves, i, move_list.count);
@@ -849,7 +916,7 @@ int negamax(CBoard* node, int depth, int alpha, int beta, Color color,
         int eval;
 
         if (num_legal_moves_searched == 1) {
-            eval = -negamax(node, depth - 1, -beta, -alpha, next_side, ply + 1);
+            eval = -negamax(ctx, node, depth - 1, -beta, -alpha, next_side, ply + 1);
         } else {
             int reduced_depth = depth - 1;
             bool can_reduce_depth = depth >= 3 && num_legal_moves_searched >= 4 && !king_in_check && quiet;
@@ -858,11 +925,11 @@ int negamax(CBoard* node, int depth, int alpha, int beta, Color color,
             }
 
             // PVS scout search
-            eval = -negamax(node, reduced_depth, -alpha - 1, -alpha, next_side, ply + 1);
+            eval = -negamax(ctx, node, reduced_depth, -alpha - 1, -alpha, next_side, ply + 1);
 
             // Re-search if scout failed high
             if (eval > alpha) {
-                eval = -negamax(node, depth - 1, -beta, -alpha, next_side, ply + 1);
+                eval = -negamax(ctx, node, depth - 1, -beta, -alpha, next_side, ply + 1);
             }
         }
 
@@ -878,17 +945,17 @@ int negamax(CBoard* node, int depth, int alpha, int beta, Color color,
         if (max_eval > alpha) {
             alpha = max_eval;
         } else if (quiet && eval <= prev_alpha) {
-            penalize_history(side, move, depth);
+            penalize_history(ctx, side, move, depth);
         }
 
         if (alpha >= beta) {
             // Store killer move
             if (ply < MAX_PLY && quiet) {
-                if (killer_moves_list[ply][0] != move) {
-                    killer_moves_list[ply][1] = killer_moves_list[ply][0];
-                    killer_moves_list[ply][0] = move;
+                if (ctx->killer_moves[ply][0] != move) {
+                    ctx->killer_moves[ply][1] = ctx->killer_moves[ply][0];
+                    ctx->killer_moves[ply][0] = move;
                 }
-                update_history(side, move, depth);
+                update_history(ctx, side, move, depth);
             }
             break; // beta cutoff
         }

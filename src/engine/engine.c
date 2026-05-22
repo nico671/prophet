@@ -209,7 +209,6 @@ void engine_new_game(void)
     engine_set_position_fen(START_FEN);
     // clear TT and heuristics to remove any information from the previous game that could affect the new game
     clear_tt();
-    clear_search_heuristics();
 }
 
 bool engine_start_search(const SearchLimits* limits, char* error_buf,
