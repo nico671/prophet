@@ -1,13 +1,13 @@
 #include "nnue.h"
+#include "nnue_config.h"
 #include <stdint.h>
 #include <stdio.h>
-
 // Static allocations for the network
-static int16_t fc1_w[8][768];
-static int16_t fc1_b[8];
-static int8_t fc2_w[8][8];
-static int32_t fc2_b[8];
-static int32_t fc3_w[1][8];
+static int16_t fc1_w[NNUE_L1_SIZE][NNUE_INPUT_SIZE];
+static int16_t fc1_b[NNUE_L1_SIZE];
+static int8_t fc2_w[NNUE_L2_SIZE][NNUE_L1_SIZE];
+static int32_t fc2_b[NNUE_L2_SIZE];
+static int32_t fc3_w[1][NNUE_L2_SIZE];
 static int32_t fc3_b[1];
 
 static bool nnue_weights_initialized = false;
@@ -22,11 +22,11 @@ void nnue_init(const char* filepath)
         printf("Failed to load NNUE weights from %s\n", filepath);
         return;
     }
-    fread(fc1_w, sizeof(int16_t), 8 * 768, f);
-    fread(fc1_b, sizeof(int16_t), 8, f);
-    fread(fc2_w, sizeof(int8_t), 8 * 8, f);
-    fread(fc2_b, sizeof(int32_t), 8, f);
-    fread(fc3_w, sizeof(int32_t), 8, f);
+    fread(fc1_w, sizeof(int16_t), 8 * NNUE_INPUT_SIZE, f);
+    fread(fc1_b, sizeof(int16_t), NNUE_L1_SIZE, f);
+    fread(fc2_w, sizeof(int8_t), NNUE_L2_SIZE * NNUE_L1_SIZE, f);
+    fread(fc2_b, sizeof(int32_t), NNUE_L2_SIZE, f);
+    fread(fc3_w, sizeof(int32_t), NNUE_L2_SIZE, f);
     fread(fc3_b, sizeof(int32_t), 1, f);
     fclose(f);
     nnue_weights_initialized = true;

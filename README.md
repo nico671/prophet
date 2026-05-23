@@ -24,7 +24,7 @@ prophet/
 
 ## Rough Roadmap
 
-- [ ] Benchmarking speed of search
+- [x] Benchmarking speed of search
 - [ ] NNUE Training (seperate repo, not yet public)
 - [ ] ELO estimation via self-play
 - [x] Connection to Lichess API for online play and testing
