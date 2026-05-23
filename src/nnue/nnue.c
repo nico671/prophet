@@ -65,20 +65,160 @@ static int get_active_features(const CBoard* board, int* features)
     return count;
 }
 
-int nnue_evaluate_cboard(const CBoard* board)
+static int nnue_feature_index(PieceType piece, Color piece_color, Square sq, Color perspective)
 {
-    int features[32];
-    int count = get_active_features(board, features);
+    int is_my_piece = (piece_color == perspective);
+    int base_idx = is_my_piece ? 0 : 6;
+    int sq_idx = (perspective == WHITE) ? sq : (sq ^ 56);
+    return ((piece - 1) + base_idx) * 64 + sq_idx;
+}
 
-    // 1. Feature Transformer (768 -> 8)
-    int16_t accum[NNUE_L1_SIZE];
+static void nnue_accumulator_add_feature(int16_t* accum, int feature_index, int sign)
+{
     for (int i = 0; i < NNUE_L1_SIZE; i++) {
-        accum[i] = fc1_b[i];
-        for (int j = 0; j < count; j++) {
-            accum[i] += fc1_w[i][features[j]];
+        accum[i] += (int16_t)(sign * fc1_w[i][feature_index]);
+    }
+}
+
+void nnue_accumulator_refresh(const CBoard* board, NnueAccumulator* acc, Color perspective)
+{
+    if (!acc || !board) {
+        return;
+    }
+
+    for (int i = 0; i < NNUE_L1_SIZE; i++) {
+        acc->values[perspective][i] = fc1_b[i];
+    }
+
+    for (int c = 0; c < 2; c++) {
+        for (int pt = PAWN; pt <= KING; pt++) {
+            Bitboard bb = board->piece_bbs[c][pt];
+            while (!bitboard_is_empty(bb)) {
+                Square sq = bitboard_lsb_index_unsafe(bb);
+                int feature = nnue_feature_index((PieceType)pt, (Color)c, sq, perspective);
+                nnue_accumulator_add_feature(acc->values[perspective], feature, 1);
+                bitboard_clear_square_bit(&bb, sq);
+            }
         }
     }
 
+    acc->valid[perspective] = true;
+}
+
+void nnue_accumulator_refresh_both(const CBoard* board, NnueAccumulator* acc)
+{
+    if (!acc) {
+        return;
+    }
+    nnue_accumulator_refresh(board, acc, WHITE);
+    nnue_accumulator_refresh(board, acc, BLACK);
+}
+
+void nnue_accumulator_copy(const NnueAccumulator* src, NnueAccumulator* dst)
+{
+    if (!src || !dst) {
+        return;
+    }
+    for (int p = 0; p < 2; p++) {
+        dst->valid[p] = src->valid[p];
+        for (int i = 0; i < NNUE_L1_SIZE; i++) {
+            dst->values[p][i] = src->values[p][i];
+        }
+    }
+}
+
+static void nnue_accumulator_apply_piece_delta(NnueAccumulator* acc, Color piece_color, PieceType piece,
+    Square square, int sign)
+{
+    if (!acc || piece == NO_PIECE || square == NO_SQUARE) {
+        return;
+    }
+    for (int perspective = 0; perspective < 2; perspective++) {
+        if (!acc->valid[perspective]) {
+            continue;
+        }
+        int feature = nnue_feature_index(piece, piece_color, square, (Color)perspective);
+        nnue_accumulator_add_feature(acc->values[perspective], feature, sign);
+    }
+}
+
+void nnue_accumulator_apply_move(const CBoard* board, Move move, const NnueAccumulator* prev, NnueAccumulator* next)
+{
+    if (!board || !prev || !next) {
+        return;
+    }
+
+    nnue_accumulator_copy(prev, next);
+
+    Square from = move_get_from_square(move);
+    Square to = move_get_to_square(move);
+    Color moving_color = board->side_to_move;
+    Color captured_color = (Color)(1 - moving_color);
+
+    PieceType moving_piece = cboard_get_piece_at_square(board, from);
+
+    if (move_is_castling(move)) {
+        if (moving_color == WHITE) {
+            if (to == G1) {
+                nnue_accumulator_apply_piece_delta(next, WHITE, KING, E1, -1);
+                nnue_accumulator_apply_piece_delta(next, WHITE, KING, G1, 1);
+                nnue_accumulator_apply_piece_delta(next, WHITE, ROOK, H1, -1);
+                nnue_accumulator_apply_piece_delta(next, WHITE, ROOK, F1, 1);
+            } else {
+                nnue_accumulator_apply_piece_delta(next, WHITE, KING, E1, -1);
+                nnue_accumulator_apply_piece_delta(next, WHITE, KING, C1, 1);
+                nnue_accumulator_apply_piece_delta(next, WHITE, ROOK, A1, -1);
+                nnue_accumulator_apply_piece_delta(next, WHITE, ROOK, D1, 1);
+            }
+        } else {
+            if (to == G8) {
+                nnue_accumulator_apply_piece_delta(next, BLACK, KING, E8, -1);
+                nnue_accumulator_apply_piece_delta(next, BLACK, KING, G8, 1);
+                nnue_accumulator_apply_piece_delta(next, BLACK, ROOK, H8, -1);
+                nnue_accumulator_apply_piece_delta(next, BLACK, ROOK, F8, 1);
+            } else {
+                nnue_accumulator_apply_piece_delta(next, BLACK, KING, E8, -1);
+                nnue_accumulator_apply_piece_delta(next, BLACK, KING, C8, 1);
+                nnue_accumulator_apply_piece_delta(next, BLACK, ROOK, A8, -1);
+                nnue_accumulator_apply_piece_delta(next, BLACK, ROOK, D8, 1);
+            }
+        }
+        return;
+    }
+
+    if (move_is_enpassant(move)) {
+        Square captured_pawn_square = to + (8 * (2 * moving_color - 1));
+        nnue_accumulator_apply_piece_delta(next, moving_color, PAWN, from, -1);
+        nnue_accumulator_apply_piece_delta(next, moving_color, PAWN, to, 1);
+        nnue_accumulator_apply_piece_delta(next, captured_color, PAWN, captured_pawn_square, -1);
+        return;
+    }
+
+    if (move_is_promotion(move)) {
+        PieceType promo_piece = move_get_promotion_piecetype(move);
+        bool is_capture = bitboard_is_bit_set(board->occupancy_bbs[captured_color], to);
+        if (is_capture) {
+            PieceType captured_piece = cboard_get_piece_at_square(board, to);
+            nnue_accumulator_apply_piece_delta(next, captured_color, captured_piece, to, -1);
+        }
+        nnue_accumulator_apply_piece_delta(next, moving_color, PAWN, from, -1);
+        nnue_accumulator_apply_piece_delta(next, moving_color, promo_piece, to, 1);
+        return;
+    }
+
+    if (moving_piece != NO_PIECE) {
+        nnue_accumulator_apply_piece_delta(next, moving_color, moving_piece, from, -1);
+        nnue_accumulator_apply_piece_delta(next, moving_color, moving_piece, to, 1);
+    }
+
+    if (bitboard_is_bit_set(board->occupancy_bbs[captured_color], to)) {
+        PieceType captured_piece = cboard_get_piece_at_square(board, to);
+        nnue_accumulator_apply_piece_delta(next, captured_color, captured_piece, to, -1);
+    }
+}
+
+static int nnue_evaluate_from_accum(const int16_t* accum)
+{
     // 2. Clipped ReLU 1
     int8_t out1[NNUE_L1_SIZE];
     for (int i = 0; i < NNUE_L1_SIZE; i++) {
@@ -118,4 +258,37 @@ int nnue_evaluate_cboard(const CBoard* board)
 
     // Return centipawns (output scale applied in exported weights)
     return NNUE_SCALE_DOWN(output);
+}
+
+int nnue_evaluate_cboard(const CBoard* board)
+{
+    int features[32];
+    int count = get_active_features(board, features);
+
+    // 1. Feature Transformer (768 -> 8)
+    int16_t accum[NNUE_L1_SIZE];
+    for (int i = 0; i < NNUE_L1_SIZE; i++) {
+        accum[i] = fc1_b[i];
+        for (int j = 0; j < count; j++) {
+            accum[i] += fc1_w[i][features[j]];
+        }
+    }
+
+    return nnue_evaluate_from_accum(accum);
+}
+
+int nnue_evaluate_with_accumulator(const CBoard* board, const NnueAccumulator* acc)
+{
+    if (!board || !acc) {
+        return nnue_evaluate_cboard(board);
+    }
+
+    Color perspective = board->side_to_move;
+    if (!acc->valid[perspective]) {
+        NnueAccumulator temp = { 0 };
+        nnue_accumulator_refresh(board, &temp, perspective);
+        return nnue_evaluate_from_accum(temp.values[perspective]);
+    }
+
+    return nnue_evaluate_from_accum(acc->values[perspective]);
 }

@@ -119,6 +119,7 @@ def main(engine_path, depth):
     nps = int(total_nodes / total_time_sec) if total_time_sec > 0 else 0
 
     print("===========================")
+    print(f"Depth: {depth}")
     print(f"Total Time (ms) : {total_time_ms}")
     print(f"Total Nodes : {total_nodes}")
     print(f"Bench NPS   : {nps}")
@@ -130,6 +131,7 @@ def main(engine_path, depth):
     engine_path_no_exe = "/".join(split[:-1]) if len(split) > 1 else "."
     with open(f"{engine_path_no_exe}/bench.txt", "w") as f:
         f.write("===========================\n")
+        f.write(f"Depth: {depth}\n")
         f.write(f"Total Time (ms) : {total_time_ms}\n")
         f.write(f"Total Nodes : {total_nodes}\n")
         f.write(f"Bench NPS   : {nps}\n")
@@ -147,7 +149,7 @@ if __name__ == "__main__":
         help="Path to the chess engine executable",
     )
     parser.add_argument(
-        "--depth", type=int, default=12, help="Search depth for the benchmark"
+        "--depth", type=int, default=14, help="Search depth for the benchmark"
     )
     args = parser.parse_args()
     engine_path = args.engine

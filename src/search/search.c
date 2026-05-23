@@ -26,6 +26,10 @@ typedef struct {
     long long hard_limit_ms;
 } TimeLimits;
 
+typedef struct {
+    NnueAccumulator acc;
+} SearchStackEntry;
+
 /**
  * @brief Thread-local search state for a single search instance.
  *
@@ -42,6 +46,7 @@ typedef struct {
     atomic_llong soft_limit_ms;
     Move killer_moves[MAX_PLY][MAX_KILLER_MOVES];
     int history[2][64][64];
+    SearchStackEntry nnue_stack[MAX_PLY + 1];
 } SearchContext;
 
 static _Atomic(SearchContext*) active_search_context = NULL;
@@ -59,6 +64,7 @@ static void clear_search_heuristics(SearchContext* ctx);
 static void age_history(SearchContext* ctx);
 static void update_history(SearchContext* ctx, Color side, Move move, int depth);
 static void penalize_history(SearchContext* ctx, Color side, Move move, int depth);
+static UndoInfo make_move_with_accumulator(SearchContext* ctx, CBoard* board, Move move, int ply);
 
 static PieceType captured_piece_for_move(const CBoard* board, Move move)
 {
@@ -189,6 +195,12 @@ static void age_history(SearchContext* ctx)
             }
         }
     }
+}
+
+static UndoInfo make_move_with_accumulator(SearchContext* ctx, CBoard* board, Move move, int ply)
+{
+    nnue_accumulator_apply_move(board, move, &ctx->nnue_stack[ply].acc, &ctx->nnue_stack[ply + 1].acc);
+    return make_move(board, move);
 }
 
 static void clear_search_heuristics(SearchContext* ctx)
@@ -497,7 +509,7 @@ static int search_root_best_move(SearchContext* ctx, CBoard* board, int depth, M
             continue;
         }
 
-        UndoInfo undo_info = make_move(board, move);
+        UndoInfo undo_info = make_move_with_accumulator(ctx, board, move, 0);
         int eval = -negamax(ctx, board, depth - 1, -beta, -alpha, board->side_to_move, 1);
         unmake_move(board, move, undo_info);
         has_searched_at_least_one_move = true;
@@ -539,6 +551,8 @@ void* search_worker(void* arg)
     atomic_init(&ctx.node_count, 0);
     atomic_init(&ctx.hard_deadline_ms, -1);
     atomic_init(&ctx.soft_limit_ms, -1);
+
+    nnue_accumulator_refresh_both(&ctx.board, &ctx.nnue_stack[0].acc);
 
     // clear all killer moves / history for this search instance
     clear_search_heuristics(&ctx);
@@ -756,16 +770,16 @@ static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int
     atomic_fetch_add(&ctx->node_count, 1);
 
     if (should_stop_search(ctx)) {
-        return nnue_evaluate_cboard(node);
+        return nnue_evaluate_with_accumulator(node, &ctx->nnue_stack[ply].acc);
     }
 
     if (ply >= MAX_PLY - 1) {
-        return nnue_evaluate_cboard(node);
+        return nnue_evaluate_with_accumulator(node, &ctx->nnue_stack[ply].acc);
     }
 
     bool king_in_check = is_king_in_check(node, node->side_to_move);
     if (!king_in_check) {
-        int stand_pat = nnue_evaluate_cboard(node);
+        int stand_pat = nnue_evaluate_with_accumulator(node, &ctx->nnue_stack[ply].acc);
         if (stand_pat >= beta) {
             return stand_pat;
         }
@@ -786,7 +800,7 @@ static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int
         if (king_in_check) {
             return -MATE_SCORE + ply;
         }
-        return nnue_evaluate_cboard(node);
+        return nnue_evaluate_with_accumulator(node, &ctx->nnue_stack[ply].acc);
     }
 
     TTEntry* tt_entry = probe_tt(node->zobrist_key);
@@ -811,7 +825,7 @@ static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int
             continue;
         }
 
-        UndoInfo undo_info = make_move(node, move);
+        UndoInfo undo_info = make_move_with_accumulator(ctx, node, move, ply);
         int eval = -quiescence(ctx, node, -beta, -alpha, ply + 1);
         unmake_move(node, move, undo_info);
 
@@ -835,7 +849,7 @@ static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int b
     atomic_fetch_add(&ctx->node_count, 1);
 
     if (should_stop_search(ctx)) {
-        return nnue_evaluate_cboard(node);
+        return nnue_evaluate_with_accumulator(node, &ctx->nnue_stack[ply].acc);
     }
 
     if (ply >= MAX_PLY - 1) {
@@ -872,6 +886,7 @@ static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int b
     // Null-move pruning (skip in check or near-mate windows)
     if (!king_in_check && depth >= 3 && !is_mate_score(alpha) && !is_mate_score(beta)) {
         int reduction = 2 + (depth >= 6 ? 1 : 0);
+        nnue_accumulator_copy(&ctx->nnue_stack[ply].acc, &ctx->nnue_stack[ply + 1].acc);
         NullMoveUndo null_undo_info = make_null_move(node);
         Color next_side = 1 - side;
         int null_score = -negamax(ctx, node, depth - 1 - reduction, -beta, -beta + 1,
@@ -904,7 +919,7 @@ static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int b
         bool quiet = is_quiet_move(node, move);
 
         // Make the move
-        UndoInfo undo_info = make_move(node, move);
+        UndoInfo undo_info = make_move_with_accumulator(ctx, node, move, ply);
 
         if (is_king_in_check(node, side)) {
             unmake_move(node, move, undo_info);
