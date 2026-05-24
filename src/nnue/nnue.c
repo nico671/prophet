@@ -4,6 +4,7 @@
 #include <stdalign.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 // Static allocations for the network
 alignas(32) static int16_t fc1_w[NNUE_L1_SIZE][NNUE_INPUT_SIZE];
 alignas(32) static int16_t fc1_b[NNUE_L1_SIZE];
@@ -138,14 +139,13 @@ void nnue_accumulator_refresh_both(const CBoard* board, NnueAccumulator* acc)
 
 void nnue_accumulator_copy(const NnueAccumulator* src, NnueAccumulator* dst)
 {
-    if (!src || !dst) {
+    if (!src || !dst)
         return;
-    }
+
     for (int p = 0; p < 2; p++) {
         dst->valid[p] = src->valid[p];
-        for (int i = 0; i < NNUE_L1_SIZE; i++) {
-            dst->values[p][i] = src->values[p][i];
-        }
+        // Blast the 512 bytes across in one shot
+        memcpy(dst->values[p], src->values[p], sizeof(int16_t) * NNUE_L1_SIZE);
     }
 }
 
