@@ -13,7 +13,7 @@ sources := `find src -name "*.c" ! -name "magic_gen.c" ! -name "perft_test.c" | 
 
 debug_cflags   := "-O0 -g3 -fno-omit-frame-pointer"
 dev_cflags     := "-O3 -g1 -DNDEBUG"
-release_cflags := "-O3 -DNDEBUG -flto"
+release_cflags := "-O3 -DNDEBUG -flto -march=armv8.2-a+dotprod"
 
 default:
     @just --list

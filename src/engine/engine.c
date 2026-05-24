@@ -71,7 +71,7 @@ void engine_init(void)
     init_sliding_attacks();
     init_zobrist_keys();
     // hc_eval_init();
-    nnue_init("/Users/nicocarbone/Documents/dev/prophet/artifacts/v0.1.0/nnue_weights.bin");
+    nnue_init("/Users/nicocarbone/Documents/dev/prophet/src/nnue/allpieces_256x8x1_nnue_weights.bin");
 
     // initialize 64 MB TT by default, can be overridden by UCI option later
     init_tt(64);

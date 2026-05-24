@@ -1,7 +1,8 @@
 #ifndef NNUE_CONFIG_H
 #define NNUE_CONFIG_H
+
 #define NNUE_INPUT_SIZE 768
-#define NNUE_L1_SIZE 8
+#define NNUE_L1_SIZE 256
 #define NNUE_L2_SIZE 8
 #define NNUE_FT_SCALE 127
 #define NNUE_WEIGHT_SCALE 64
