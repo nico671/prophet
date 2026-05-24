@@ -1,14 +1,16 @@
 #include "nnue.h"
 #include "nnue_config.h"
+#include <arm_neon.h>
+#include <stdalign.h>
 #include <stdint.h>
 #include <stdio.h>
 // Static allocations for the network
-static int16_t fc1_w[NNUE_L1_SIZE][NNUE_INPUT_SIZE];
-static int16_t fc1_b[NNUE_L1_SIZE];
-static int8_t fc2_w[NNUE_L2_SIZE][NNUE_L1_SIZE];
-static int32_t fc2_b[NNUE_L2_SIZE];
-static int32_t fc3_w[1][NNUE_L2_SIZE];
-static int32_t fc3_b[1];
+alignas(32) static int16_t fc1_w[NNUE_L1_SIZE][NNUE_INPUT_SIZE];
+alignas(32) static int16_t fc1_b[NNUE_L1_SIZE];
+alignas(32) static int8_t fc2_w[NNUE_L2_SIZE][NNUE_L1_SIZE];
+alignas(32) static int32_t fc2_b[NNUE_L2_SIZE];
+alignas(32) static int32_t fc3_w[1][NNUE_L2_SIZE];
+alignas(32) static int32_t fc3_b[1];
 
 static bool nnue_weights_initialized = false;
 
@@ -75,8 +77,28 @@ static int nnue_feature_index(PieceType piece, Color piece_color, Square sq, Col
 
 static void nnue_accumulator_add_feature(int16_t* accum, int feature_index, int sign)
 {
-    for (int i = 0; i < NNUE_L1_SIZE; i++) {
-        accum[i] += (int16_t)(sign * fc1_w[i][feature_index]);
+    // for (int i = 0; i < NNUE_L1_SIZE; i++) {
+    //     accum[i] += (int16_t)(sign * fc1_w[i][feature_index]);
+    // }
+
+    // point directly to contiguous array of 256 weights for this feature
+    const int16_t* w = fc1_w[feature_index];
+
+    // branch outside the loop so the CPU pipeline stays clean and can use SIMD instructions
+    if (sign > 0) {
+        for (int i = 0; i < NNUE_L1_SIZE; i += 8) {
+            int16x8_t w_vec = vld1q_s16(&w[i]);
+            int16x8_t accum_vec = vld1q_s16(&accum[i]);
+            accum_vec = vaddq_s16(accum_vec, w_vec);
+            vst1q_s16(&accum[i], accum_vec);
+        }
+    } else {
+        for (int i = 0; i < NNUE_L1_SIZE; i += 8) {
+            int16x8_t w_vec = vld1q_s16(&w[i]);
+            int16x8_t accum_vec = vld1q_s16(&accum[i]);
+            accum_vec = vsubq_s16(accum_vec, w_vec);
+            vst1q_s16(&accum[i], accum_vec);
+        }
     }
 }
 
@@ -127,7 +149,7 @@ void nnue_accumulator_copy(const NnueAccumulator* src, NnueAccumulator* dst)
     }
 }
 
-static void nnue_accumulator_apply_piece_delta(NnueAccumulator* acc, Color piece_color, PieceType piece,
+static void nnue_accumulator_update_piece(NnueAccumulator* acc, Color piece_color, PieceType piece,
     Square square, int sign)
 {
     if (!acc || piece == NO_PIECE || square == NO_SQUARE) {
@@ -160,27 +182,27 @@ void nnue_accumulator_apply_move(const CBoard* board, Move move, const NnueAccum
     if (move_is_castling(move)) {
         if (moving_color == WHITE) {
             if (to == G1) {
-                nnue_accumulator_apply_piece_delta(next, WHITE, KING, E1, -1);
-                nnue_accumulator_apply_piece_delta(next, WHITE, KING, G1, 1);
-                nnue_accumulator_apply_piece_delta(next, WHITE, ROOK, H1, -1);
-                nnue_accumulator_apply_piece_delta(next, WHITE, ROOK, F1, 1);
+                nnue_accumulator_update_piece(next, WHITE, KING, E1, -1);
+                nnue_accumulator_update_piece(next, WHITE, KING, G1, 1);
+                nnue_accumulator_update_piece(next, WHITE, ROOK, H1, -1);
+                nnue_accumulator_update_piece(next, WHITE, ROOK, F1, 1);
             } else {
-                nnue_accumulator_apply_piece_delta(next, WHITE, KING, E1, -1);
-                nnue_accumulator_apply_piece_delta(next, WHITE, KING, C1, 1);
-                nnue_accumulator_apply_piece_delta(next, WHITE, ROOK, A1, -1);
-                nnue_accumulator_apply_piece_delta(next, WHITE, ROOK, D1, 1);
+                nnue_accumulator_update_piece(next, WHITE, KING, E1, -1);
+                nnue_accumulator_update_piece(next, WHITE, KING, C1, 1);
+                nnue_accumulator_update_piece(next, WHITE, ROOK, A1, -1);
+                nnue_accumulator_update_piece(next, WHITE, ROOK, D1, 1);
             }
         } else {
             if (to == G8) {
-                nnue_accumulator_apply_piece_delta(next, BLACK, KING, E8, -1);
-                nnue_accumulator_apply_piece_delta(next, BLACK, KING, G8, 1);
-                nnue_accumulator_apply_piece_delta(next, BLACK, ROOK, H8, -1);
-                nnue_accumulator_apply_piece_delta(next, BLACK, ROOK, F8, 1);
+                nnue_accumulator_update_piece(next, BLACK, KING, E8, -1);
+                nnue_accumulator_update_piece(next, BLACK, KING, G8, 1);
+                nnue_accumulator_update_piece(next, BLACK, ROOK, H8, -1);
+                nnue_accumulator_update_piece(next, BLACK, ROOK, F8, 1);
             } else {
-                nnue_accumulator_apply_piece_delta(next, BLACK, KING, E8, -1);
-                nnue_accumulator_apply_piece_delta(next, BLACK, KING, C8, 1);
-                nnue_accumulator_apply_piece_delta(next, BLACK, ROOK, A8, -1);
-                nnue_accumulator_apply_piece_delta(next, BLACK, ROOK, D8, 1);
+                nnue_accumulator_update_piece(next, BLACK, KING, E8, -1);
+                nnue_accumulator_update_piece(next, BLACK, KING, C8, 1);
+                nnue_accumulator_update_piece(next, BLACK, ROOK, A8, -1);
+                nnue_accumulator_update_piece(next, BLACK, ROOK, D8, 1);
             }
         }
         return;
@@ -188,9 +210,9 @@ void nnue_accumulator_apply_move(const CBoard* board, Move move, const NnueAccum
 
     if (move_is_enpassant(move)) {
         Square captured_pawn_square = to + (8 * (2 * moving_color - 1));
-        nnue_accumulator_apply_piece_delta(next, moving_color, PAWN, from, -1);
-        nnue_accumulator_apply_piece_delta(next, moving_color, PAWN, to, 1);
-        nnue_accumulator_apply_piece_delta(next, captured_color, PAWN, captured_pawn_square, -1);
+        nnue_accumulator_update_piece(next, moving_color, PAWN, from, -1);
+        nnue_accumulator_update_piece(next, moving_color, PAWN, to, 1);
+        nnue_accumulator_update_piece(next, captured_color, PAWN, captured_pawn_square, -1);
         return;
     }
 
@@ -199,45 +221,73 @@ void nnue_accumulator_apply_move(const CBoard* board, Move move, const NnueAccum
         bool is_capture = bitboard_is_bit_set(board->occupancy_bbs[captured_color], to);
         if (is_capture) {
             PieceType captured_piece = cboard_get_piece_at_square(board, to);
-            nnue_accumulator_apply_piece_delta(next, captured_color, captured_piece, to, -1);
+            nnue_accumulator_update_piece(next, captured_color, captured_piece, to, -1);
         }
-        nnue_accumulator_apply_piece_delta(next, moving_color, PAWN, from, -1);
-        nnue_accumulator_apply_piece_delta(next, moving_color, promo_piece, to, 1);
+        nnue_accumulator_update_piece(next, moving_color, PAWN, from, -1);
+        nnue_accumulator_update_piece(next, moving_color, promo_piece, to, 1);
         return;
     }
 
     if (moving_piece != NO_PIECE) {
-        nnue_accumulator_apply_piece_delta(next, moving_color, moving_piece, from, -1);
-        nnue_accumulator_apply_piece_delta(next, moving_color, moving_piece, to, 1);
+        nnue_accumulator_update_piece(next, moving_color, moving_piece, from, -1);
+        nnue_accumulator_update_piece(next, moving_color, moving_piece, to, 1);
     }
 
     if (bitboard_is_bit_set(board->occupancy_bbs[captured_color], to)) {
         PieceType captured_piece = cboard_get_piece_at_square(board, to);
-        nnue_accumulator_apply_piece_delta(next, captured_color, captured_piece, to, -1);
+        nnue_accumulator_update_piece(next, captured_color, captured_piece, to, -1);
     }
 }
 
 static int nnue_evaluate_from_accum(const int16_t* accum)
 {
-    // 2. Clipped ReLU 1
-    int8_t out1[NNUE_L1_SIZE];
-    for (int i = 0; i < NNUE_L1_SIZE; i++) {
-        int16_t val = accum[i];
-        if (val < 0)
-            val = 0;
-        else if (val > NNUE_FT_SCALE)
-            val = NNUE_FT_SCALE;
-        out1[i] = (int8_t)val;
+    alignas(32) int8_t out1[NNUE_L1_SIZE];
+
+    int16x8_t zero_vec = vdupq_n_s16(0);
+    int16x8_t max_val_vec = vdupq_n_s16(NNUE_FT_SCALE);
+
+    // 1. Clipped ReLU 1 and quantization to int8
+    for (int i = 0; i < NNUE_L1_SIZE; i += 8) {
+        int16x8_t accum_vec = vld1q_s16(&accum[i]);
+        accum_vec = vmaxq_s16(accum_vec, zero_vec); // ReLU
+        accum_vec = vminq_s16(accum_vec, max_val_vec); // Clipping
+        vst1_s8(&out1[i], vqmovn_s16(accum_vec)); // Narrow to int8_t with saturation
     }
 
-    // 3. Hidden Layer (8 -> 8)
+    // 2. Hidden Layer (256 -> 8) with int8 weights and int16 inputs, accumulating into int32 to prevent overflow
     int32_t accum2[NNUE_L2_SIZE];
     for (int i = 0; i < NNUE_L2_SIZE; i++) {
-        accum2[i] = fc2_b[i];
-        for (int j = 0; j < NNUE_L1_SIZE; j++) {
-            accum2[i] += out1[j] * fc2_w[i][j];
+        int32x4_t sum_vec = vdupq_n_s32(fc2_b[i]);
+
+        for (int j = 0; j < NNUE_L1_SIZE; j += 16) {
+            int8x16_t v_out = vld1q_s8(&out1[j]);
+            int8x16_t v_w = vld1q_s8(&fc2_w[i][j]);
+            sum_vec = vdotq_s32(sum_vec, v_w, v_out);
         }
+
+        int32_t sum = vaddvq_s32(sum_vec); // Horizontal add to get the final sum for this neuron
+        accum2[i] = sum + fc2_b[i];
     }
+
+    //
+    // int8_t out1[NNUE_L1_SIZE];
+    // for (int i = 0; i < NNUE_L1_SIZE; i++) {
+    //     int16_t val = accum[i];
+    //     if (val < 0)
+    //         val = 0;
+    //     else if (val > NNUE_FT_SCALE)
+    //         val = NNUE_FT_SCALE;
+    //     out1[i] = (int8_t)val;
+    // }
+
+    // // 3. Hidden Layer (8 -> 8)
+    // int32_t accum2[NNUE_L2_SIZE];
+    // for (int i = 0; i < NNUE_L2_SIZE; i++) {
+    //     accum2[i] = fc2_b[i];
+    //     for (int j = 0; j < NNUE_L1_SIZE; j++) {
+    //         accum2[i] += out1[j] * fc2_w[i][j];
+    //     }
+    // }
 
     // 4. Clipped ReLU 2
     int8_t out2[NNUE_L2_SIZE];
