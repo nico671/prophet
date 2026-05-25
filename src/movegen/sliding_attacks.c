@@ -1,4 +1,4 @@
-#include "attacks/sliding_attacks.h"
+#include "movegen/sliding_attacks.h"
 
 #include <assert.h>
 #include <stdatomic.h>

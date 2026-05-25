@@ -1,10 +1,10 @@
 #include "engine/engine.h"
 
-#include "attacks/sliding_attacks.h"
 #include "board/zobrist.h"
 #include "eval/hceval.h"
 #include "movegen/move_make.h"
 #include "movegen/movegen.h"
+#include "movegen/sliding_attacks.h"
 #include "nnue/nnue.h"
 #include "search/search.h"
 #include "tt/tt.h"
@@ -61,6 +61,88 @@ static Square algebraic_notation_to_square(const char* algebraic_square_str)
     return (Square)(rank_idx * 8 + file_idx);
 }
 
+static void move_to_uci_string(Move move, char* out)
+{
+    if (move_get_from_square(move) == NO_SQUARE || move_get_to_square(move) == NO_SQUARE) {
+        strcpy(out, "0000");
+        return;
+    }
+
+    out[0] = (char)('a' + (move_get_from_square(move) % 8));
+    out[1] = (char)('1' + (move_get_from_square(move) / 8));
+    out[2] = (char)('a' + (move_get_to_square(move) % 8));
+    out[3] = (char)('1' + (move_get_to_square(move) / 8));
+
+    if (move_is_promotion(move)) {
+        PieceType promo = move_get_promotion_piecetype(move);
+        char promo_char = 'q';
+        if (promo == KNIGHT)
+            promo_char = 'n';
+        else if (promo == BISHOP)
+            promo_char = 'b';
+        else if (promo == ROOK)
+            promo_char = 'r';
+        else
+            promo_char = 'q';
+
+        out[4] = promo_char;
+        out[5] = '\0';
+        return;
+    }
+
+    out[4] = '\0';
+}
+
+static void* search_reporter_worker(void* arg)
+{
+    SearchReport* report = (SearchReport*)arg;
+
+    for (;;) {
+        pthread_mutex_lock(&report->mutex);
+        while (!report->has_update && !report->abort) {
+            pthread_cond_wait(&report->cond, &report->mutex);
+        }
+
+        if (report->abort) {
+            pthread_mutex_unlock(&report->mutex);
+            break;
+        }
+
+        SearchReportUpdate update = report->update;
+        bool finished = report->is_finished;
+        report->has_update = false;
+        pthread_mutex_unlock(&report->mutex);
+
+        if (update.depth > 0) {
+            if (update.is_mate) {
+                printf(
+                    "info depth %d score mate %d nodes %lld time %lld nps %lld pv %s\n",
+                    update.depth, update.mate_moves, update.nodes, update.elapsed_ms, update.nps, update.pv);
+            } else {
+                printf("info depth %d score cp %d nodes %lld time %lld nps %lld pv %s\n",
+                    update.depth, update.score_cp, update.nodes, update.elapsed_ms, update.nps, update.pv);
+            }
+        }
+
+        if (finished) {
+            char best_move_uci_string[6];
+            move_to_uci_string(update.best_move, best_move_uci_string);
+            if (move_get_from_square(update.ponder_move) != NO_SQUARE
+                && move_get_to_square(update.ponder_move) != NO_SQUARE) {
+                char ponder_move_uci_string[6];
+                move_to_uci_string(update.ponder_move, ponder_move_uci_string);
+                printf("bestmove %s ponder %s\n", best_move_uci_string, ponder_move_uci_string);
+            } else {
+                printf("bestmove %s\n", best_move_uci_string);
+            }
+            fflush(stdout);
+            break;
+        }
+    }
+
+    return NULL;
+}
+
 // Engine state (owned and managed by the engine module).
 static EngineState engine_state = { 0 };
 
@@ -81,6 +163,7 @@ void engine_init(void)
     atomic_store(&search_is_pondering, false);
 
     engine_state.is_searching = false;
+    engine_state.reporter_active = false;
     engine_state.is_debug_mode = false;
 
     // set initial board position to standard starting position
@@ -106,6 +189,17 @@ void engine_stop_search(void)
     // block the main thread until the search thread actually exists
     // prevents starting a new search until the previous search thread has fully cleaned up and exited
     pthread_join(engine_state.search_thread, NULL);
+
+    if (engine_state.reporter_active) {
+        pthread_mutex_lock(&engine_state.report.mutex);
+        engine_state.report.abort = true;
+        pthread_cond_signal(&engine_state.report.cond);
+        pthread_mutex_unlock(&engine_state.report.mutex);
+        pthread_join(engine_state.reporter_thread, NULL);
+        pthread_mutex_destroy(&engine_state.report.mutex);
+        pthread_cond_destroy(&engine_state.report.cond);
+        engine_state.reporter_active = false;
+    }
 
     engine_state.is_searching = false;
     atomic_store(&search_is_pondering, false);
@@ -229,6 +323,23 @@ bool engine_start_search(const SearchLimits* limits, char* error_buf,
     atomic_store(&search_is_pondering, limits->ponder);
     engine_state.is_searching = true;
 
+    SearchReport* report = &engine_state.report;
+    pthread_mutex_init(&report->mutex, NULL);
+    pthread_cond_init(&report->cond, NULL);
+    report->has_update = false;
+    report->is_finished = false;
+    report->abort = false;
+    memset(&report->update, 0, sizeof(report->update));
+
+    if (pthread_create(&engine_state.reporter_thread, NULL, search_reporter_worker, report) != 0) {
+        set_error(error_buf, error_buf_size, "failed to create reporter thread");
+        pthread_mutex_destroy(&report->mutex);
+        pthread_cond_destroy(&report->cond);
+        engine_state.is_searching = false;
+        return false;
+    }
+    engine_state.reporter_active = true;
+
     // Allocate thread data on the heap. We do this instead of passing a pointer
     // to engine_state directly to prevent the GUI thread from mutating the board
     // while the search thread is reading it.
@@ -242,12 +353,21 @@ bool engine_start_search(const SearchLimits* limits, char* error_buf,
     // create a copy of the current board and search limits for the search thread to use
     thread_data->board = engine_state.board;
     thread_data->search_limits = *limits;
+    thread_data->report = report;
 
     // dispatch the search_worker function to a new background thread, passing the thread data as an argument
     if (pthread_create(&engine_state.search_thread, NULL, search_worker, thread_data) != 0) {
         set_error(error_buf, error_buf_size, "failed to create search thread");
         free(thread_data);
         engine_state.is_searching = false;
+        pthread_mutex_lock(&report->mutex);
+        report->abort = true;
+        pthread_cond_signal(&report->cond);
+        pthread_mutex_unlock(&report->mutex);
+        pthread_join(engine_state.reporter_thread, NULL);
+        pthread_mutex_destroy(&report->mutex);
+        pthread_cond_destroy(&report->cond);
+        engine_state.reporter_active = false;
         return false;
     }
 
@@ -299,6 +419,50 @@ bool engine_copy_board(CBoard* out_board)
     }
 
     *out_board = engine_state.board;
+    return true;
+}
+
+bool engine_search_sync(const CBoard* board, const SearchLimits* limits, SearchReportUpdate* out_update)
+{
+    if (!limits || !out_update) {
+        return false;
+    }
+
+    SearchReport report;
+    pthread_mutex_init(&report.mutex, NULL);
+    pthread_cond_init(&report.cond, NULL);
+    report.has_update = false;
+    report.is_finished = false;
+    report.abort = false;
+    memset(&report.update, 0, sizeof(report.update));
+
+    SearchThreadData* thread_data = malloc(sizeof(SearchThreadData));
+    if (!thread_data) {
+        pthread_mutex_destroy(&report.mutex);
+        pthread_cond_destroy(&report.cond);
+        return false;
+    }
+
+    if (board) {
+        thread_data->board = *board;
+    } else {
+        thread_data->board = engine_state.board;
+    }
+    thread_data->search_limits = *limits;
+    thread_data->report = &report;
+
+    atomic_store(&search_stop_flag, false);
+    atomic_store(&search_is_pondering, limits->ponder);
+
+    search_worker(thread_data);
+
+    pthread_mutex_lock(&report.mutex);
+    *out_update = report.update;
+    pthread_mutex_unlock(&report.mutex);
+
+    pthread_mutex_destroy(&report.mutex);
+    pthread_cond_destroy(&report.cond);
+
     return true;
 }
 

@@ -20,8 +20,8 @@
 /**
  * @brief The main thread worker function that executes the search.
  *
- * Handles Iterative Deepening, time management tracking, dynamic soft-limit extensions
- * (instability checks), and UCI `info` and `bestmove` string reporting.
+ * Handles Iterative Deepening, time management tracking, and dynamic soft-limit
+ * extensions (instability checks). Reporting is delegated to the engine.
  *
  * @param arg Pointer to a SearchThreadData struct containing the board state and limits.
  * @return NULL upon completion.

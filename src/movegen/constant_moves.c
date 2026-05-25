@@ -1,6 +1,6 @@
-#include "attacks/constant_attacks.h"
 #include "board/cboard.h"
 #include "core/bitboard.h"
+#include "movegen/constant_attacks.h"
 #include "movegen/constant_moves.h"
 #include "movegen/move.h"
 

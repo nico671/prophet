@@ -1,7 +1,6 @@
 #include <assert.h>
 #include <limits.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -59,6 +58,7 @@ static void clear_search_heuristics(SearchContext* ctx);
 static void age_history(SearchContext* ctx);
 static void update_history(SearchContext* ctx, Color side, Move move, int depth);
 static void penalize_history(SearchContext* ctx, Color side, Move move, int depth);
+static void publish_search_update(SearchReport* report, const SearchReportUpdate* update, bool is_finished);
 
 static PieceType captured_piece_for_move(const CBoard* board, Move move)
 {
@@ -240,6 +240,20 @@ static bool move_allowed_by_search_moves(Move move, const MoveList* search_moves
     }
 
     return false;
+}
+
+static void publish_search_update(SearchReport* report, const SearchReportUpdate* update, bool is_finished)
+{
+    if (!report || !update) {
+        return;
+    }
+
+    pthread_mutex_lock(&report->mutex);
+    report->update = *update;
+    report->is_finished = is_finished;
+    report->has_update = true;
+    pthread_cond_signal(&report->cond);
+    pthread_mutex_unlock(&report->mutex);
 }
 
 /**
@@ -530,6 +544,7 @@ void* search_worker(void* arg)
 {
     // Cast and extract the data
     SearchThreadData* data = (SearchThreadData*)arg;
+    SearchReport* report = data->report;
     SearchContext ctx;
     memset(&ctx, 0, sizeof(ctx));
     ctx.board = data->board;
@@ -614,16 +629,26 @@ void* search_worker(void* arg)
             strcat(pv_string, " ");
         }
 
+        SearchReportUpdate update = { 0 };
+        update.depth = current_depth;
+        update.nodes = nodes;
+        update.elapsed_ms = elapsed;
+        update.nps = nps;
+        update.best_move = best_move;
+        update.ponder_move = ponder_move;
+        strncpy(update.pv, pv_string, sizeof(update.pv) - 1);
+
         if (is_mate_score(best_score)) {
             int mate_moves = (MATE_SCORE - abs(best_score)) / 2;
-            int mate_score = best_score >= 0 ? mate_moves : -mate_moves;
-            printf(
-                "info depth %d score mate %d nodes %lld time %lld nps %lld pv %s\n",
-                current_depth, mate_score, nodes, elapsed, nps, pv_string);
+            update.is_mate = true;
+            update.mate_moves = best_score >= 0 ? mate_moves : -mate_moves;
         } else {
-            printf("info depth %d score cp %d nodes %lld time %lld nps %lld pv %s\n",
-                current_depth, best_score, nodes, elapsed, nps, pv_string);
+            update.is_mate = false;
+            update.mate_moves = 0;
         }
+        update.score_cp = best_score;
+
+        publish_search_update(report, &update, false);
 
         age_history(&ctx);
         current_depth++;
@@ -661,16 +686,20 @@ void* search_worker(void* arg)
         }
     }
 
-    char best_move_uci_string[6];
-    move_to_uci_string(best_move, best_move_uci_string);
-    if (move_get_from_square(ponder_move) != NO_SQUARE && move_get_to_square(ponder_move) != NO_SQUARE) {
-        char ponder_move_uci_string[6];
-        move_to_uci_string(ponder_move, ponder_move_uci_string);
-        printf("bestmove %s ponder %s\n", best_move_uci_string, ponder_move_uci_string);
+    SearchReportUpdate final_update = { 0 };
+    final_update.depth = current_depth - 1;
+    final_update.best_move = best_move;
+    final_update.ponder_move = ponder_move;
+    final_update.score_cp = best_score;
+    if (is_mate_score(best_score)) {
+        int mate_moves = (MATE_SCORE - abs(best_score)) / 2;
+        final_update.is_mate = true;
+        final_update.mate_moves = best_score >= 0 ? mate_moves : -mate_moves;
     } else {
-        printf("bestmove %s\n", best_move_uci_string);
+        final_update.is_mate = false;
+        final_update.mate_moves = 0;
     }
-    fflush(stdout);
+    publish_search_update(report, &final_update, true);
 
     // clear active context reference before returning
     atomic_store(&active_search_context, NULL);

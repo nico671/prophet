@@ -4,7 +4,7 @@
 // #include <stdio.h>
 // #include <stdlib.h>
 // #include <time.h>
-// #include "attacks/sliding_attacks.h"
+// #include "movegen/sliding_attacks.h"
 // #include "core/bitboard.h"
 // #include "core/bitops.h"
 

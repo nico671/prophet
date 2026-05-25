@@ -34,6 +34,28 @@ typedef struct SearchLimits {
     MoveList search_moves;
 } SearchLimits;
 
+typedef struct SearchReportUpdate {
+    int depth;
+    bool is_mate;
+    int score_cp;
+    int mate_moves;
+    long long nodes;
+    long long elapsed_ms;
+    long long nps;
+    char pv[2048];
+    Move best_move;
+    Move ponder_move;
+} SearchReportUpdate;
+
+typedef struct SearchReport {
+    pthread_mutex_t mutex;
+    pthread_cond_t cond;
+    bool has_update;
+    bool is_finished;
+    bool abort;
+    SearchReportUpdate update;
+} SearchReport;
+
 /**
  * @brief Represents the state of the chess engine.
  *
@@ -43,14 +65,18 @@ typedef struct SearchLimits {
 typedef struct EngineState {
     CBoard board; // Engine-managed root position
     pthread_t search_thread;
+    pthread_t reporter_thread;
     bool is_searching;
+    bool reporter_active;
     bool is_debug_mode;
+    SearchReport report;
 } EngineState;
 
 // The payload we send to the search thread
 typedef struct {
     CBoard board; // A COPY of the board, safe from UCI mutations
     SearchLimits search_limits; // The parsed go parameters
+    SearchReport* report; // Optional output report sink (owned by engine)
 } SearchThreadData;
 
 /**
@@ -125,6 +151,14 @@ void engine_print_board(void);
  * @brief Copy the current engine board state into the provided output struct.
  */
 bool engine_copy_board(CBoard* out_board);
+
+/**
+ * @brief Run a synchronous search on the provided board and return the final report update.
+ *
+ * This does not emit UCI output and does not clear the transposition table, allowing
+ * callers to reuse cached results across consecutive searches.
+ */
+bool engine_search_sync(const CBoard* board, const SearchLimits* limits, SearchReportUpdate* out_update);
 
 /**
  * @brief Enable or disable debug mode, which causes the engine to print additional information about its internal state and search process to the console.

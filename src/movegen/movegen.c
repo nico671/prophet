@@ -1,10 +1,10 @@
-#include "attacks/constant_attacks.h"
-#include "attacks/sliding_attacks.h"
 #include "board/cboard.h"
 #include "core/bitboard.h"
+#include "movegen/constant_attacks.h"
 #include "movegen/constant_moves.h"
 #include "movegen/move_make.h"
 #include "movegen/movegen.h"
+#include "movegen/sliding_attacks.h"
 #include "movegen/sliding_moves.h"
 #include <stdbool.h>
 
@@ -46,7 +46,7 @@ void generate_capture_moves(CBoard* board, MoveList* out)
     }
 }
 
-bool is_square_attacked(CBoard* board, Square square, Color attacker_color)
+static bool is_square_attacked(CBoard* board, Square square, Color attacker_color)
 {
     // Check for pawn attacks
     // We need to check if pawns of attacker_color can attack this square
