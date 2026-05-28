@@ -953,10 +953,10 @@ static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int b
                 reduced_depth = depth - 2;
             }
 
-            // PVS scout search
+            // PVS scout search with null window (\alpha , \alpha + 1)
             eval = -negamax(ctx, node, reduced_depth, -alpha - 1, -alpha, next_side, ply + 1);
 
-            // Re-search if scout failed high
+            // Re-search if scout failed high (score > alpha), search with full window
             if (eval > alpha) {
                 eval = -negamax(ctx, node, depth - 1, -beta, -alpha, next_side, ply + 1);
             }

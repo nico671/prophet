@@ -6,7 +6,13 @@
 
 #include "chess_types.h"
 
-// A1 = LSB, H8 = MSB, little-endian rank-file mapping
+/**
+ * @brief Little-endian rank-file mapping bitboard representation.
+ *
+ * In this representation, the least significant bit (LSB) corresponds to square A1, and the most significant bit (MSB) corresponds to square H8.
+ *
+ * The bits are ordered such that the first 8 bits represent rank 1 (A1 to H1) and so on up to rank 8 (A8 to H8).
+ */
 typedef uint64_t Bitboard;
 
 /**
@@ -45,7 +51,7 @@ static inline int bitboard_lsb_index_unsafe(Bitboard bb)
  */
 static inline int bitboard_lsb_index_safe(Bitboard bb)
 {
-    return bb ? __builtin_ctzll(bb) : NO_SQUARE;
+    return bitboard_is_empty(bb) ? NO_SQUARE : __builtin_ctzll(bb);
 }
 
 /**
@@ -59,8 +65,8 @@ static inline int bitboard_lsb_index_safe(Bitboard bb)
  */
 static inline int bitboard_pop_lsb_unsafe(Bitboard* bb)
 {
-    int idx = __builtin_ctzll(*bb);
-    *bb &= *bb - 1;
+    int idx = __builtin_ctzll(*bb); // get lsb idx
+    *bb &= *bb - 1; // clear lsb, this op flips lsb to 0 and all bits to the right of it to 1, so ANDing with the original bb clears the lsb
     return idx;
 }
 
@@ -92,12 +98,12 @@ static inline void bitboard_set_square_bit(Bitboard* bb, Square sq)
  * @param bb The bitboard to modify.
  * @param sq The square index (0-63) to clear.
  */
-static inline void bitboard_clear_square_bit(Bitboard* bb, int sq)
+static inline void bitboard_clear_square_bit(Bitboard* bb, Square sq)
 {
     *bb &= ~bitboard_square_mask(sq);
 }
 
-/* rank masks (1..8) */
+/* rank masks (1, 2, 7, 8) */
 static const Bitboard RANK_1 = 0x00000000000000FFULL;
 static const Bitboard RANK_2 = RANK_1 << 8;
 static const Bitboard RANK_7 = RANK_1 << 48;
@@ -110,7 +116,7 @@ static const Bitboard RANK_8 = RANK_1 << 56;
  * @param sq The square index (0-63) to test.
  * @return int 1 if the bit is set, 0 otherwise.
  */
-static inline int bitboard_is_bit_set(Bitboard bb, int sq)
+static inline int bitboard_is_bit_set(Bitboard bb, Square sq)
 {
     return (int)((bb >> sq) & 1ULL);
 }
@@ -132,6 +138,9 @@ static inline Bitboard bitboard_shift_north(Bitboard bb)
  * @param bb The bitboard to shift.
  * @return Bitboard The shifted bitboard.
  */
-static inline Bitboard bitboard_shift_south(Bitboard bb) { return bb >> 8; }
+static inline Bitboard bitboard_shift_south(Bitboard bb)
+{
+    return bb >> 8;
+}
 
 #endif // BITBOARD_H
