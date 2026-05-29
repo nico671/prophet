@@ -118,7 +118,7 @@ static inline PieceType cboard_get_piece_at_square(const CBoard* board, Square s
 static inline void add_piece_to_cboard(CBoard* board, Square square, Color color, PieceType piece)
 {
     Bitboard* bb = &board->piece_bbs[color][piece];
-    if (bitboard_is_empty(*bb)) {
+    if (!bb || square >= NO_SQUARE) {
         return;
     }
 
@@ -137,7 +137,7 @@ static inline void add_piece_to_cboard(CBoard* board, Square square, Color color
 static inline void remove_piece_from_cboard(CBoard* board, Square square, Color color, PieceType piece)
 {
     Bitboard* bb = &board->piece_bbs[color][piece];
-    if (bitboard_is_empty(*bb)) {
+    if (!bb || square >= NO_SQUARE) {
         return;
     }
 
