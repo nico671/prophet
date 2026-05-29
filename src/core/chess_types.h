@@ -6,7 +6,7 @@
  *
  */
 typedef enum {
-    A1,
+    A1, // 0
     B1,
     C1,
     D1,
@@ -69,7 +69,7 @@ typedef enum {
     E8,
     F8,
     G8,
-    H8
+    H8 // 63
 } Square;
 
 /**

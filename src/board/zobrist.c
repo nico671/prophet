@@ -19,22 +19,22 @@ void init_zobrist_keys(void)
     raninit(&ctx,
         107035250ULL); // Use a fixed seed for reproducible debug sessions
 
-    // 1. Fill Piece Keys
+    // piece keys
     for (int p = 0; p < 12; p++) {
         for (int s = 0; s < 64; s++) {
             piece_keys[p][s] = ranval(&ctx);
         }
     }
 
-    // 2. Side Key
+    // side key
     side_key = ranval(&ctx);
 
-    // 3. Castling Keys
+    // castling rights
     for (int i = 0; i < 16; i++) {
         castle_keys[i] = ranval(&ctx);
     }
 
-    // 4. En Passant Keys
+    // ep keys
     for (int i = 0; i < 8; i++) {
         en_passant_keys[i] = ranval(&ctx);
     }
@@ -42,16 +42,14 @@ void init_zobrist_keys(void)
 
 static bool should_hash_ep(const CBoard* board, Square ep_square)
 {
-    if (!board || ep_square == NO_SQUARE)
+    // ensure inputs valid
+    if (!board || (unsigned)ep_square >= 64U) {
         return false;
-
-    if ((unsigned)ep_square >= 64U)
-        return false;
+    }
 
     int ep_file = ep_square % 8;
 
-    // EP target must be on rank 6 for white to capture, rank 3 for black to
-    // capture.
+    // EP target must be on rank 6 for white to capture since black must move from rank 7 to 5 for ep to be possible, and vice versa for black capturing
     if (board->side_to_move == WHITE) {
         if (ep_square < A6 || ep_square > H6)
             return false;
@@ -63,6 +61,7 @@ static bool should_hash_ep(const CBoard* board, Square ep_square)
         return false;
     }
 
+    // same logic but with rank 3 for black to capture
     if (ep_square < A3 || ep_square > H3)
         return false;
 
@@ -84,8 +83,8 @@ void zobrist_toggle_ep(uint64_t* key, const CBoard* board,
 
 void compute_zobrist_key(CBoard* board)
 {
-    // Safety: make initialization impossible to forget.
-    init_zobrist_keys();
+    // kinda pointless?
+    // init_zobrist_keys();
 
     uint64_t key = 0ULL;
 
@@ -93,24 +92,18 @@ void compute_zobrist_key(CBoard* board)
         uint64_t bb = board->piece_bbs[piece_type / 6][piece_type % 6];
 
         while (bb) {
-            // Find the index of the least significant bit (0-63)
-            int sq = __builtin_ctzll(bb);
+            Square sq = bitboard_pop_lsb_unsafe(&bb);
             // XOR the random key for this piece/square combo
             key ^= piece_keys[piece_type][sq];
-            // clear the bit we just processed in the LOCAL copy
-            bb &= (bb - 1);
         }
     }
 
-    // 2. Side to move
     if (board->side_to_move == BLACK) {
         key ^= side_key;
     }
 
-    // 3. Castling rights
     key ^= castle_keys[board->castling_rights & 0x0F];
 
-    // 4. En Passant
     zobrist_toggle_ep(&key, board, board->ep_square);
 
     board->zobrist_key = key;

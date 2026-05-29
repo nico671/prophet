@@ -8,11 +8,18 @@
 #include "core/chess_types.h"
 #include "utils/prng.h"
 
+/**
+ * @brief Zobrist hashing assigns a random 64‑bit key to every (piece, square) combination, plus extra keys for side‑to‑move, castling rights, and en‑passant.
+ * The position hash is the XOR of all applicable keys.
+ */
+
 // 0-5: White Pawn, Knight, Bishop, Rook, Queen, King
 // 6-11: Black Pawn, Knight, Bishop, Rook, Queen, King
 extern uint64_t piece_keys[12][64];
 extern uint64_t side_key;
+// 16 combinations
 extern uint64_t castle_keys[16];
+// 8 files
 extern uint64_t en_passant_keys[8];
 
 /**
@@ -46,7 +53,7 @@ void compute_zobrist_key(CBoard* board);
  */
 static inline int get_piece_index(PieceType piece, Color color)
 {
-    return piece + (color * 6);
+    return (piece - PAWN) + (color * 6); // Map PAWN=1..KING=6 to 0..5 for white, 6..11 for black
 }
 
 /**
@@ -63,8 +70,7 @@ static inline int get_piece_index(PieceType piece, Color color)
 static inline void zobrist_toggle_piece(uint64_t* key, PieceType piece,
     Color color, Square square)
 {
-    // Defensive guard: NO_SQUARE should never be toggled.
-    if ((unsigned)square < 64U) {
+    if ((unsigned)square < 64U) { // ensure valid square index
         int idx = get_piece_index(piece, color);
         if ((unsigned)idx < 12U)
             *key ^= piece_keys[idx][square];

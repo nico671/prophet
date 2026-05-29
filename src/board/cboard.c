@@ -17,7 +17,7 @@ void print_cboard(CBoard* board)
 
     for (int rank = 7; rank >= 0; rank--) {
         for (int file = 0; file < 8; file++) {
-            int square_idx = rank * 8 + file;
+            Square square_idx = rank * 8 + file;
             char piece_char = '.'; // default for empty square
             Bitboard square_mask_bb = bitboard_square_mask(square_idx);
             if (board->piece_bbs[WHITE][PAWN] & square_mask_bb)
@@ -92,7 +92,7 @@ bool fen_string_to_cboard(const char* fen_string, CBoard* board)
             file += (ch - '0');
             continue;
         }
-        int square_idx = rank * 8 + file;
+        Square square_idx = rank * 8 + file;
         Bitboard square_mask_bb = bitboard_square_mask(square_idx);
         switch (ch) {
         case 'P':
