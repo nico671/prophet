@@ -2,10 +2,10 @@
 #ifndef CBOARD_H
 #define CBOARD_H
 
-#include <stdint.h>
-
 #include "core/bitboard.h"
 #include "core/chess_types.h"
+
+#include <stdint.h>
 
 /**
  * @struct CBoard
@@ -45,8 +45,8 @@ typedef struct CBoard {
      */
     uint8_t castling_rights;
 
-    uint8_t ep_square; /**< Index (0-63) or 64 if none available */
-    uint16_t half_move_clock; /**< Counter for the fifty-move rule */
+    uint8_t ep_square;         /**< Index (0-63) or 64 if none available */
+    uint16_t half_move_clock;  /**< Counter for the fifty-move rule */
     uint16_t full_move_number; /**< Incremented after every Black move */
 
     // --- Optimization ---
@@ -239,7 +239,7 @@ static inline void cboard_update_occupancies_for_promotion(CBoard* board, Square
  * @param color The color of the pieces being moved.
  */
 static inline void cboard_update_occupancies_for_castling(CBoard* board, Square king_from, Square king_to,
-    Square rook_from, Square rook_to, Color color)
+                                                          Square rook_from, Square rook_to, Color color)
 {
     bitboard_clear_square_bit(&board->occupancy_bbs[color], king_from);
     bitboard_clear_square_bit(&board->occupancy_bbs[color], rook_from);

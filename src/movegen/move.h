@@ -3,8 +3,11 @@
 
 #include "board/cboard.h"
 #include "core/chess_types.h"
+
 #include <stdbool.h>
 #include <stdint.h>
+
+// NOTE: move representation adopted from stockfish
 
 /**
  * @brief Move representation using a compact 16-bit encoding. The move is represented as a uint16_t where:
@@ -14,6 +17,8 @@
  * - Bits 14-15 (2 bits): Move type flags (00=NORMAL, 01=Promotion, 10=En Passant, 11=Castling) note that en passant is only present when a pawn can be captured en passant
  */
 typedef uint16_t Move;
+
+// Special move value representing no move (used as a sentinel)
 #define MOVE_NONE ((Move)0xFFFF)
 
 // Move list structure
@@ -67,12 +72,12 @@ bool move_is_quiet(CBoard* board, Move move);
  * - previous castling rights, and the previous Zobrist hash key.
  */
 typedef struct UndoInfo {
-    PieceType captured_piecetype; // What was captured (NO_PIECE if none)
-    Square captured_square; // Where the captured piece was (NO_SQUARE if none)
-    uint8_t previous_ep_square; // Previous en passant square (or NO_SQUARE)
+    PieceType captured_piecetype;     // What was captured (NO_PIECE if none)
+    Square captured_square;           // Where the captured piece was (NO_SQUARE if none)
+    uint8_t previous_ep_square;       // Previous en passant square (or NO_SQUARE)
     uint16_t previous_halfmove_clock; // Previous 50-move counter
     uint8_t previous_castling_rights; // 0..15 bitfield
-    uint64_t previous_zobrist_key;
+    uint64_t previous_zobrist_key;    // Zobrist key before the move was made (used for undoing the move)
 } UndoInfo;
 
 #endif // PROPHET_MOVE_H

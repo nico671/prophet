@@ -1,8 +1,14 @@
+#include "movegen/constant_moves.h"
+
 #include "board/cboard.h"
 #include "core/bitboard.h"
 #include "movegen/constant_attacks.h"
-#include "movegen/constant_moves.h"
 #include "movegen/move.h"
+
+/**
+ * All of the functions in this file follow the same general pseudocode pattern (sans piece rule differences):
+ *
+ */
 
 void gen_all_pseudolegal_king_noncastling_moves(CBoard* board, MoveList* move_list)
 {
@@ -31,7 +37,7 @@ void gen_all_pseudolegal_king_noncastling_moves(CBoard* board, MoveList* move_li
 
 void gen_all_pseudolegal_king_castling_moves(CBoard* board, MoveList* move_list)
 {
-    // TODO: is there a way to get rid of the side to move differences?
+    // TODO: is there a way to get rid of the side to move differences?  -> flip square operator from python chess library -> added operator just need to edit this func
     // handle white castling
     if (board->side_to_move == WHITE) {
         if (!board->piece_bbs[WHITE][KING]) {
@@ -122,8 +128,8 @@ void gen_all_pseudolegal_single_pawn_pushes(CBoard* board, MoveList* move_list)
     Bitboard promotion_rank_bb = (side_to_move == WHITE) ? RANK_7 : RANK_2;
     side_to_move_pawns_bb &= ~promotion_rank_bb; // exclude side_to_move_pawns_bb on promotion rank
     Bitboard single_pawn_pushes_bb = (side_to_move == WHITE)
-        ? bitboard_shift_north(side_to_move_pawns_bb) & empty_squares_bb
-        : bitboard_shift_south(side_to_move_pawns_bb) & empty_squares_bb;
+                                         ? bitboard_shift_north(side_to_move_pawns_bb) & empty_squares_bb
+                                         : bitboard_shift_south(side_to_move_pawns_bb) & empty_squares_bb;
 
     while (single_pawn_pushes_bb) {
         Square to = bitboard_pop_lsb_unsafe(&single_pawn_pushes_bb);
@@ -196,8 +202,8 @@ void gen_all_pseudolegal_pawn_promotions(CBoard* board, MoveList* move_list)
 
     // Promotion pushes
     Bitboard promotion_pushes_bb = (side_to_move == WHITE)
-        ? bitboard_shift_north(side_to_move_pawns_bb) & empty_squares_bb & RANK_8
-        : bitboard_shift_south(side_to_move_pawns_bb) & empty_squares_bb & RANK_1;
+                                       ? bitboard_shift_north(side_to_move_pawns_bb) & empty_squares_bb & RANK_8
+                                       : bitboard_shift_south(side_to_move_pawns_bb) & empty_squares_bb & RANK_1;
 
     while (promotion_pushes_bb) {
         Square to = bitboard_pop_lsb_unsafe(&promotion_pushes_bb);
@@ -238,8 +244,8 @@ void gen_all_pseudolegal_ep_pawn_moves(CBoard* board, MoveList* move_list)
     // If white to move, we need squares that BLACK side_to_move_pawns_bb would attack from (diagonal down)
     // If black to move, we need squares that WHITE side_to_move_pawns_bb would attack from (diagonal up)
     Bitboard attackers_bb = (side_to_move == WHITE)
-        ? get_pawn_attack_bitboard(board->ep_square, BLACK)
-        : get_pawn_attack_bitboard(board->ep_square, WHITE);
+                                ? get_pawn_attack_bitboard(board->ep_square, BLACK)
+                                : get_pawn_attack_bitboard(board->ep_square, WHITE);
 
     Bitboard pawns_can_capture_ep_bb = side_to_move_pawns_bb & attackers_bb;
 
@@ -257,7 +263,5 @@ void gen_all_pseudolegal_pawn_moves(CBoard* board, MoveList* move_list)
     gen_all_pseudolegal_double_pawn_pushes(board, move_list);
     gen_all_pseudolegal_pawn_captures(board, move_list);
     gen_all_pseudolegal_pawn_promotions(board, move_list);
-    if (board->ep_square != NO_SQUARE) {
-        gen_all_pseudolegal_ep_pawn_moves(board, move_list);
-    }
+    gen_all_pseudolegal_ep_pawn_moves(board, move_list);
 }

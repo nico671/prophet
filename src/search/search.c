@@ -1,9 +1,4 @@
-#include <assert.h>
-#include <limits.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
+#include "search/search.h"
 
 #include "board/cboard.h"
 #include "board/zobrist.h"
@@ -12,15 +7,23 @@
 #include "movegen/move_make.h"
 #include "movegen/movegen.h"
 #include "nnue/nnue.h"
-#include "search/search.h"
 #include "tt/tt.h"
 
-typedef struct {
+#include <assert.h>
+#include <limits.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+typedef struct
+{
     Move move;
     int score;
 } ScoredMove;
 
-typedef struct {
+typedef struct
+{
     long long soft_limit_ms;
     long long hard_limit_ms;
 } TimeLimits;
@@ -31,7 +34,8 @@ typedef struct {
  * All mutable search data (limits, timers, heuristics, counters) live here so
  * concurrent searches do not overwrite each other.
  */
-typedef struct {
+typedef struct
+{
     CBoard board; // Working copy of the root board
     SearchLimits limits;
     Color root_side_to_move;
@@ -52,7 +56,7 @@ static int search_root_best_move(SearchContext* ctx, CBoard* board, int depth, M
 static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int beta, Color color, int ply);
 static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int ply);
 static void score_moves(SearchContext* ctx, CBoard* board, MoveList* move_list, ScoredMove* scored_moves,
-    Move tt_move, int ply);
+                        Move tt_move, int ply);
 static void pick_next_best_move(ScoredMove* scored_moves, int start, int count);
 static void clear_search_heuristics(SearchContext* ctx);
 static void age_history(SearchContext* ctx);
@@ -376,7 +380,8 @@ static TimeLimits compute_time_limits(SearchLimits search_limits, Color side_to_
     return limits;
 }
 
-typedef struct {
+typedef struct
+{
     uint8_t previous_ep_square;
     uint16_t previous_halfmove_clock;
     uint16_t previous_fullmove_number;
@@ -708,7 +713,7 @@ void* search_worker(void* arg)
 }
 
 static void score_moves(SearchContext* ctx, CBoard* board, MoveList* move_list,
-    ScoredMove* scored_moves, Move tt_move, int ply)
+                        ScoredMove* scored_moves, Move tt_move, int ply)
 {
     Color side = board->side_to_move;
 
@@ -859,7 +864,7 @@ static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int
  * @brief Alpha-beta negamax with TT, null-move pruning, and PVS/LMR.
  */
 static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int beta,
-    Color color, int ply)
+                   Color color, int ply)
 {
     atomic_fetch_add(&ctx->node_count, 1);
 
@@ -904,7 +909,7 @@ static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int b
         NullMoveUndo null_undo_info = make_null_move(node);
         Color next_side = 1 - side;
         int null_score = -negamax(ctx, node, depth - 1 - reduction, -beta, -beta + 1,
-            next_side, ply + 1);
+                                  next_side, ply + 1);
         unmake_null_move(node, null_undo_info);
 
         if (null_score >= beta) {
@@ -1004,6 +1009,6 @@ static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int b
         bound = TT_CUT;
     }
     store_tt(node->zobrist_key, depth, to_tt_score(max_eval, ply), bound,
-        best_move_at_node);
+             best_move_at_node);
     return max_eval;
 }

@@ -1,8 +1,8 @@
-#include <stddef.h>
-#include <stdint.h>
-
 #include "board/cboard.h"
 #include "movegen/move.h"
+
+#include <stddef.h>
+#include <stdint.h>
 
 /**
  * @brief Represents the type of a transposition table entry
@@ -19,12 +19,13 @@ typedef enum {
     TT_ALL,
 } TTBound;
 
-typedef struct {
+typedef struct
+{
     uint64_t zobrist_key; // To verify this entry matches the current board
-    int score; // Evaluation score
-    int depth; // Depth searched from this node
-    TTBound bound; // The type of score
-    Move best_move; // The move that caused a cutoff or highest score
+    int score;            // Evaluation score
+    int depth;            // Depth searched from this node
+    TTBound bound;        // The type of score
+    Move best_move;       // The move that caused a cutoff or highest score
 } TTEntry;
 
 extern TTEntry* tt_table;

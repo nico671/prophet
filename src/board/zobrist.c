@@ -1,7 +1,8 @@
-#include <stdbool.h>
+#include "zobrist.h"
 
 #include "cboard.h"
-#include "zobrist.h"
+
+#include <stdbool.h>
 
 uint64_t piece_keys[12][64];
 uint64_t side_key;
@@ -17,7 +18,7 @@ void init_zobrist_keys(void)
 
     ranctx ctx;
     raninit(&ctx,
-        107035250ULL); // Use a fixed seed for reproducible debug sessions
+            107035250ULL); // Use a fixed seed for reproducible debug sessions
 
     // piece keys
     for (int p = 0; p < 12; p++) {
@@ -73,7 +74,7 @@ static bool should_hash_ep(const CBoard* board, Square ep_square)
 }
 
 void zobrist_toggle_ep(uint64_t* key, const CBoard* board,
-    Square ep_square)
+                       Square ep_square)
 {
     if (should_hash_ep(board, ep_square)) {
         int file = ep_square % 8;

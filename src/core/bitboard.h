@@ -1,10 +1,10 @@
 #ifndef BITBOARD_H
 #define BITBOARD_H
 
+#include "chess_types.h"
+
 #include <stdbool.h>
 #include <stdint.h>
-
-#include "chess_types.h"
 
 /**
  * @brief Little-endian rank-file mapping bitboard representation.
@@ -66,7 +66,7 @@ static inline int bitboard_lsb_index_safe(Bitboard bb)
 static inline int bitboard_pop_lsb_unsafe(Bitboard* bb)
 {
     int idx = __builtin_ctzll(*bb); // get lsb idx
-    *bb &= *bb - 1; // clear lsb, this op flips lsb to 0 and all bits to the right of it to 1, so ANDing with the original bb clears the lsb
+    *bb &= *bb - 1;                 // clear lsb, this op flips lsb to 0 and all bits to the right of it to 1, so ANDing with the original bb clears the lsb
     return idx;
 }
 

@@ -11,6 +11,8 @@
 #define ROOK_TABLE_BITS 12
 #define BISHOP_TABLE_BITS 9
 
+// NOTE: shoutout to chess programming wiki for much of this code, saved my life when i started this project
+
 // ensure that our table sizes match the max bits we need to index them
 _Static_assert(ROOK_TABLE_SIZE == (1 << ROOK_TABLE_BITS), "rook table size must match max rook bits");
 _Static_assert(BISHOP_TABLE_SIZE == (1 << BISHOP_TABLE_BITS), "bishop table size must match max bishop bits");
@@ -346,7 +348,6 @@ static int extract_mask_bit_positions(Bitboard mask, int* positions, int max_pos
 }
 
 // converts permutation index to occupancy bitboard
-//
 static Bitboard generate_occupancy_from_index(int occupancy_index, const int* positions, int relevant_bits)
 {
     Bitboard occupancy = 0ULL;
@@ -486,18 +487,18 @@ void init_sliding_attacks(void)
     if (atomic_compare_exchange_strong_explicit(
             &initState, &expected, 1, memory_order_acq_rel, memory_order_acquire)) {
         init_attack_table(&rook_attacks[0][0],
-            ROOK_TABLE_SIZE,
-            rook_occupancy_maps,
-            RMagic,
-            RBits,
-            generate_rook_attacks);
+                          ROOK_TABLE_SIZE,
+                          rook_occupancy_maps,
+                          RMagic,
+                          RBits,
+                          generate_rook_attacks);
 
         init_attack_table(&bishop_attacks[0][0],
-            BISHOP_TABLE_SIZE,
-            bishop_occupancy_maps,
-            BMagic,
-            BBits,
-            generate_bishop_attacks);
+                          BISHOP_TABLE_SIZE,
+                          bishop_occupancy_maps,
+                          BMagic,
+                          BBits,
+                          generate_bishop_attacks);
 
         atomic_store_explicit(&initState, 2, memory_order_release);
         return;

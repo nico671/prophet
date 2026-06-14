@@ -1,3 +1,7 @@
+#include "engine/engine.h"
+#include "perft/perft.h"
+#include "uci/uci.h"
+
 #include <ctype.h>
 #include <errno.h>
 #include <inttypes.h>
@@ -6,10 +10,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-
-#include "engine/engine.h"
-#include "perft/perft.h"
-#include "uci/uci.h"
 // standard starting position FEN string
 #define START_FEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 void skip_whitespace(const char** str);
@@ -241,7 +241,7 @@ void handle_go_command(const char* command)
         printf("  increment_for_white_ms: %d\n", go_cmd.increment_for_white_ms);
         printf("  increment_for_black_ms: %d\n", go_cmd.increment_for_black_ms);
         printf("  moves_until_next_time_control: %d\n",
-            go_cmd.moves_until_next_time_control);
+               go_cmd.moves_until_next_time_control);
         printf("  depth_limit: %d\n", go_cmd.depth_limit);
         printf("  node_limit: %d\n", go_cmd.node_limit);
         printf("  search_for_mate_in_n_moves: %d\n", go_cmd.search_for_mate_in_n_moves);
@@ -294,7 +294,7 @@ static void handle_perft_command(const char* command)
         double nps = elapsed > 0 ? nodes / elapsed : 0;
 
         printf("perft depth %d nodes %" PRIu64 " nps %.0f time %.3f\n",
-            depth, nodes, nps, elapsed);
+               depth, nodes, nps, elapsed);
         fflush(stdout);
     }
 }
@@ -390,12 +390,7 @@ void uci_loop(void)
         } else if (!strncmp(p, "uci", 3) && (p[3] == '\0' || isspace((unsigned char)p[3]))) {
             engine_init();
 
-            // Fallback if VERSION is not defined by the build system.
-#ifndef VERSION
-#define VERSION "dev"
-#endif
-
-            printf("id name Prophet %s\n", VERSION);
+            printf("id name Prophet dev\n"); // TODO: figure out how to put actual version info here
             printf("id author Nicolas Carbone\n");
             printf("option name Hash type spin default 64 min 1 max 1024\n");
             printf("option name Clear Hash type button\n");

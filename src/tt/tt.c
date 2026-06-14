@@ -1,12 +1,13 @@
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include "tt.h"
 
 #include "board/cboard.h"
 #include "movegen/move.h"
 #include "movegen/move_make.h"
 #include "movegen/movegen.h"
-#include "tt.h"
+
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 TTEntry* tt_table = NULL;
 size_t tt_size = 0;
@@ -122,8 +123,7 @@ int extract_pv_line(CBoard* board, Move* pv_move_list, int max_depth)
 
         Move pv_move = entry->best_move;
 
-        // Defensive safety: TT entries can be stale/colliding; only follow legal
-        // moves.
+        // TT entries can be stale/colliding so check if the move is legal
         if (!is_move_legal_in_position(board, pv_move)) {
             break;
         }

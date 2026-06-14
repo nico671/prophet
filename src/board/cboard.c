@@ -1,12 +1,12 @@
 
 #include "board/cboard.h"
 
+#include "board/zobrist.h"
+#include "core/bitboard.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "board/zobrist.h"
-#include "core/bitboard.h"
 
 void print_cboard(CBoard* board)
 {
@@ -54,10 +54,10 @@ void print_cboard(CBoard* board)
     printf("Halfmove clock: %d\n", board->half_move_clock);
     printf("Fullmove number: %d\n", board->full_move_number);
     printf("Castling rights: %s%s%s%s\n",
-        U8_CHECK_BIT(board->castling_rights, 3) ? "K" : "",
-        U8_CHECK_BIT(board->castling_rights, 2) ? "Q" : "",
-        U8_CHECK_BIT(board->castling_rights, 1) ? "k" : "",
-        U8_CHECK_BIT(board->castling_rights, 0) ? "q" : "");
+           U8_CHECK_BIT(board->castling_rights, 3) ? "K" : "",
+           U8_CHECK_BIT(board->castling_rights, 2) ? "Q" : "",
+           U8_CHECK_BIT(board->castling_rights, 1) ? "k" : "",
+           U8_CHECK_BIT(board->castling_rights, 0) ? "q" : "");
     printf("Zobrist Key: %llu\n", board->zobrist_key);
 }
 
@@ -215,7 +215,7 @@ bool fen_string_to_cboard(const char* fen_string, CBoard* board)
 
     // en passant
     if (*p && *p != '-') {
-        char f = *p; // file letter 'a'..'h'
+        char f = *p;       // file letter 'a'..'h'
         char r = *(p + 1); // rank char '1'..'8'
         if (f >= 'a' && f <= 'h' && r >= '1' && r <= '8') {
             int ep_file = f - 'a';

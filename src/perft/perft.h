@@ -5,6 +5,7 @@
 #include "movegen/move.h"
 #include "movegen/move_make.h"
 #include "movegen/movegen.h"
+
 #include <stdint.h>
 #include <stdio.h>
 uint64_t perft(CBoard* board, int depth);
@@ -40,8 +41,8 @@ static inline char* moveToStringAlgebraic(Move move)
 
     // Basic move notation: e2e4
     sprintf(moveStr, "%c%c%c%c",
-        files[fromFile], ranks[fromRank],
-        files[toFile], ranks[toRank]);
+            files[fromFile], ranks[fromRank],
+            files[toFile], ranks[toRank]);
 
     // Add promotion piece if applicable
     if (type == PROMO) {

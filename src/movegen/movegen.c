@@ -1,11 +1,13 @@
+#include "movegen/movegen.h"
+
 #include "board/cboard.h"
 #include "core/bitboard.h"
 #include "movegen/constant_attacks.h"
 #include "movegen/constant_moves.h"
 #include "movegen/move_make.h"
-#include "movegen/movegen.h"
 #include "movegen/sliding_attacks.h"
 #include "movegen/sliding_moves.h"
+
 #include <stdbool.h>
 
 void gen_all_pseudolegal_moves(CBoard* board, MoveList* moveList) // TODO: refactor movegen to have less reused code everywhere, all individual piece gen is abt the same minus pawns and kings
@@ -63,10 +65,10 @@ static bool is_square_attacked(CBoard* board, Square square, Color attacker_colo
     if (knightAttacks & attackerKnights)
         return true;
 
+    Bitboard attackerQueens = board->piece_bbs[attacker_color][QUEEN];
     // Check for bishop/queen attacks
     Bitboard bishopAttacks = get_bishop_attack_bitboard(square, board->occupancy_bbs[2]);
     Bitboard attackerBishops = board->piece_bbs[attacker_color][BISHOP];
-    Bitboard attackerQueens = board->piece_bbs[attacker_color][QUEEN];
     if (bishopAttacks & (attackerBishops | attackerQueens))
         return true;
 
@@ -109,7 +111,6 @@ void generate_legal_moves(CBoard* board, MoveList* out)
         if (move_is_castling(move)) {
             Color side = board->side_to_move;
             Color opponent = 1 - side;
-            // Square kingFrom = FROM_SQ(move);
 
             // Cannot castle if in check
             if (is_king_in_check(board, side)) {

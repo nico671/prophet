@@ -2,8 +2,10 @@
 // PeSTO relies heavily on highly-tuned Piece-Square Tables (PSQT) rather than
 // complex, hand-coded heuristics (like checking for isolated pawns or open files).
 
-#include "board/cboard.h"
 #include "hceval.h"
+
+#include "board/cboard.h"
+
 #include <stdbool.h>
 
 // Piece codes for indexing into the PSQT tables. We use a single array for both colors, so white pieces are at even indices and black pieces are at odd indices.
@@ -24,8 +26,8 @@ enum {
 };
 
 // Utility macros for table lookups and color math
-#define PCOLOR(p) ((p) & 1) // Extracts color (0 for White, 1 for Black)
-#define FLIP(sq) ((sq) ^ 56) // Flips a square vertically (e.g., A1 -> A8) to mirror tables for Black
+#define PCOLOR(p) ((p) & 1)      // Extracts color (0 for White, 1 for Black)
+#define FLIP(sq) ((sq) ^ 56)     // Flips a square vertically (e.g., A1 -> A8) to mirror tables for Black
 #define OTHER(side) ((side) ^ 1) // Flips the side to move
 
 // Base material values for Midgame (mg) and Endgame (eg).

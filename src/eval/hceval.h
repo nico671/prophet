@@ -1,7 +1,7 @@
 #ifndef HCEVAL_H
 #define HCEVAL_H
 
-typedef struct CBoard CBoard;
+#include "board/cboard.h"
 
 // Base piece values used for simple material counting or move ordering
 

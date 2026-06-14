@@ -1,9 +1,8 @@
 #ifndef CONSTANT_MOVES_H
 #define CONSTANT_MOVES_H
 
+#include "board/cboard.h"
 #include "movegen/move.h"
-
-typedef struct CBoard CBoard;
 
 /**
  * @brief Generates all pseudo-legal non-castling king moves for the given board.

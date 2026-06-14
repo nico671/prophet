@@ -8,6 +8,7 @@
 #include "nnue/nnue.h"
 #include "search/search.h"
 #include "tt/tt.h"
+
 #include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
@@ -35,11 +36,11 @@ static void set_error(char* error_buf, size_t error_buf_size, const char* messag
         return;
     }
     snprintf(error_buf, error_buf_size, "%s", message);
-    // flush
+    // flush so that error messages are not delayed (important for GUIs)
     fflush(stderr);
 }
 
-// TODO: This function is duplicated in cboard.c, consider refactoring to a common utility location
+// TODO: the following two functions are duplicated from multiple places, need to consolidate
 /**
  * @brief Converts algebraic notation to a square.
  *
@@ -75,15 +76,23 @@ static void move_to_uci_string(Move move, char* out)
 
     if (move_is_promotion(move)) {
         PieceType promo = move_get_promotion_piecetype(move);
-        char promo_char = 'q';
-        if (promo == KNIGHT)
+        char promo_char = '.';
+        switch (promo) {
+        case KNIGHT:
             promo_char = 'n';
-        else if (promo == BISHOP)
+            break;
+        case BISHOP:
             promo_char = 'b';
-        else if (promo == ROOK)
+            break;
+        case ROOK:
             promo_char = 'r';
-        else
+            break;
+        case QUEEN:
             promo_char = 'q';
+            break;
+        default:
+            break;
+        }
 
         out[4] = promo_char;
         out[5] = '\0';
@@ -93,6 +102,16 @@ static void move_to_uci_string(Move move, char* out)
     out[4] = '\0';
 }
 
+// TODO: moved this output function from search.c but maybe its better to have it in uci.c?
+
+/**
+ * @brief Worker function for the search reporter thread. Waits for updates from the search thread
+ * and prints them in UCI format. Also handles printing the final best move when the search is
+ * finished.
+ *
+ * @param arg
+ * @return void*
+ */
 static void* search_reporter_worker(void* arg)
 {
     SearchReport* report = (SearchReport*)arg;
@@ -115,12 +134,13 @@ static void* search_reporter_worker(void* arg)
 
         if (update.depth > 0) {
             if (update.is_mate) {
-                printf(
-                    "info depth %d score mate %d nodes %lld time %lld nps %lld pv %s\n",
-                    update.depth, update.mate_moves, update.nodes, update.elapsed_ms, update.nps, update.pv);
+                printf("info depth %d score mate %d nodes %lld time %lld nps %lld pv %s\n",
+                       update.depth, update.mate_moves, update.nodes, update.elapsed_ms, update.nps,
+                       update.pv);
             } else {
                 printf("info depth %d score cp %d nodes %lld time %lld nps %lld pv %s\n",
-                    update.depth, update.score_cp, update.nodes, update.elapsed_ms, update.nps, update.pv);
+                       update.depth, update.score_cp, update.nodes, update.elapsed_ms, update.nps,
+                       update.pv);
             }
         }
 
@@ -143,7 +163,7 @@ static void* search_reporter_worker(void* arg)
     return NULL;
 }
 
-// Engine state (owned and managed by the engine module).
+// central engine state struct
 static EngineState engine_state = { 0 };
 
 void engine_init(void)
@@ -152,8 +172,9 @@ void engine_init(void)
     // all functions are idempotent
     init_sliding_attacks();
     init_zobrist_keys();
-    // hc_eval_init();
-    nnue_init("/Users/nicocarbone/Documents/dev/prophet/artifacts/v0.1.0/nnue_weights.bin");
+    // hc_eval_init(); // TODO: make this a config option b/w classical eval and nnue eval
+    nnue_init(
+        "/Users/nicocarbone/Documents/dev/prophet/artifacts/v0.1.0/nnue_weights.bin"); // TODO: make path a config option
 
     // initialize 64 MB TT by default, can be overridden by UCI option later
     init_tt(64);
@@ -166,13 +187,15 @@ void engine_init(void)
     engine_state.reporter_active = false;
     engine_state.is_debug_mode = false;
 
-    // set initial board position to standard starting position
+    // set initial board position to standard starting position, not sure if this is technically uci
+    // compliant but hasn't made a difference with GUIs or Lichess
     engine_set_position_fen(START_FEN);
 }
 
 void engine_shutdown(void)
 {
-    // ensure any active search thread is stopped before shutting down the engine and freeing resources
+    // ensure any active search thread is stopped before shutting down the engine and freeing
+    // resources
     engine_stop_search();
     free_tt();
 }
@@ -187,7 +210,8 @@ void engine_stop_search(void)
     atomic_store(&search_stop_flag, true);
 
     // block the main thread until the search thread actually exists
-    // prevents starting a new search until the previous search thread has fully cleaned up and exited
+    // prevents starting a new search until the previous search thread has fully cleaned up and
+    // exited
     pthread_join(engine_state.search_thread, NULL);
 
     if (engine_state.reporter_active) {
@@ -213,15 +237,15 @@ bool engine_set_position_fen(const char* fen)
     return fen_string_to_cboard(fen, &engine_state.board);
 }
 
-Move engine_parse_and_create_uci_move(const char* move_str,
-    char* error_buf, size_t error_buf_size)
+Move engine_parse_and_create_uci_move(const char* move_str, char* error_buf, size_t error_buf_size)
 {
     if (!move_str) {
         set_error(error_buf, error_buf_size, "Invalid move input");
         return false;
     }
 
-    // uci move is at least 4 characters (e.g., e2e4), optional promotion character at 5th position (e.g., e7e8q)
+    // uci move is at least 4 characters (e.g., e2e4), optional promotion character at 5th position
+    // (e.g., e7e8q)
     if (strlen(move_str) < 4 || strlen(move_str) > 5) {
         set_error(error_buf, error_buf_size, "Invalid move format");
         return false;
@@ -235,9 +259,11 @@ Move engine_parse_and_create_uci_move(const char* move_str,
         return false;
     }
 
-    // generate all legal moves in the current position and find the one that matches the parsed from/to squares and optional promotion piece
-    // does require generating all pseudolegal moves and checking legality, but ensures that the move is actually legal in the current position and
-    // handles promotions correctly
+    // generate all legal moves in the current position and find the one that matches the parsed
+    // from/to squares and optional promotion piece
+    // does require generating all pseudolegal moves
+    // and checking legality, but ensures that the move is actually legal in the current position
+    // and handles promotions correctly
     CBoard board_copy = engine_state.board;
     MoveList move_list;
     init_move_list(&move_list);
@@ -249,9 +275,11 @@ Move engine_parse_and_create_uci_move(const char* move_str,
         promotion_char = (char)tolower((unsigned char)move_str[4]);
     }
 
-    // iterate through all legal moves to find a move that matches the from/to squares and promotion piece (if applicable)
+    // iterate through all legal moves to find a move that matches the from/to squares and promotion
+    // piece (if applicable)
     for (int i = 0; i < move_list.count; i++) {
-        if (move_get_from_square(move_list.moves[i]) == from && move_get_to_square(move_list.moves[i]) == to) {
+        if (move_get_from_square(move_list.moves[i]) == from
+            && move_get_to_square(move_list.moves[i]) == to) {
             // if no promo char, return the move as long as from/to squares match
             if (promotion_char == '\0') {
                 return move_list.moves[i];
@@ -264,12 +292,14 @@ Move engine_parse_and_create_uci_move(const char* move_str,
 
             // ensure that promotion piece type matches the promo char specified in the move string
             PieceType promo_piecetype = move_get_promotion_piecetype(move_list.moves[i]);
-            bool promotion_matches = (promotion_char == 'n' && promo_piecetype == KNIGHT)
-                || (promotion_char == 'b' && promo_piecetype == BISHOP)
-                || (promotion_char == 'r' && promo_piecetype == ROOK)
-                || (promotion_char == 'q' && promo_piecetype == QUEEN);
+            bool promotion_matches = ((promotion_char == 'n' && promo_piecetype == KNIGHT)
+                                      || (promotion_char == 'b' && promo_piecetype == BISHOP)
+                                      || (promotion_char == 'r' && promo_piecetype == ROOK)
+                                      || (promotion_char == 'q' && promo_piecetype == QUEEN));
 
-            // if from/to squares match, move is a promotion, and promotion piece type matches the promo char specified in the move string, return this move
+            // if from/to squares match, move is a promotion, and
+            // promotion piece type matches the promo char specified in the move string,
+            // return this move
             if (promotion_matches) {
                 return move_list.moves[i];
             }
@@ -280,13 +310,13 @@ Move engine_parse_and_create_uci_move(const char* move_str,
     return false;
 }
 
-bool engine_apply_uci_move(const char* move_str, char* error_buf,
-    size_t error_buf_size)
+bool engine_apply_uci_move(const char* move_str, char* error_buf, size_t error_buf_size)
 {
     // parse the move and verify legality using the current engine position
     Move parsed_move = engine_parse_and_create_uci_move(move_str, error_buf, error_buf_size);
 
-    if (move_get_from_square(parsed_move) == NO_SQUARE || move_get_to_square(parsed_move) == NO_SQUARE) {
+    if (move_get_from_square(parsed_move) == NO_SQUARE
+        || move_get_to_square(parsed_move) == NO_SQUARE) {
         set_error(error_buf, error_buf_size, "Invalid or illegal move");
         return false;
     }
@@ -301,12 +331,12 @@ void engine_new_game(void)
     engine_stop_search();
     // reset to startpos
     engine_set_position_fen(START_FEN);
-    // clear TT and heuristics to remove any information from the previous game that could affect the new game
+    // clear TT and heuristics to remove any information from the previous game that could affect
+    // the new game
     clear_tt();
 }
 
-bool engine_start_search(const SearchLimits* limits, char* error_buf,
-    size_t error_buf_size)
+bool engine_start_search(const SearchLimits* limits, char* error_buf, size_t error_buf_size)
 {
     if (!limits) {
         set_error(error_buf, error_buf_size, "Search limits not provided");
@@ -355,7 +385,8 @@ bool engine_start_search(const SearchLimits* limits, char* error_buf,
     thread_data->search_limits = *limits;
     thread_data->report = report;
 
-    // dispatch the search_worker function to a new background thread, passing the thread data as an argument
+    // dispatch the search_worker function to a new background thread
+    // passing the thread data as an argument
     if (pthread_create(&engine_state.search_thread, NULL, search_worker, thread_data) != 0) {
         set_error(error_buf, error_buf_size, "failed to create search thread");
         free(thread_data);
@@ -382,15 +413,16 @@ void engine_handle_ponder_hit(void)
 
 bool engine_set_hash_mb(long requested_mb, long* applied_mb)
 {
-    // clamp requested size to a reasonable range (1 MB to 1024 MB) to prevent excessive memory usage or invalid sizes
+    // clamp requested size to a reasonable range (1 MB to 1024 MB) to prevent excessive memory
+    // usage or invalid sizes
     long mb = requested_mb;
     if (mb < 1) {
         mb = 1;
     } else if (mb > 1024) {
         mb = 1024;
     }
-    // We must stop the search before resizing the hash, as the search thread
-    // actively reads/writes to this memory space.
+    // We must stop the search before resizing the hash, search should be stopped before resizing
+    // the hash but just to be safe
     engine_stop_search();
     init_tt((size_t)mb);
 
@@ -412,60 +444,6 @@ void engine_print_board(void)
     print_cboard(&engine_state.board);
 }
 
-bool engine_copy_board(CBoard* out_board)
-{
-    if (!out_board) {
-        return false;
-    }
-
-    *out_board = engine_state.board;
-    return true;
-}
-
-bool engine_search_sync(const CBoard* board, const SearchLimits* limits, SearchReportUpdate* out_update)
-{
-    if (!limits || !out_update) {
-        return false;
-    }
-
-    SearchReport report;
-    pthread_mutex_init(&report.mutex, NULL);
-    pthread_cond_init(&report.cond, NULL);
-    report.has_update = false;
-    report.is_finished = false;
-    report.abort = false;
-    memset(&report.update, 0, sizeof(report.update));
-
-    SearchThreadData* thread_data = malloc(sizeof(SearchThreadData));
-    if (!thread_data) {
-        pthread_mutex_destroy(&report.mutex);
-        pthread_cond_destroy(&report.cond);
-        return false;
-    }
-
-    if (board) {
-        thread_data->board = *board;
-    } else {
-        thread_data->board = engine_state.board;
-    }
-    thread_data->search_limits = *limits;
-    thread_data->report = &report;
-
-    atomic_store(&search_stop_flag, false);
-    atomic_store(&search_is_pondering, limits->ponder);
-
-    search_worker(thread_data);
-
-    pthread_mutex_lock(&report.mutex);
-    *out_update = report.update;
-    pthread_mutex_unlock(&report.mutex);
-
-    pthread_mutex_destroy(&report.mutex);
-    pthread_cond_destroy(&report.cond);
-
-    return true;
-}
-
 void engine_set_debug_mode(bool enabled)
 {
     engine_state.is_debug_mode = enabled;
@@ -474,4 +452,14 @@ void engine_set_debug_mode(bool enabled)
 bool engine_is_debug_mode(void)
 {
     return engine_state.is_debug_mode;
+}
+
+bool engine_copy_board(CBoard* out_board)
+{
+    if (!out_board) {
+        return false;
+    }
+
+    *out_board = engine_state.board;
+    return true;
 }

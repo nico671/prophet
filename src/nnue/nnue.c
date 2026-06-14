@@ -1,5 +1,7 @@
 #include "nnue.h"
+
 #include "nnue_config.h"
+
 #include <stdint.h>
 #include <stdio.h>
 // Static allocations for the network
@@ -48,7 +50,7 @@ static int get_active_features(const CBoard* board, int* features)
                 Square sq = bitboard_lsb_index_unsafe(bb);
 
                 // Flip the square index if it is black's turn
-                int sq_idx = (stm == WHITE) ? sq : (sq ^ 56);
+                int sq_idx = (stm == WHITE) ? sq : square_flip_vertical(sq);
 
                 // Subtract 1 from pt to match python's 0-5 indexing
                 features[count++] = ((pt - 1) + base_idx) * 64 + sq_idx;

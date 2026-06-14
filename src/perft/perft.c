@@ -3,6 +3,7 @@
 #include "movegen/move.h"
 #include "movegen/move_make.h"
 #include "movegen/movegen.h"
+
 #include <stdio.h>
 #include <time.h>
 
@@ -67,38 +68,38 @@ uint64_t divide(CBoard* board, int depth)
 
 // REFERENCE: https://www.chessprogramming.org/Perft_Results
 uint64_t expected_nodes_initial_position[] = {
-    1ULL, // depth 0
-    20ULL, // depth 1
-    400ULL, // depth 2
-    8902ULL, // depth 3
-    197281ULL, // depth 4
-    4865609ULL, // depth 5
-    119060324ULL, // depth 6
-    3195901860ULL, // depth 7
-    84998978956ULL, // depth 8
-    2439530234167ULL, // depth 9
+    1ULL,              // depth 0
+    20ULL,             // depth 1
+    400ULL,            // depth 2
+    8902ULL,           // depth 3
+    197281ULL,         // depth 4
+    4865609ULL,        // depth 5
+    119060324ULL,      // depth 6
+    3195901860ULL,     // depth 7
+    84998978956ULL,    // depth 8
+    2439530234167ULL,  // depth 9
     69352859712417ULL, // depth 10
 };
 
 uint64_t expected_nodes_kiwipete_position[] = {
-    1ULL, // depth 0
-    48ULL, // depth 1
-    2039ULL, // depth 2
-    97862ULL, // depth 3
-    4085603ULL, // depth 4
-    193690690ULL, // depth 5
+    1ULL,          // depth 0
+    48ULL,         // depth 1
+    2039ULL,       // depth 2
+    97862ULL,      // depth 3
+    4085603ULL,    // depth 4
+    193690690ULL,  // depth 5
     8031647685ULL, // depth 6
 };
 
 uint64_t expected_nodes_position_3[] = {
-    1ULL, // depth 0
-    14ULL, // depth 1
-    191ULL, // depth 2
-    2812ULL, // depth 3
-    43238ULL, // depth 4
-    674624ULL, // depth 5
-    11030083ULL, // depth 6
-    178633661ULL, // depth 7
+    1ULL,          // depth 0
+    14ULL,         // depth 1
+    191ULL,        // depth 2
+    2812ULL,       // depth 3
+    43238ULL,      // depth 4
+    674624ULL,     // depth 5
+    11030083ULL,   // depth 6
+    178633661ULL,  // depth 7
     3009794393ULL, // depth 8
 };
 uint64_t expected_nodes_position_4[] = {
@@ -196,7 +197,7 @@ void run_perft_test_suite(void)
             uint64_t expected = test.expected_nodes[depth];
 
             printf("Depth %d: %llu (%.3fs, %.0f nodes/sec)",
-                depth, nodes, elapsed, elapsed > 0 ? nodes / elapsed : 0);
+                   depth, nodes, elapsed, elapsed > 0 ? nodes / elapsed : 0);
             if (nodes == expected) {
                 printf(" PASS\n");
                 total_passed++;

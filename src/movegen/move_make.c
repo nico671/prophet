@@ -1,8 +1,10 @@
+#include "movegen/move_make.h"
+
 #include "board/cboard.h"
 #include "board/zobrist.h"
 #include "core/bitboard.h"
 #include "movegen/move.h"
-#include "movegen/move_make.h"
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -19,8 +21,16 @@ static UndoInfo save_undo_info(CBoard* board, PieceType captured_piecetype, Move
     return undo_info;
 }
 
-// Helper to update game state after move
-static void updateGameState(CBoard* board, Square to, bool is_capture)
+/**
+ * @brief Function to update the game state after making a move
+ *
+ * Includes updating the halfmove clock, clearing the en passant square, switching sides, and incrementing the fullmove number after black
+ *
+ * @param board CBoard struct representing the current game state, which will be modified in place
+ * @param to The destination square of the move being made, used to determine if a pawn move was made for halfmove clock reset
+ * @param is_capture Whether the move being made is a capture, used to determine if the halfmove clock should be reset
+ */
+static inline void update_game_state(CBoard* board, Square to, bool is_capture)
 {
     // Update halfmove clock
     bool is_pawn_move = bitboard_is_bit_set(board->piece_bbs[WHITE][PAWN], to) || bitboard_is_bit_set(board->piece_bbs[BLACK][PAWN], to);
@@ -42,7 +52,7 @@ static void updateGameState(CBoard* board, Square to, bool is_capture)
     }
 }
 
-UndoInfo make_quiet_move(CBoard* board, Move move)
+static inline UndoInfo make_quiet_move(CBoard* board, Move move)
 {
     Square from = move_get_from_square(move);
     Square to = move_get_to_square(move);
@@ -77,15 +87,15 @@ UndoInfo make_quiet_move(CBoard* board, Move move)
     // Update zobrist for castling rights change
     zobrist_toggle_castling(&board->zobrist_key, previous_castling_rights, board->castling_rights);
 
-    updateGameState(board, to, false);
+    update_game_state(board, to, false);
 
-    // Toggle side to move in zobrist (done after updateGameState which switches side)
+    // Toggle side to move in zobrist (done after update_game_state which switches side)
     zobrist_toggle_side(&board->zobrist_key);
 
     return undo_info;
 }
 
-UndoInfo make_capture_move(CBoard* board, Move move)
+static inline UndoInfo make_capture_move(CBoard* board, Move move)
 {
     Square from = move_get_from_square(move);
     Square to = move_get_to_square(move);
@@ -130,7 +140,7 @@ UndoInfo make_capture_move(CBoard* board, Move move)
     // Update zobrist for castling rights change
     zobrist_toggle_castling(&board->zobrist_key, previous_castling_rights, board->castling_rights);
 
-    updateGameState(board, to, true);
+    update_game_state(board, to, true);
 
     // Toggle side to move in zobrist
     zobrist_toggle_side(&board->zobrist_key);
@@ -138,7 +148,7 @@ UndoInfo make_capture_move(CBoard* board, Move move)
     return undo_info;
 }
 
-UndoInfo make_double_pawn_push_move(CBoard* board, Move move)
+static inline UndoInfo make_double_pawn_push_move(CBoard* board, Move move)
 {
     Square from = move_get_from_square(move);
     Square to = move_get_to_square(move);
@@ -149,7 +159,7 @@ UndoInfo make_double_pawn_push_move(CBoard* board, Move move)
 
     // Calculate en passant square BEFORE switching sides
     // EP square is the square the pawn skipped over
-    Square ep_square = to + (8 * (2 * board->side_to_move - 1)); // to + 8 for white, to - 8 for black
+    Square ep_square = to + (board->side_to_move ? 8 : -8); // to + 8 for white, to - 8 for black TODO: find a way to do this without ternary operator, branching is the devil
 
     // Update zobrist: remove pawn from 'from' square
     zobrist_toggle_piece(&board->zobrist_key, PAWN, board->side_to_move, from);
@@ -173,9 +183,9 @@ UndoInfo make_double_pawn_push_move(CBoard* board, Move move)
     // Update zobrist for castling rights change
     zobrist_toggle_castling(&board->zobrist_key, previous_castling_rights, board->castling_rights);
 
-    updateGameState(board, to, false); // This switches sideToMove and clears ep_square
+    update_game_state(board, to, false); // This switches sideToMove and clears ep_square
 
-    // Set en passant square AFTER updateGameState (which clears it)
+    // Set en passant square AFTER update_game_state (which clears it)
     board->ep_square = ep_square;
 
     // Add new EP square to hash
@@ -187,7 +197,7 @@ UndoInfo make_double_pawn_push_move(CBoard* board, Move move)
     return undo_info;
 }
 
-UndoInfo make_ep_capture_move(CBoard* board, Move move)
+static inline UndoInfo make_ep_capture_move(CBoard* board, Move move)
 {
     Square from = move_get_from_square(move);
     Square to = move_get_to_square(move);
@@ -230,7 +240,7 @@ UndoInfo make_ep_capture_move(CBoard* board, Move move)
     // Update zobrist for castling rights change
     zobrist_toggle_castling(&board->zobrist_key, previous_castling_rights, board->castling_rights);
 
-    updateGameState(board, to, true);
+    update_game_state(board, to, true);
 
     // Toggle side to move in zobrist
     zobrist_toggle_side(&board->zobrist_key);
@@ -238,7 +248,7 @@ UndoInfo make_ep_capture_move(CBoard* board, Move move)
     return undo_info;
 }
 
-UndoInfo make_promotion_move(CBoard* board, Move move)
+static inline UndoInfo make_promotion_move(CBoard* board, Move move)
 {
     Square from = move_get_from_square(move);
     Square to = move_get_to_square(move);
@@ -296,7 +306,7 @@ UndoInfo make_promotion_move(CBoard* board, Move move)
     // Update zobrist for castling rights change
     zobrist_toggle_castling(&board->zobrist_key, previous_castling_rights, board->castling_rights);
 
-    updateGameState(board, to, is_promotion_capture);
+    update_game_state(board, to, is_promotion_capture);
 
     // Toggle side to move in zobrist
     zobrist_toggle_side(&board->zobrist_key);
@@ -304,7 +314,7 @@ UndoInfo make_promotion_move(CBoard* board, Move move)
     return undo_info;
 }
 
-UndoInfo make_castling_move(CBoard* board, Move move)
+static inline UndoInfo make_castling_move(CBoard* board, Move move)
 {
     Square to = move_get_to_square(move);
     Square from = move_get_from_square(move);
@@ -391,7 +401,7 @@ UndoInfo make_castling_move(CBoard* board, Move move)
     zobrist_toggle_castling(&board->zobrist_key, previous_castling_rights, board->castling_rights);
 
     // Update board state (occupancies already updated above)
-    updateGameState(board, to, false);
+    update_game_state(board, to, false);
 
     // Toggle side to move in zobrist
     zobrist_toggle_side(&board->zobrist_key);
@@ -459,7 +469,7 @@ UndoInfo make_move(CBoard* board, Move move)
     return (UndoInfo) { 0 }; // Should never reach here
 }
 
-static void unmake_promotion_move(CBoard* board, Move move, UndoInfo undo_info)
+static inline void unmake_promotion_move(CBoard* board, Move move, UndoInfo undo_info)
 {
     Square from = move_get_from_square(move);
     Square to = move_get_to_square(move);
@@ -483,7 +493,7 @@ static void unmake_promotion_move(CBoard* board, Move move, UndoInfo undo_info)
     }
 }
 
-static void unmake_en_passant_move(CBoard* board, Move move, UndoInfo undo_info)
+static inline void unmake_en_passant_move(CBoard* board, Move move, UndoInfo undo_info)
 {
     Square from = move_get_from_square(move);
     Square to = move_get_to_square(move);
@@ -508,7 +518,7 @@ static void unmake_en_passant_move(CBoard* board, Move move, UndoInfo undo_info)
     bitboard_set_square_bit(&board->occupancy_bbs[2], captured_pawn_square);
 }
 
-static void unmake_castling_move(CBoard* board, Move move)
+static inline void unmake_castling_move(CBoard* board, Move move)
 {
     // Unmake castling
 
@@ -539,7 +549,7 @@ static void unmake_castling_move(CBoard* board, Move move)
     }
 }
 
-static void unmake_regular_move(CBoard* board, Move move, UndoInfo undo_info)
+static inline void unmake_regular_move(CBoard* board, Move move, UndoInfo undo_info)
 {
     Square from = move_get_from_square(move);
     Square to = move_get_to_square(move);

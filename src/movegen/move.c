@@ -6,6 +6,7 @@ Move create_move(Square from, Square to, MoveType type, PieceType promo_piecetyp
         return MOVE_NONE;
     }
 
+    // thanks stockfish
     Move move = (Move)(((from & 0x3F) << 6) | (to & 0x3F) | type);
 
     if (type == PROMO) {

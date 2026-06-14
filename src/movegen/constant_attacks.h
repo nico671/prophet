@@ -4,7 +4,7 @@
 #include "core/bitboard.h"
 
 /**
- * @brief Precomputed knight attack bitboards for each square, indexing same as Square enum
+ * @brief Precomputed knight attack bitboards for each square, indexed by Square
  *
  */
 extern const Bitboard knight_attacks_table[64];
@@ -20,7 +20,7 @@ static inline Bitboard get_knight_attack_bitboard(Square square)
 }
 
 /**
- * @brief Precomputed king attack bitboards for each square, indexing same as Square enum
+ * @brief Precomputed king attack bitboards for each square, indexed by Square
  *
  */
 extern const Bitboard king_attacks_table[64];
@@ -37,10 +37,10 @@ static inline Bitboard get_king_attack_bitboard(Square square)
 }
 
 /**
- * @brief Precomputed pawn attack bitboards for each square, indexing same as Square enum,
- *
+ * @brief Precomputed pawn attack bitboards for each square,
+ * indexed [color][square]
  */
-extern const Bitboard pawn_attacks_table[2][64]; // [color][square], where color is 0 for white and 1 for black
+extern const Bitboard pawn_attacks_table[2][64];
 
 /**
  * @brief Returns the attack bitboard for a pawn of the given color on the given square

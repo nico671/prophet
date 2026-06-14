@@ -1,12 +1,12 @@
 #ifndef ZOBRIST_H
 #define ZOBRIST_H
 
-#include <stdint.h>
-
 #include "board/cboard.h"
 #include "core/bitboard.h"
 #include "core/chess_types.h"
 #include "utils/prng.h"
+
+#include <stdint.h>
 
 /**
  * @brief Zobrist hashing assigns a random 64‑bit key to every (piece, square) combination, plus extra keys for side‑to‑move, castling rights, and en‑passant.
@@ -68,7 +68,7 @@ static inline int get_piece_index(PieceType piece, Color color)
  * NO_SQUARE and ensures that the piece index is within bounds.
  */
 static inline void zobrist_toggle_piece(uint64_t* key, PieceType piece,
-    Color color, Square square)
+                                        Color color, Square square)
 {
     if ((unsigned)square < 64U) { // ensure valid square index
         int idx = get_piece_index(piece, color);
@@ -84,7 +84,10 @@ static inline void zobrist_toggle_piece(uint64_t* key, PieceType piece,
  *
  * @param key The Zobrist hash key to be toggled.
  */
-static inline void zobrist_toggle_side(uint64_t* key) { *key ^= side_key; }
+static inline void zobrist_toggle_side(uint64_t* key)
+{
+    *key ^= side_key;
+}
 
 /**
  * @brief Toggles the castling rights component of a Zobrist hash key by XORing
@@ -96,7 +99,7 @@ static inline void zobrist_toggle_side(uint64_t* key) { *key ^= side_key; }
  * @param new_castling_rights The new castling rights value.
  */
 static inline void zobrist_toggle_castling(uint64_t* key, uint8_t old_castling_rights,
-    uint8_t new_castling_rights)
+                                           uint8_t new_castling_rights)
 {
     *key ^= castle_keys[old_castling_rights & 0x0F];
     *key ^= castle_keys[new_castling_rights & 0x0F];
@@ -113,6 +116,6 @@ static inline void zobrist_toggle_castling(uint64_t* key, uint8_t old_castling_r
  * @param ep_square The en passant square to be toggled in the hash key.
  */
 void zobrist_toggle_ep(uint64_t* key, const CBoard* board,
-    Square ep_square);
+                       Square ep_square);
 
 #endif // ZOBRIST_H
