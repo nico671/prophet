@@ -1,11 +1,12 @@
-#ifndef CONSTANT_MOVES_H
-#define CONSTANT_MOVES_H
+#ifndef PROPHET_CONSTANT_MOVES_H
+#define PROPHET_CONSTANT_MOVES_H
 
 #include "board/cboard.h"
 #include "movegen/move.h"
 
 /**
- * @brief Generates all pseudo-legal non-castling king moves for the given board.
+ * @brief Generates all pseudo-legal non-castling king moves for the
+ * given board.
  *
  * @param board The current game board.
  * @param move_list The list to which generated moves will be added.
@@ -13,7 +14,8 @@
 void gen_all_pseudolegal_king_noncastling_moves(CBoard* board, MoveList* move_list);
 
 /**
- * @brief Generates all pseudo-legal castling king moves for the given board.
+ * @brief Generates all pseudo-legal castling king moves for the given
+ * board.
  *
  * @param board The current game board.
  * @param move_list The list to which generated moves will be added.

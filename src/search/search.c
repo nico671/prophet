@@ -12,18 +12,17 @@
 #include <assert.h>
 #include <limits.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
-typedef struct
-{
+typedef struct {
     Move move;
     int score;
 } ScoredMove;
 
-typedef struct
-{
+typedef struct {
     long long soft_limit_ms;
     long long hard_limit_ms;
 } TimeLimits;
@@ -31,11 +30,10 @@ typedef struct
 /**
  * @brief Thread-local search state for a single search instance.
  *
- * All mutable search data (limits, timers, heuristics, counters) live here so
- * concurrent searches do not overwrite each other.
+ * All mutable search data (limits, timers, heuristics, counters) live
+ * here so concurrent searches do not overwrite each other.
  */
-typedef struct
-{
+typedef struct {
     CBoard board; // Working copy of the root board
     SearchLimits limits;
     Color root_side_to_move;
@@ -50,19 +48,25 @@ typedef struct
 static _Atomic(SearchContext*) active_search_context = NULL;
 
 static int piece_value(PieceType piece);
-static TimeLimits compute_time_limits(SearchLimits search_limits, Color side_to_move);
+static TimeLimits compute_time_limits(SearchLimits search_limits,
+    Color side_to_move);
 static bool should_stop_search(SearchContext* ctx);
-static int search_root_best_move(SearchContext* ctx, CBoard* board, int depth, Move* prev_best_move);
-static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int beta, Color color, int ply);
-static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int ply);
-static void score_moves(SearchContext* ctx, CBoard* board, MoveList* move_list, ScoredMove* scored_moves,
-                        Move tt_move, int ply);
+static int search_root_best_move(SearchContext* ctx, CBoard* board, int depth,
+    Move* prev_best_move);
+static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int beta,
+    Color color, int ply);
+static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta,
+    int ply);
+static void score_moves(SearchContext* ctx, CBoard* board, MoveList* move_list,
+    ScoredMove* scored_moves, Move tt_move, int ply);
 static void pick_next_best_move(ScoredMove* scored_moves, int start, int count);
 static void clear_search_heuristics(SearchContext* ctx);
 static void age_history(SearchContext* ctx);
 static void update_history(SearchContext* ctx, Color side, Move move, int depth);
 static void penalize_history(SearchContext* ctx, Color side, Move move, int depth);
-static void publish_search_update(SearchReport* report, const SearchReportUpdate* update, bool is_finished);
+static void publish_search_update(SearchReport* report,
+    const SearchReportUpdate* update,
+    bool is_finished);
 
 static PieceType captured_piece_for_move(const CBoard* board, Move move)
 {
@@ -92,12 +96,14 @@ static bool is_promotion_capture(const CBoard* board, Move move)
 
 static bool is_capture_like(CBoard* board, Move move)
 {
-    return move_is_capture(board, move) || move_is_enpassant(move) || is_promotion_capture(board, move);
+    return move_is_capture(board, move) || move_is_enpassant(move)
+        || is_promotion_capture(board, move);
 }
 
 static bool is_quiet_move(CBoard* board, Move move)
 {
-    return !move_is_capture(board, move) && !move_is_enpassant(move) && !move_is_promotion(move);
+    return !move_is_capture(board, move) && !move_is_enpassant(move)
+        && !move_is_promotion(move);
 }
 
 static bool is_mate_score(int score)
@@ -246,7 +252,8 @@ static bool move_allowed_by_search_moves(Move move, const MoveList* search_moves
     return false;
 }
 
-static void publish_search_update(SearchReport* report, const SearchReportUpdate* update, bool is_finished)
+static void publish_search_update(SearchReport* report,
+    const SearchReportUpdate* update, bool is_finished)
 {
     if (!report || !update) {
         return;
@@ -263,8 +270,8 @@ static void publish_search_update(SearchReport* report, const SearchReportUpdate
 /**
  * @brief Determine whether the current search should stop.
  *
- * Checks the global stop flag, node limit, and hard deadline. The time check
- * is throttled to reduce `now_ms()` overhead.
+ * Checks the global stop flag, node limit, and hard deadline. The
+ * time check is throttled to reduce `now_ms()` overhead.
  */
 static bool should_stop_search(SearchContext* ctx)
 {
@@ -277,10 +284,12 @@ static bool should_stop_search(SearchContext* ctx)
         atomic_store(&search_stop_flag, true);
         return true;
     }
-    // only check the actual time every 2048 nodes to avoid now_ms() overhead on every node
+    // only check the actual time every 2048 nodes to avoid now_ms()
+    // overhead on every node
     if ((nodes & 2047) == 0) {
         long long hard_deadline = atomic_load(&ctx->hard_deadline_ms);
-        if (!atomic_load(&search_is_pondering) && hard_deadline >= 0 && now_ms() >= hard_deadline) {
+        if (!atomic_load(&search_is_pondering) && hard_deadline >= 0
+            && now_ms() >= hard_deadline) {
             atomic_store(&search_stop_flag, true);
             return true;
         }
@@ -324,7 +333,8 @@ void on_ponder_hit(void)
 /**
  * @brief Compute soft/hard time limits for the current move.
  *
- * Returns {-1, -1} when running in infinite/ponder mode without time controls.
+ * Returns {-1, -1} when running in infinite/ponder mode without time
+ * controls.
  */
 static TimeLimits compute_time_limits(SearchLimits search_limits, Color side_to_move)
 {
@@ -337,30 +347,40 @@ static TimeLimits compute_time_limits(SearchLimits search_limits, Color side_to_
         return limits;
     }
 
-    int time_remaining_ms = (side_to_move == WHITE) ? search_limits.time_for_white_ms
-                                                    : search_limits.time_for_black_ms;
-    // if infinite search return -1 for both limits, default value to ignore time checks
+    int time_remaining_ms = (side_to_move == WHITE)
+        ? search_limits.time_for_white_ms
+        : search_limits.time_for_black_ms;
+    // if infinite search return -1 for both limits, default value to
+    // ignore time checks
     if (search_limits.infinite_search || time_remaining_ms == 0) {
         return limits;
     }
 
-    int increment_ms = (side_to_move == WHITE) ? search_limits.increment_for_white_ms
-                                               : search_limits.increment_for_black_ms;
-    int moves_to_go = search_limits.moves_until_next_time_control > 0 ? search_limits.moves_until_next_time_control : 50;
+    int increment_ms = (side_to_move == WHITE)
+        ? search_limits.increment_for_white_ms
+        : search_limits.increment_for_black_ms;
+    int moves_to_go = search_limits.moves_until_next_time_control > 0
+        ? search_limits.moves_until_next_time_control
+        : 50;
 
-    // Subtract a constant overhead (curr 50ms) to account for move overhead / latency
+    // Subtract a constant overhead (curr 50ms) to account for move
+    // overhead / latency
     int safe_remaining = time_remaining_ms - MOVE_OVERHEAD_DEFAULT_MS;
-    // less than 50 ms remaining so , set a very short time limit to at least try to make a move instead of flagging
+    // less than 50 ms remaining so , set a very short time limit to
+    // at least try to make a move instead of flagging
     if (safe_remaining <= 0) {
         limits.soft_limit_ms = 15;
         limits.hard_limit_ms = 15;
         return limits;
     }
 
-    // soft limit, trying to spend fraction of remaining time plus some of the increment (curr .5 of increment)
-    long long soft_limit_ms = (long long)(safe_remaining / moves_to_go) + (long long)(increment_ms / 2);
+    // soft limit, trying to spend fraction of remaining time plus
+    // some of the increment (curr .5 of increment)
+    long long soft_limit_ms
+        = (long long)(safe_remaining / moves_to_go) + (long long)(increment_ms / 2);
 
-    // hard limit, never spend more than abt 1/3 of remaining time on single move
+    // hard limit, never spend more than abt 1/3 of remaining time on
+    // single move
     long long absolute_max_time_ms = (long long)(safe_remaining / 3);
 
     // The hard limit is 3x the soft time, capped by the absolute max
@@ -380,8 +400,7 @@ static TimeLimits compute_time_limits(SearchLimits search_limits, Color side_to_
     return limits;
 }
 
-typedef struct
-{
+typedef struct {
     uint8_t previous_ep_square;
     uint16_t previous_halfmove_clock;
     uint16_t previous_fullmove_number;
@@ -423,7 +442,8 @@ static void unmake_null_move(CBoard* board, NullMoveUndo undo)
 
 static void move_to_uci_string(Move move, char* out)
 {
-    if (move_get_from_square(move) == NO_SQUARE || move_get_to_square(move) == NO_SQUARE) {
+    if (move_get_from_square(move) == NO_SQUARE
+        || move_get_to_square(move) == NO_SQUARE) {
         strcpy(out, "0000");
         return;
     }
@@ -456,10 +476,11 @@ static void move_to_uci_string(Move move, char* out)
 /**
  * @brief Root search for the best move at a given depth.
  *
- * Applies move ordering, iterates legal root moves, and updates the TT with
- * the best score found at this depth.
+ * Applies move ordering, iterates legal root moves, and updates the
+ * TT with the best score found at this depth.
  */
-static int search_root_best_move(SearchContext* ctx, CBoard* board, int depth, Move* prev_best_move)
+static int search_root_best_move(SearchContext* ctx, CBoard* board, int depth,
+    Move* prev_best_move)
 {
     MoveList move_list;
     init_move_list(&move_list);
@@ -471,8 +492,9 @@ static int search_root_best_move(SearchContext* ctx, CBoard* board, int depth, M
         return is_king_in_check(board, board->side_to_move) ? -MATE_SCORE : 0;
     }
 
-    // check if prev best move is valid / legal in this position, if so prioritize
-    // it if not fall back to probing the TT for a move to prioritize
+    // check if prev best move is valid / legal in this position, if
+    // so prioritize it if not fall back to probing the TT for a move
+    // to prioritize
     Move tt_move = MOVE_NONE;
     bool found_prev_best_move = false;
     if (move_get_from_square(*prev_best_move) != NO_SQUARE) {
@@ -510,14 +532,15 @@ static int search_root_best_move(SearchContext* ctx, CBoard* board, int depth, M
 
         Move move = scored_moves[i].move;
 
-        // Skip moves that aren't in the search_moves list (if search_moves is
-        // non-empty)
+        // Skip moves that aren't in the search_moves list (if
+        // search_moves is non-empty)
         if (!move_allowed_by_search_moves(move, &ctx->limits.search_moves)) {
             continue;
         }
 
         UndoInfo undo_info = make_move(board, move);
-        int eval = -negamax(ctx, board, depth - 1, -beta, -alpha, board->side_to_move, 1);
+        int eval
+            = -negamax(ctx, board, depth - 1, -beta, -alpha, board->side_to_move, 1);
         unmake_move(board, move, undo_info);
         has_searched_at_least_one_move = true;
 
@@ -539,7 +562,8 @@ static int search_root_best_move(SearchContext* ctx, CBoard* board, int depth, M
         *prev_best_move = create_move(NO_SQUARE, NO_SQUARE, 0, 0);
         return -MATE_SCORE;
     }
-    store_tt(board->zobrist_key, depth, to_tt_score(best_score, 0), TT_PV, best_move);
+    store_tt(board->zobrist_key, depth, to_tt_score(best_score, 0), TT_PV,
+        best_move);
     *prev_best_move = best_move;
     return best_score;
 }
@@ -584,7 +608,8 @@ void* search_worker(void* arg)
     atomic_store(&ctx.hard_deadline_ms, hard_deadline_ms);
     atomic_store(&ctx.soft_limit_ms, soft_limit_ms);
 
-    // We copied the data to local stack variables, so free the allocated payload
+    // We copied the data to local stack variables, so free the
+    // allocated payload
     free(data);
 
     int current_depth = 1;
@@ -611,8 +636,10 @@ void* search_worker(void* arg)
         }
 
         Move depth_best_move = best_move;
-        int score = search_root_best_move(&ctx, &ctx.board, current_depth, &depth_best_move);
-        if (!should_stop_search(&ctx) && move_get_from_square(depth_best_move) != NO_SQUARE) {
+        int score = search_root_best_move(&ctx, &ctx.board, current_depth,
+            &depth_best_move);
+        if (!should_stop_search(&ctx)
+            && move_get_from_square(depth_best_move) != NO_SQUARE) {
             best_move = depth_best_move;
             best_score = score;
         }
@@ -620,18 +647,24 @@ void* search_worker(void* arg)
         long long elapsed = now_ms() - ctx.start_time_ms;
         long long nodes = atomic_load(&ctx.node_count);
         long long nps = elapsed > 0 ? (nodes * 1000LL) / elapsed : nodes;
+
         Move pv_line[MAX_LEGAL_MOVES];
-        int pv_length = extract_pv_line(&ctx.board, pv_line, current_depth);
-        if (pv_length >= 2 && pv_line[0] == best_move) {
-            ponder_move = pv_line[1];
-        }
+        int pv_limit
+            = current_depth < MAX_LEGAL_MOVES ? current_depth : MAX_LEGAL_MOVES;
+        int pv_length = extract_pv_line(&ctx.board, pv_line, pv_limit);
 
         char pv_string[2048] = "";
+        size_t used = 0;
         for (int i = 0; i < pv_length; i++) {
             char move_str[6];
             move_to_uci_string(pv_line[i], move_str);
-            strcat(pv_string, move_str);
-            strcat(pv_string, " ");
+
+            int written = snprintf(pv_string + used, sizeof(pv_string) - used,
+                "%s%s", i == 0 ? "" : " ", move_str);
+            if (written < 0 || (size_t)written >= sizeof(pv_string) - used) {
+                break;
+            }
+            used += (size_t)written;
         }
 
         SearchReportUpdate update = { 0 };
@@ -641,7 +674,7 @@ void* search_worker(void* arg)
         update.nps = nps;
         update.best_move = best_move;
         update.ponder_move = ponder_move;
-        strncpy(update.pv, pv_string, sizeof(update.pv) - 1);
+        snprintf(update.pv, sizeof(update.pv), "%s", pv_string);
 
         if (is_mate_score(best_score)) {
             int mate_moves = (MATE_SCORE - abs(best_score)) / 2;
@@ -663,10 +696,13 @@ void* search_worker(void* arg)
 
         if (ctx.limits.time_limit_ms == 0 && current_soft_limit > 0) {
 
-            // dynamically increase the soft limit if we detect instability in the root move (best move changes from previous iteration) after depth 2
+            // dynamically increase the soft limit if we detect
+            // instability in the root move (best move changes from
+            // previous iteration) after depth 2
             if (current_depth > 2 && best_move != previous_best_move) {
                 current_soft_limit += current_soft_limit / 2;
-                atomic_store(&ctx.soft_limit_ms, current_soft_limit); // Save the extended time
+                atomic_store(&ctx.soft_limit_ms,
+                    current_soft_limit); // Save the extended time
             }
 
             // Soft Limit Break
@@ -675,15 +711,19 @@ void* search_worker(void* arg)
             }
 
             // Early Abort Optimization
-            if (time_limits.hard_limit_ms > 0 && elapsed > (time_limits.hard_limit_ms * 0.6)) {
+            if (time_limits.hard_limit_ms > 0
+                && elapsed > (time_limits.hard_limit_ms * 0.6)) {
                 break;
             }
         }
 
-        //  update previous_best_move for the next depth's instability check
+        //  update previous_best_move for the next depth's instability
+        //  check
         previous_best_move = best_move;
 
-        if (!atomic_load(&search_is_pondering) && ctx.limits.search_for_mate_in_n_moves > 0 && is_mate_score(best_score)) {
+        if (!atomic_load(&search_is_pondering)
+            && ctx.limits.search_for_mate_in_n_moves > 0
+            && is_mate_score(best_score)) {
             int mate_moves = (MATE_SCORE - abs(best_score)) / 2;
             if (mate_moves <= ctx.limits.search_for_mate_in_n_moves) {
                 break;
@@ -713,7 +753,7 @@ void* search_worker(void* arg)
 }
 
 static void score_moves(SearchContext* ctx, CBoard* board, MoveList* move_list,
-                        ScoredMove* scored_moves, Move tt_move, int ply)
+    ScoredMove* scored_moves, Move tt_move, int ply)
 {
     Color side = board->side_to_move;
 
@@ -724,12 +764,15 @@ static void score_moves(SearchContext* ctx, CBoard* board, MoveList* move_list,
         scored_moves[i].move = curr_move;
         if (tt_move != MOVE_NONE && curr_move == tt_move) {
             score = TT_MOVE_SCORE;
-        } else if (is_capture_like(board, curr_move) || move_is_promotion(curr_move)) {
-            PieceType attacker_piecetype = cboard_get_piece_at_square(board, move_get_from_square(curr_move));
+        } else if (is_capture_like(board, curr_move)
+            || move_is_promotion(curr_move)) {
+            PieceType attacker_piecetype
+                = cboard_get_piece_at_square(board, move_get_from_square(curr_move));
             PieceType captured_piecetype = captured_piece_for_move(board, curr_move);
             int mvv_lva = 0;
             if (captured_piecetype != NO_PIECE && attacker_piecetype != NO_PIECE) {
-                mvv_lva = piece_value(captured_piecetype) - piece_value(attacker_piecetype);
+                mvv_lva = piece_value(captured_piecetype)
+                    - piece_value(attacker_piecetype);
             }
 
             int promo_bonus = 0;
@@ -782,8 +825,8 @@ static void pick_next_best_move(ScoredMove* scored_moves, int start, int count)
 /**
  * @brief Quiescence search to stabilize tactical positions.
  *
- * Searches captures/promotions (and evasions if in check) to mitigate the
- * horizon effect.
+ * Searches captures/promotions (and evasions if in check) to mitigate
+ * the horizon effect.
  */
 static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int ply)
 {
@@ -841,7 +884,8 @@ static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int
         pick_next_best_move(scored_moves, i, move_list.count);
         Move move = scored_moves[i].move;
 
-        if (!king_in_check && !is_capture_like(node, move) && !move_is_promotion(move)) {
+        if (!king_in_check && !is_capture_like(node, move)
+            && !move_is_promotion(move)) {
             continue;
         }
 
@@ -864,7 +908,7 @@ static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int
  * @brief Alpha-beta negamax with TT, null-move pruning, and PVS/LMR.
  */
 static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int beta,
-                   Color color, int ply)
+    Color color, int ply)
 {
     atomic_fetch_add(&ctx->node_count, 1);
 
@@ -904,12 +948,13 @@ static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int b
     }
 
     // Null-move pruning (skip in check or near-mate windows)
-    if (!king_in_check && depth >= 3 && !is_mate_score(alpha) && !is_mate_score(beta)) {
+    if (!king_in_check && depth >= 3 && !is_mate_score(alpha)
+        && !is_mate_score(beta)) {
         int reduction = 2 + (depth >= 6 ? 1 : 0);
         NullMoveUndo null_undo_info = make_null_move(node);
         Color next_side = 1 - side;
         int null_score = -negamax(ctx, node, depth - 1 - reduction, -beta, -beta + 1,
-                                  next_side, ply + 1);
+            next_side, ply + 1);
         unmake_null_move(node, null_undo_info);
 
         if (null_score >= beta) {
@@ -953,17 +998,21 @@ static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int b
             eval = -negamax(ctx, node, depth - 1, -beta, -alpha, next_side, ply + 1);
         } else {
             int reduced_depth = depth - 1;
-            bool can_reduce_depth = depth >= 3 && num_legal_moves_searched >= 4 && !king_in_check && quiet;
+            bool can_reduce_depth = depth >= 3 && num_legal_moves_searched >= 4
+                && !king_in_check && quiet;
             if (can_reduce_depth) {
                 reduced_depth = depth - 2;
             }
 
             // PVS scout search with null window (\alpha , \alpha + 1)
-            eval = -negamax(ctx, node, reduced_depth, -alpha - 1, -alpha, next_side, ply + 1);
+            eval = -negamax(ctx, node, reduced_depth, -alpha - 1, -alpha, next_side,
+                ply + 1);
 
-            // Re-search if scout failed high (score > alpha), search with full window
+            // Re-search if scout failed high (score > alpha), search
+            // with full window
             if (eval > alpha) {
-                eval = -negamax(ctx, node, depth - 1, -beta, -alpha, next_side, ply + 1);
+                eval = -negamax(ctx, node, depth - 1, -beta, -alpha, next_side,
+                    ply + 1);
             }
         }
 
@@ -1009,6 +1058,6 @@ static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int b
         bound = TT_CUT;
     }
     store_tt(node->zobrist_key, depth, to_tt_score(max_eval, ply), bound,
-             best_move_at_node);
+        best_move_at_node);
     return max_eval;
 }

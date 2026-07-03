@@ -11,25 +11,34 @@
 #define ROOK_TABLE_BITS 12
 #define BISHOP_TABLE_BITS 9
 
-// NOTE: shoutout to chess programming wiki for much of this code, saved my life when i started this project
+// NOTE: shoutout to chess programming wiki for much of this code,
+// saved my life when i started this project
 
-// ensure that our table sizes match the max bits we need to index them
-_Static_assert(ROOK_TABLE_SIZE == (1 << ROOK_TABLE_BITS), "rook table size must match max rook bits");
-_Static_assert(BISHOP_TABLE_SIZE == (1 << BISHOP_TABLE_BITS), "bishop table size must match max bishop bits");
+// ensure that our table sizes match the max bits we need to index
+// them
+_Static_assert(ROOK_TABLE_SIZE == (1 << ROOK_TABLE_BITS),
+    "rook table size must match max rook bits");
+_Static_assert(BISHOP_TABLE_SIZE == (1 << BISHOP_TABLE_BITS),
+    "bishop table size must match max bishop bits");
 
 /**
- * @brief Precomputed rook attack bitboards for each square and occupancy mask variation, indexed by magic bitboard hashing
+ * @brief Precomputed rook attack bitboards for each square and
+ * occupancy mask variation, indexed by magic bitboard hashing
  *
  */
 Bitboard rook_attacks[64][4096];
 /**
- * @brief Precomputed bishop attack bitboards for each square and occupancy mask variation, indexed by magic bitboard hashing
+ * @brief Precomputed bishop attack bitboards for each square and
+ * occupancy mask variation, indexed by magic bitboard hashing
  *
  */
 Bitboard bishop_attacks[64][512];
 
 /**
- * @brief Rook occupancy maps for each square, which are masks of the relevant blocker squares for that square. These are used to generate the occupancy variations for testing magic candidates and generating the attack tables.
+ * @brief Rook occupancy maps for each square, which are masks of the
+ * relevant blocker squares for that square. These are used to
+ * generate the occupancy variations for testing magic candidates and
+ * generating the attack tables.
  *
  */
 const Bitboard rook_occupancy_maps[64] = {
@@ -100,7 +109,10 @@ const Bitboard rook_occupancy_maps[64] = {
 };
 
 /**
- * @brief Bishop occupancy maps for each square, which are masks of the relevant blocker squares for that square. These are used to generate the occupancy variations for testing magic candidates and generating the attack tables.
+ * @brief Bishop occupancy maps for each square, which are masks of
+ * the relevant blocker squares for that square. These are used to
+ * generate the occupancy variations for testing magic candidates and
+ * generating the attack tables.
  *
  */
 const Bitboard bishop_occupancy_maps[64] = {
@@ -170,7 +182,9 @@ const Bitboard bishop_occupancy_maps[64] = {
     0x0040201008040200ULL,
 };
 
-// rook magic multipliers per square used to index into the attack tables after masking blockers and multiplying by the magic multiplier, then shifting to get the final index
+// rook magic multipliers per square used to index into the attack
+// tables after masking blockers and multiplying by the magic
+// multiplier, then shifting to get the final index
 const Bitboard RMagic[64] = {
     0x800040008a6111ULL,
     0x240004010002005ULL,
@@ -238,7 +252,9 @@ const Bitboard RMagic[64] = {
     0x1000002410410082ULL,
 };
 
-// bishop magic multipliers per square used to index into the attack tables after masking blockers and multiplying by the magic multiplier, then shifting to get the final index
+// bishop magic multipliers per square used to index into the attack
+// tables after masking blockers and multiplying by the magic
+// multiplier, then shifting to get the final index
 const Bitboard BMagic[64] = {
     0x22081060c8c0c80ULL,
     0x2103400888002ULL,
@@ -306,34 +322,31 @@ const Bitboard BMagic[64] = {
     0x9908500410440020ULL,
 };
 
-// rook relevant number of bits per square used for indexing into the attack tables after masking blockers and multiplying by the magic multiplier, then shifting to get the final index
-const int RBits[64] = {
-    12, 11, 11, 11, 11, 11, 11, 12,
-    11, 10, 10, 10, 10, 10, 10, 11,
-    11, 10, 10, 10, 10, 10, 10, 11,
-    11, 10, 10, 10, 10, 10, 10, 11,
-    11, 10, 10, 10, 10, 10, 10, 11,
-    11, 10, 10, 10, 10, 10, 10, 11,
-    11, 10, 10, 10, 10, 10, 10, 11,
-    12, 11, 11, 11, 11, 11, 11, 12
-};
+// rook relevant number of bits per square used for indexing into the
+// attack tables after masking blockers and multiplying by the magic
+// multiplier, then shifting to get the final index
+const int RBits[64]
+    = { 12, 11, 11, 11, 11, 11, 11, 12, 11, 10, 10, 10, 10, 10, 10, 11,
+          11, 10, 10, 10, 10, 10, 10, 11, 11, 10, 10, 10, 10, 10, 10, 11,
+          11, 10, 10, 10, 10, 10, 10, 11, 11, 10, 10, 10, 10, 10, 10, 11,
+          11, 10, 10, 10, 10, 10, 10, 11, 12, 11, 11, 11, 11, 11, 11, 12 };
 
-// bishop relevant number of bits per square used for indexing into the attack tables after masking blockers and multiplying by the magic multiplier, then shifting to get the final index
-const int BBits[64] = {
-    6, 5, 5, 5, 5, 5, 5, 6,
-    5, 5, 5, 5, 5, 5, 5, 5,
-    5, 5, 7, 7, 7, 7, 5, 5,
-    5, 5, 7, 9, 9, 7, 5, 5,
-    5, 5, 7, 9, 9, 7, 5, 5,
-    5, 5, 7, 7, 7, 7, 5, 5,
-    5, 5, 5, 5, 5, 5, 5, 5,
-    6, 5, 5, 5, 5, 5, 5, 6
-};
+// bishop relevant number of bits per square used for indexing into
+// the attack tables after masking blockers and multiplying by the
+// magic multiplier, then shifting to get the final index
+const int BBits[64]
+    = { 6, 5, 5, 5, 5, 5, 5, 6, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 7, 7, 7, 7,
+          5, 5, 5, 5, 7, 9, 9, 7, 5, 5, 5, 5, 7, 9, 9, 7, 5, 5, 5, 5, 7, 7,
+          7, 7, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 6, 5, 5, 5, 5, 5, 5, 6 };
 
 typedef Bitboard (*AttackGenerator)(Square square, Bitboard blockers);
 
-// enumerates all relevant blocker bit positions for a given square and stores them in the provided positions array, returning the count of positions found. used to generate the occupancy variations for testing magic candidates and generating the attack tables.
-static int extract_mask_bit_positions(Bitboard mask, int* positions, int max_positions)
+// enumerates all relevant blocker bit positions for a given square
+// and stores them in the provided positions array, returning the
+// count of positions found. used to generate the occupancy variations
+// for testing magic candidates and generating the attack tables.
+static int extract_mask_bit_positions(Bitboard mask, int* positions,
+    int max_positions)
 {
     int count = 0;
     while (mask) {
@@ -348,7 +361,9 @@ static int extract_mask_bit_positions(Bitboard mask, int* positions, int max_pos
 }
 
 // converts permutation index to occupancy bitboard
-static Bitboard generate_occupancy_from_index(int occupancy_index, const int* positions, int relevant_bits)
+static Bitboard generate_occupancy_from_index(int occupancy_index,
+    const int* positions,
+    int relevant_bits)
 {
     Bitboard occupancy = 0ULL;
     for (int bit = 0; bit < relevant_bits; ++bit) {
@@ -359,10 +374,9 @@ static Bitboard generate_occupancy_from_index(int occupancy_index, const int* po
     return occupancy;
 }
 
-// generic attack table initializer for sliding pieces, used to generate both rook and bishop tables
-static void init_attack_table(
-    Bitboard* table,
-    int table_size,
+// generic attack table initializer for sliding pieces, used to
+// generate both rook and bishop tables
+static void init_attack_table(Bitboard* table, int table_size,
     const Bitboard occupancy_maps[64],
     const Bitboard magics[64],
     const int bits_per_square[64],
@@ -375,19 +389,22 @@ static void init_attack_table(
         const int bits = bits_per_square[square];
         const int permutations = 1 << bits;
         int bitPositions[ROOK_TABLE_BITS] = { 0 };
-        const int extractedBits = extract_mask_bit_positions(occupancy_maps[square], bitPositions, ROOK_TABLE_BITS);
+        const int extractedBits = extract_mask_bit_positions(
+            occupancy_maps[square], bitPositions, ROOK_TABLE_BITS);
 
         assert(bits <= ROOK_TABLE_BITS);
         assert(permutations <= table_size);
         assert(extractedBits == bits);
-        if (bits > ROOK_TABLE_BITS || permutations > table_size || extractedBits != bits) {
+        if (bits > ROOK_TABLE_BITS || permutations > table_size
+            || extractedBits != bits) {
             abort();
         }
 
         memset(used, 0, (size_t)table_size * sizeof(used[0]));
 
         for (int i = 0; i < permutations; ++i) {
-            const Bitboard occupancy = generate_occupancy_from_index(i, bitPositions, bits);
+            const Bitboard occupancy
+                = generate_occupancy_from_index(i, bitPositions, bits);
             const int magic_idx = magic_index(occupancy, magics[square], bits);
             const Bitboard attacks = attack_generator(square, occupancy);
 
@@ -404,7 +421,8 @@ static void init_attack_table(
     }
 }
 
-// generate rook attacks for a given square and blockers at initialization
+// generate rook attacks for a given square and blockers at
+// initialization
 Bitboard generate_rook_attacks(Square square, Bitboard blockers)
 {
     Bitboard attacks = 0ULL;
@@ -444,7 +462,8 @@ Bitboard generate_rook_attacks(Square square, Bitboard blockers)
     return attacks;
 }
 
-// generate bishop attacks for a given square and blockers at initialization
+// generate bishop attacks for a given square and blockers at
+// initialization
 Bitboard generate_bishop_attacks(Square square, Bitboard blockers)
 {
     Bitboard attacks = 0ULL;
@@ -481,29 +500,22 @@ Bitboard generate_bishop_attacks(Square square, Bitboard blockers)
 
 void init_sliding_attacks(void)
 {
-    static atomic_int initState = 0; // 0=uninitialized, 1=initializing, 2=initialized
+    static atomic_int initState
+        = 0; // 0=uninitialized, 1=initializing, 2=initialized
     int expected = 0;
 
     if (atomic_compare_exchange_strong_explicit(
             &initState, &expected, 1, memory_order_acq_rel, memory_order_acquire)) {
-        init_attack_table(&rook_attacks[0][0],
-                          ROOK_TABLE_SIZE,
-                          rook_occupancy_maps,
-                          RMagic,
-                          RBits,
-                          generate_rook_attacks);
+        init_attack_table(&rook_attacks[0][0], ROOK_TABLE_SIZE, rook_occupancy_maps,
+            RMagic, RBits, generate_rook_attacks);
 
-        init_attack_table(&bishop_attacks[0][0],
-                          BISHOP_TABLE_SIZE,
-                          bishop_occupancy_maps,
-                          BMagic,
-                          BBits,
-                          generate_bishop_attacks);
+        init_attack_table(&bishop_attacks[0][0], BISHOP_TABLE_SIZE,
+            bishop_occupancy_maps, BMagic, BBits,
+            generate_bishop_attacks);
 
         atomic_store_explicit(&initState, 2, memory_order_release);
         return;
     }
 
-    while (atomic_load_explicit(&initState, memory_order_acquire) != 2) {
-    }
+    while (atomic_load_explicit(&initState, memory_order_acquire) != 2) { }
 }

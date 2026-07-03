@@ -1,6 +1,6 @@
+#include "uci/uci.h"
 #include "engine/engine.h"
 #include "perft/perft.h"
-#include "uci/uci.h"
 
 #include <ctype.h>
 #include <errno.h>
@@ -14,10 +14,7 @@
 #define START_FEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 void skip_whitespace(const char** str);
 
-static void stop_search_if_running(void)
-{
-    engine_stop_search();
-}
+static void stop_search_if_running(void) { engine_stop_search(); }
 
 static bool next_token(const char** command, char* out, size_t out_size)
 {
@@ -39,7 +36,12 @@ static bool next_token(const char** command, char* out, size_t out_size)
 
 static bool is_go_keyword(const char* token)
 {
-    return !strcmp(token, "searchmoves") || !strcmp(token, "ponder") || !strcmp(token, "wtime") || !strcmp(token, "btime") || !strcmp(token, "winc") || !strcmp(token, "binc") || !strcmp(token, "movestogo") || !strcmp(token, "depth") || !strcmp(token, "nodes") || !strcmp(token, "mate") || !strcmp(token, "movetime") || !strcmp(token, "infinite");
+    return !strcmp(token, "searchmoves") || !strcmp(token, "ponder")
+        || !strcmp(token, "wtime") || !strcmp(token, "btime")
+        || !strcmp(token, "winc") || !strcmp(token, "binc")
+        || !strcmp(token, "movestogo") || !strcmp(token, "depth")
+        || !strcmp(token, "nodes") || !strcmp(token, "mate")
+        || !strcmp(token, "movetime") || !strcmp(token, "infinite");
 }
 
 static bool parse_next_int_token(const char** command, int* out)
@@ -188,14 +190,18 @@ void handle_go_command(const char* command)
                 }
 
                 char error_buf[128] = "";
-                Move move = engine_parse_and_create_uci_move(moveToken, error_buf, sizeof(error_buf));
+                Move move = engine_parse_and_create_uci_move(
+                    moveToken, error_buf, sizeof(error_buf));
 
-                if (move_get_from_square(move) != NO_SQUARE && move_get_to_square(move) != NO_SQUARE) {
+                if (move != MOVE_NONE) {
                     if (go_cmd.search_moves.count < 256) {
-                        go_cmd.search_moves.moves[go_cmd.search_moves.count++] = move;
+                        go_cmd.search_moves.moves[go_cmd.search_moves.count++]
+                            = move;
                     }
                 } else if (engine_is_debug_mode()) {
-                    printf("info string Invalid move in go searchmoves: %s (%s)\n", moveToken, error_buf[0] ? error_buf : "invalid");
+                    printf("info string Invalid move in go "
+                           "searchmoves: %s (%s)\n",
+                        moveToken, error_buf[0] ? error_buf : "invalid");
                 }
             }
         } else if (!strcmp(token, "ponder")) {
@@ -241,17 +247,19 @@ void handle_go_command(const char* command)
         printf("  increment_for_white_ms: %d\n", go_cmd.increment_for_white_ms);
         printf("  increment_for_black_ms: %d\n", go_cmd.increment_for_black_ms);
         printf("  moves_until_next_time_control: %d\n",
-               go_cmd.moves_until_next_time_control);
+            go_cmd.moves_until_next_time_control);
         printf("  depth_limit: %d\n", go_cmd.depth_limit);
         printf("  node_limit: %d\n", go_cmd.node_limit);
-        printf("  search_for_mate_in_n_moves: %d\n", go_cmd.search_for_mate_in_n_moves);
+        printf(
+            "  search_for_mate_in_n_moves: %d\n", go_cmd.search_for_mate_in_n_moves);
         printf("  time_limit_ms: %d\n", go_cmd.time_limit_ms);
         printf("  search_moves count: %d\n", go_cmd.search_moves.count);
     }
 
     char error_buf[128] = "";
     if (!engine_start_search(&go_cmd, error_buf, sizeof(error_buf))) {
-        printf("info string %s\n", error_buf[0] ? error_buf : "failed to start search");
+        printf(
+            "info string %s\n", error_buf[0] ? error_buf : "failed to start search");
         fflush(stdout);
     }
 }
@@ -263,8 +271,10 @@ static void handle_perft_command(const char* command)
 
     skip_whitespace(&command);
 
-    // check for "suite" keyword for running all perft tests defined in perft.h
-    if (!strncmp(command, "suite", 5) && (command[5] == '\0' || isspace((unsigned char)command[5]))) {
+    // check for "suite" keyword for running all perft tests defined
+    // in perft.h
+    if (!strncmp(command, "suite", 5)
+        && (command[5] == '\0' || isspace((unsigned char)command[5]))) {
         command += 5;
         skip_whitespace(&command);
         run_perft_test_suite();
@@ -273,7 +283,11 @@ static void handle_perft_command(const char* command)
 
     int max_depth = 0;
     if (!parse_next_int_token(&command, &max_depth) || max_depth <= 0) {
-        printf("info string Usage: perft <max_depth> (run perft on current position to <max_depth>) or perft suite (run all perft tests, predefined)\n");
+        printf("info string Usage: perft <max_depth> (run perft on "
+               "current "
+               "position to <max_depth>) or perft suite (run all "
+               "perft tests, "
+               "predefined)\n");
         fflush(stdout);
         return;
     }
@@ -293,8 +307,8 @@ static void handle_perft_command(const char* command)
         double elapsed = (double)(end - start) / CLOCKS_PER_SEC;
         double nps = elapsed > 0 ? nodes / elapsed : 0;
 
-        printf("perft depth %d nodes %" PRIu64 " nps %.0f time %.3f\n",
-               depth, nodes, nps, elapsed);
+        printf("perft depth %d nodes %" PRIu64 " nps %.0f time %.3f\n", depth, nodes,
+            nps, elapsed);
         fflush(stdout);
     }
 }
@@ -305,19 +319,25 @@ void handle_position_command(const char* command)
     command += 8; // Skip "position"
     skip_whitespace(&command);
 
-    if (!strncmp(command, "startpos", 8) && (command[8] == '\0' || isspace((unsigned char)command[8]))) {
+    if (!strncmp(command, "startpos", 8)
+        && (command[8] == '\0' || isspace((unsigned char)command[8]))) {
         bool success = engine_set_position_fen(START_FEN);
         if (!success) {
-            printf("info string Failed to parse start position FEN\n");
+            printf("info string Failed to parse FEN: %s\n", START_FEN);
+            fflush(stdout);
+            return;
         }
         command += 8;
-    } else if (!strncmp(command, "fen", 3) && (command[3] == '\0' || isspace((unsigned char)command[3]))) {
+    } else if (!strncmp(command, "fen", 3)
+        && (command[3] == '\0' || isspace((unsigned char)command[3]))) {
         command += 3;
         skip_whitespace(&command);
 
-        // Find optional " moves " token as a full keyword, not as a set of chars.
+        // Find optional " moves " token as a full keyword, not as a
+        // set of chars.
         const char* moves_pos = strstr(command, " moves");
-        size_t fen_length = moves_pos ? (size_t)(moves_pos - command) : strlen(command);
+        size_t fen_length
+            = moves_pos ? (size_t)(moves_pos - command) : strlen(command);
         while (fen_length > 0 && isspace((unsigned char)command[fen_length - 1])) {
             fen_length--;
         }
@@ -332,6 +352,8 @@ void handle_position_command(const char* command)
         bool success = engine_set_position_fen(fen_copy);
         if (!success) {
             printf("info string Failed to parse FEN: %s\n", fen_copy);
+            fflush(stdout);
+            return;
         }
         command += fen_length;
 
@@ -343,7 +365,8 @@ void handle_position_command(const char* command)
 
     // process moves if present
     skip_whitespace(&command);
-    if (!strncmp(command, "moves", 5) && (command[5] == '\0' || isspace((unsigned char)command[5]))) {
+    if (!strncmp(command, "moves", 5)
+        && (command[5] == '\0' || isspace((unsigned char)command[5]))) {
         command += 5;
         skip_whitespace(&command);
         size_t move_length = strcspn(command, " \r\n");
@@ -351,15 +374,18 @@ void handle_position_command(const char* command)
             char algebraic_move_str[16];
 
             if (move_length >= sizeof(algebraic_move_str)) {
-                printf("info string Move token too long in position command\n");
+                printf("info string Move token too long in position "
+                       "command\n");
                 return;
             }
 
             strncpy(algebraic_move_str, command, move_length);
             algebraic_move_str[move_length] = '\0';
             char error_buf[128] = "";
-            if (!engine_apply_uci_move(algebraic_move_str, error_buf, sizeof(error_buf))) {
-                printf("info string error: %s, making move %s\n", error_buf, algebraic_move_str);
+            if (!engine_apply_uci_move(
+                    algebraic_move_str, error_buf, sizeof(error_buf))) {
+                printf("info string error: %s, making move %s\n", error_buf,
+                    algebraic_move_str);
                 fflush(stdout);
             }
             command += move_length;
@@ -379,58 +405,77 @@ void uci_loop(void)
         if (*p == '\0') {
             continue; // blank line
         }
-        if (!strncmp(p, "quit", 4) && (p[4] == '\0' || isspace((unsigned char)p[4]))) {
+        if (!strncmp(p, "quit", 4)
+            && (p[4] == '\0' || isspace((unsigned char)p[4]))) {
             engine_shutdown();
             break;
         }
 
-        else if (!strncmp(p, "isready", 7) && (p[7] == '\0' || isspace((unsigned char)p[7]))) {
+        else if (!strncmp(p, "isready", 7)
+            && (p[7] == '\0' || isspace((unsigned char)p[7]))) {
             printf("readyok\n");
             fflush(stdout);
-        } else if (!strncmp(p, "uci", 3) && (p[3] == '\0' || isspace((unsigned char)p[3]))) {
+        } else if (!strncmp(p, "uci", 3)
+            && (p[3] == '\0' || isspace((unsigned char)p[3]))) {
             engine_init();
 
-            printf("id name Prophet dev\n"); // TODO: figure out how to put actual version info here
+            printf("id name Prophet dev\n"); // TODO: figure out how
+                                             // to put actual version
+                                             // info here
             printf("id author Nicolas Carbone\n");
-            printf("option name Hash type spin default 64 min 1 max 1024\n");
+            printf("option name Hash type spin default 64 min 1 max "
+                   "1024\n");
             printf("option name Clear Hash type button\n");
             printf("uciok\n");
             fflush(stdout);
-        } else if (!strncmp(p, "setoption", 9) && (p[9] == '\0' || isspace((unsigned char)p[9]))) {
+        } else if (!strncmp(p, "setoption", 9)
+            && (p[9] == '\0' || isspace((unsigned char)p[9]))) {
             handle_set_option_command(p);
-        } else if (!strncmp(p, "ucinewgame", 10) && (p[10] == '\0' || isspace((unsigned char)p[10]))) {
+        } else if (!strncmp(p, "ucinewgame", 10)
+            && (p[10] == '\0' || isspace((unsigned char)p[10]))) {
             engine_new_game();
-        } else if (!strncmp(p, "position", 8) && (p[8] == '\0' || isspace((unsigned char)p[8]))) {
+        } else if (!strncmp(p, "position", 8)
+            && (p[8] == '\0' || isspace((unsigned char)p[8]))) {
             handle_position_command(p);
-        } else if (!strncmp(p, "go", 2) && (p[2] == '\0' || isspace((unsigned char)p[2]))) {
+        } else if (!strncmp(p, "go", 2)
+            && (p[2] == '\0' || isspace((unsigned char)p[2]))) {
             handle_go_command(p);
-        } else if (!strncmp(p, "perft", 5) && (p[5] == '\0' || isspace((unsigned char)p[5]))) {
+        } else if (!strncmp(p, "perft", 5)
+            && (p[5] == '\0' || isspace((unsigned char)p[5]))) {
             handle_perft_command(p);
-        } else if (!strncmp(p, "stop", 4) && (p[4] == '\0' || isspace((unsigned char)p[4]))) {
+        } else if (!strncmp(p, "stop", 4)
+            && (p[4] == '\0' || isspace((unsigned char)p[4]))) {
             engine_stop_search();
-        } else if (!strncmp(p, "ponderhit", 9) && (p[9] == '\0' || isspace((unsigned char)p[9]))) {
+        } else if (!strncmp(p, "ponderhit", 9)
+            && (p[9] == '\0' || isspace((unsigned char)p[9]))) {
             engine_handle_ponder_hit();
             if (engine_is_debug_mode()) {
                 printf("info string ponderhit received\n");
             }
-        } else if (!strncmp(p, "debug", 5) && (p[5] == '\0' || isspace((unsigned char)p[5]))) {
+        } else if (!strncmp(p, "debug", 5)
+            && (p[5] == '\0' || isspace((unsigned char)p[5]))) {
             p += 5;
             skip_whitespace(&p);
-            if (!strncmp(p, "on", 2) && (p[2] == '\0' || isspace((unsigned char)p[2]))) {
+            if (!strncmp(p, "on", 2)
+                && (p[2] == '\0' || isspace((unsigned char)p[2]))) {
                 engine_set_debug_mode(true);
                 printf("info string Debug mode enabled\n");
-            } else if (!strncmp(p, "off", 3) && (p[3] == '\0' || isspace((unsigned char)p[3]))) {
+            } else if (!strncmp(p, "off", 3)
+                && (p[3] == '\0' || isspace((unsigned char)p[3]))) {
                 engine_set_debug_mode(false);
                 printf("info string Debug mode disabled\n");
             } else {
                 printf("info string Invalid debug command: %s\n", p);
             }
-        } else if (!strncmp(p, "printboard", 10) && (p[10] == '\0' || isspace((unsigned char)p[10]))) {
+        } else if (!strncmp(p, "printboard", 10)
+            && (p[10] == '\0' || isspace((unsigned char)p[10]))) {
             if (engine_is_debug_mode()) {
                 engine_print_board();
                 fflush(stdout);
             } else {
-                printf("info string 'printboard' command only works in debug mode\n");
+                printf("info string 'printboard' command only works "
+                       "in debug "
+                       "mode\n");
                 fflush(stdout);
             }
         } else {

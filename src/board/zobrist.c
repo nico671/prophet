@@ -18,7 +18,8 @@ void init_zobrist_keys(void)
 
     ranctx ctx;
     raninit(&ctx,
-            107035250ULL); // Use a fixed seed for reproducible debug sessions
+        107035250ULL); // Use a fixed seed for reproducible debug
+                       // sessions
 
     // piece keys
     for (int p = 0; p < 12; p++) {
@@ -50,14 +51,18 @@ static bool should_hash_ep(const CBoard* board, Square ep_square)
 
     int ep_file = ep_square % 8;
 
-    // EP target must be on rank 6 for white to capture since black must move from rank 7 to 5 for ep to be possible, and vice versa for black capturing
+    // EP target must be on rank 6 for white to capture since black
+    // must move from rank 7 to 5 for ep to be possible, and vice
+    // versa for black capturing
     if (board->side_to_move == WHITE) {
         if (ep_square < A6 || ep_square > H6)
             return false;
 
-        if (ep_file > 0 && bitboard_is_bit_set(board->piece_bbs[WHITE][PAWN], ep_square - 9))
+        if (ep_file > 0
+            && bitboard_is_bit_set(board->piece_bbs[WHITE][PAWN], ep_square - 9))
             return true;
-        if (ep_file < 7 && bitboard_is_bit_set(board->piece_bbs[WHITE][PAWN], ep_square - 7))
+        if (ep_file < 7
+            && bitboard_is_bit_set(board->piece_bbs[WHITE][PAWN], ep_square - 7))
             return true;
         return false;
     }
@@ -66,15 +71,16 @@ static bool should_hash_ep(const CBoard* board, Square ep_square)
     if (ep_square < A3 || ep_square > H3)
         return false;
 
-    if (ep_file > 0 && bitboard_is_bit_set(board->piece_bbs[BLACK][PAWN], ep_square + 7))
+    if (ep_file > 0
+        && bitboard_is_bit_set(board->piece_bbs[BLACK][PAWN], ep_square + 7))
         return true;
-    if (ep_file < 7 && bitboard_is_bit_set(board->piece_bbs[BLACK][PAWN], ep_square + 9))
+    if (ep_file < 7
+        && bitboard_is_bit_set(board->piece_bbs[BLACK][PAWN], ep_square + 9))
         return true;
     return false;
 }
 
-void zobrist_toggle_ep(uint64_t* key, const CBoard* board,
-                       Square ep_square)
+void zobrist_toggle_ep(uint64_t* key, const CBoard* board, Square ep_square)
 {
     if (should_hash_ep(board, ep_square)) {
         int file = ep_square % 8;

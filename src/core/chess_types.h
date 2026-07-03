@@ -1,8 +1,10 @@
-#ifndef CHESS_TYPES_H
-#define CHESS_TYPES_H
+#ifndef PROPHET_CHESS_TYPES_H
+#define PROPHET_CHESS_TYPES_H
 
 /**
- * @brief Enum for chess squares, representing each square on the board with a unique integer value. Consistent with little-endian rank-file mapping used in bitboards.
+ * @brief Enum for chess squares, representing each square on the
+ * board with a unique integer value. Consistent with little-endian
+ * rank-file mapping used in bitboards.
  *
  */
 typedef enum {
@@ -73,32 +75,33 @@ typedef enum {
 } Square;
 
 /**
- * @brief Constant representing an invalid square, used as a sentinel value in various contexts such as move generation and board representation. It is set to 64, which is outside the valid range of 0-63 for squares on an 8x8 chessboard.
+ * @brief Constant representing an invalid square, used as a sentinel
+ * value in various contexts such as move generation and board
+ * representation. It is set to 64, which is outside the valid range
+ * of 0-63 for squares on an 8x8 chessboard.
  *
  */
 #define NO_SQUARE 64
 
 /**
- * @brief Flip a square vertically (A1 <-> A8), useful for side-to-move symmetry.
+ * @brief Flip a square vertically (A1 <-> A8), useful for
+ * side-to-move symmetry.
  */
-static inline Square square_flip_vertical(Square sq)
-{
-    return (Square)(sq ^ 56);
-}
+static inline Square square_flip_vertical(Square sq) { return (Square)(sq ^ 56); }
 
 /**
- * @brief Enum for player colors in chess. WHITE is represented by 0 and BLACK by 1.
+ * @brief Enum for player colors in chess. WHITE is represented by 0
+ * and BLACK by 1.
  *
  */
-typedef enum {
-    WHITE = 0,
-    BLACK = 1
-} Color;
+typedef enum { WHITE = 0,
+    BLACK = 1 } Color;
 
 // TODO: opponent color macro instead of 1 - color everywhere in code?
 
 /**
- * @brief Enum for chess piece types. The piece types are assigned integer values starting from 0 for NO_PIECE up to 6 for KING.
+ * @brief Enum for chess piece types. The piece types are assigned
+ * integer values starting from 0 for NO_PIECE up to 6 for KING.
  *
  */
 typedef enum {

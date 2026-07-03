@@ -1,5 +1,5 @@
-#ifndef PERFT_CORE_H
-#define PERFT_CORE_H
+#ifndef PROPHET_PERFT_CORE_H
+#define PROPHET_PERFT_CORE_H
 
 #include "board/cboard.h"
 #include "movegen/move.h"
@@ -40,9 +40,8 @@ static inline char* moveToStringAlgebraic(Move move)
     int toRank = to / 8;
 
     // Basic move notation: e2e4
-    sprintf(moveStr, "%c%c%c%c",
-            files[fromFile], ranks[fromRank],
-            files[toFile], ranks[toRank]);
+    sprintf(moveStr, "%c%c%c%c", files[fromFile], ranks[fromRank], files[toFile],
+        ranks[toRank]);
 
     // Add promotion piece if applicable
     if (type == PROMO) {
@@ -69,8 +68,7 @@ static inline char* moveToStringAlgebraic(Move move)
     return moveStr;
 }
 
-typedef struct
-{
+typedef struct {
     const char* name;
     const char* fen;
     uint64_t* expected_nodes;

@@ -10,11 +10,16 @@
 // NOTE: move representation adopted from stockfish
 
 /**
- * @brief Move representation using a compact 16-bit encoding. The move is represented as a uint16_t where:
+ * @brief Move representation using a compact 16-bit encoding. The
+ * move is represented as a uint16_t where:
  * - Bits 0-5 (6 bits): To square index (0-63 corresponding to A1-H8)
- * - Bits 6-11 (6 bits): From square index (0-63 corresponding to A1-H8)
- * - Bits 12-13 (2 bits): Promotion piece type for promotion moves (00=Knight, 01=Bishop, 10=Rook, 11=Queen)
- * - Bits 14-15 (2 bits): Move type flags (00=NORMAL, 01=Promotion, 10=En Passant, 11=Castling) note that en passant is only present when a pawn can be captured en passant
+ * - Bits 6-11 (6 bits): From square index (0-63 corresponding to
+ * A1-H8)
+ * - Bits 12-13 (2 bits): Promotion piece type for promotion moves
+ * (00=Knight, 01=Bishop, 10=Rook, 11=Queen)
+ * - Bits 14-15 (2 bits): Move type flags (00=NORMAL, 01=Promotion,
+ * 10=En Passant, 11=Castling) note that en passant is only present
+ * when a pawn can be captured en passant
  */
 typedef uint16_t Move;
 
@@ -22,8 +27,7 @@ typedef uint16_t Move;
 #define MOVE_NONE ((Move)0xFFFF)
 
 // Move list structure
-typedef struct
-{
+typedef struct {
     Move moves[256]; // Maximum possible moves in a position
     int count;
 } MoveList;
@@ -58,8 +62,8 @@ bool move_is_castling(Move move);
 bool move_is_capture(CBoard* board, Move move);
 bool move_is_quiet(CBoard* board, Move move);
 /**
- * @brief Structure to store information needed to undo a move on the chess board.
- * This includes the:
+ * @brief Structure to store information needed to undo a move on the
+ * chess board. This includes the:
  *
  * - type of piece captured (if any)
  *
@@ -72,12 +76,15 @@ bool move_is_quiet(CBoard* board, Move move);
  * - previous castling rights, and the previous Zobrist hash key.
  */
 typedef struct UndoInfo {
-    PieceType captured_piecetype;     // What was captured (NO_PIECE if none)
-    Square captured_square;           // Where the captured piece was (NO_SQUARE if none)
-    uint8_t previous_ep_square;       // Previous en passant square (or NO_SQUARE)
+    PieceType captured_piecetype; // What was captured (NO_PIECE if none)
+    Square captured_square; // Where the captured piece was (NO_SQUARE
+                            // if none)
+    uint8_t previous_ep_square; // Previous en passant square (or
+                                // NO_SQUARE)
     uint16_t previous_halfmove_clock; // Previous 50-move counter
     uint8_t previous_castling_rights; // 0..15 bitfield
-    uint64_t previous_zobrist_key;    // Zobrist key before the move was made (used for undoing the move)
+    uint64_t previous_zobrist_key; // Zobrist key before the move was
+                                   // made (used for undoing the move)
 } UndoInfo;
 
 #endif // PROPHET_MOVE_H

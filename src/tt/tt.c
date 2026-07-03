@@ -78,14 +78,15 @@ void store_tt(uint64_t key, int depth, int score, TTBound bound, Move best_move)
         return;
     }
 
-    size_t index = key & (tt_size - 1); // Equivalent to key % tt_size when tt_size is a power of 2
+    size_t index = key & (tt_size - 1); // Equivalent to key % tt_size when
+                                        // tt_size is a power of 2
     TTEntry* entry = &tt_table[index];
 
     bool key_matches = (entry->zobrist_key == key);
     bool empty_slot = (entry->zobrist_key == 0);
 
-    // Replace if slot is empty, if we're refreshing same position, or if this
-    // entry is more valuable
+    // Replace if slot is empty, if we're refreshing same position, or
+    // if this entry is more valuable
     if (empty_slot || key_matches || depth > entry->depth || bound == TT_PV) {
         entry->zobrist_key = key;
         entry->score = score;
@@ -100,7 +101,8 @@ TTEntry* probe_tt(uint64_t key)
     if (key == 0 || tt_size == 0 || tt_table == NULL) {
         return NULL; // TT not initialized or invalid key
     }
-    size_t index = key & (tt_size - 1); // Equivalent to key % tt_size when tt_size is a power of 2
+    size_t index = key & (tt_size - 1); // Equivalent to key % tt_size when
+                                        // tt_size is a power of 2
     TTEntry* entry = &tt_table[index];
     if (entry->zobrist_key == key) {
         return entry;
@@ -116,21 +118,25 @@ int extract_pv_line(CBoard* board, Move* pv_move_list, int max_depth)
     while (count < max_depth) {
         TTEntry* entry = probe_tt(board->zobrist_key);
 
-        // Stop if no TT entry, or if the TT entry doesn't have a valid move
-        if (!entry || entry->zobrist_key != board->zobrist_key || move_get_from_square(entry->best_move) == NO_SQUARE) {
+        // Stop if no TT entry, or if the TT entry doesn't have a
+        // valid move
+        if (!entry || entry->zobrist_key != board->zobrist_key
+            || move_get_from_square(entry->best_move) == NO_SQUARE) {
             break;
         }
 
         Move pv_move = entry->best_move;
 
-        // TT entries can be stale/colliding so check if the move is legal
+        // TT entries can be stale/colliding so check if the move is
+        // legal
         if (!is_move_legal_in_position(board, pv_move)) {
             break;
         }
 
         pv_move_list[count] = pv_move;
 
-        // Make the move on the board to update the Zobrist key for the next lookup
+        // Make the move on the board to update the Zobrist key for
+        // the next lookup
         undo_stack[count] = make_move(board, pv_move);
         count++;
     }

@@ -1,10 +1,9 @@
-#ifndef PRNG_H
-#define PRNG_H
+#ifndef PROPHET_PRNG_H
+#define PROPHET_PRNG_H
 
 #include <stdint.h>
 // adapted from https://www.chessprogramming.org/Bob_Jenkins#RKISS
-typedef struct
-{
+typedef struct {
     uint64_t a;
     uint64_t b;
     uint64_t c;

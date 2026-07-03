@@ -40,7 +40,8 @@ static int get_active_features(const CBoard* board, int* features)
     int stm = board->side_to_move;
 
     for (int c = 0; c < 2; c++) {
-        // base_idx based on python implementation: 0-5 for 'my pieces', 6-11 for 'enemy pieces'
+        // base_idx based on python implementation: 0-5 for 'my
+        // pieces', 6-11 for 'enemy pieces'
         int is_my_piece = (c == stm);
         int base_idx = is_my_piece ? 0 : 6;
 
@@ -98,7 +99,8 @@ int nnue_evaluate_cboard(const CBoard* board)
     // 4. Clipped ReLU 2
     int8_t out2[8];
     for (int i = 0; i < 8; i++) {
-        int32_t val = accum2[i] >> 6; // Scale down by 64 to prevent overflow in the next layer
+        int32_t val = accum2[i] >> 6; // Scale down by 64 to prevent
+                                      // overflow in the next layer
         if (val < 0)
             val = 0;
         else if (val > 127)

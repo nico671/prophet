@@ -1,5 +1,5 @@
-#ifndef NNUE_H
-#define NNUE_H
+#ifndef PROPHET_NNUE_H
+#define PROPHET_NNUE_H
 
 #include "board/cboard.h"
 

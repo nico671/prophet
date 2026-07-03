@@ -1,5 +1,5 @@
-#ifndef SEARCH_H
-#define SEARCH_H
+#ifndef PROPHET_SEARCH_H
+#define PROPHET_SEARCH_H
 #include "engine/engine.h"
 #include "movegen/move.h"
 
@@ -20,19 +20,23 @@
 /**
  * @brief The main thread worker function that executes the search.
  *
- * Handles Iterative Deepening, time management tracking, and dynamic soft-limit
- * extensions (instability checks). Reporting is delegated to the engine.
+ * Handles Iterative Deepening, time management tracking, and dynamic
+ * soft-limit extensions (instability checks). Reporting is delegated
+ * to the engine.
  *
- * @param arg Pointer to a SearchThreadData struct containing the board state and limits.
+ * @param arg Pointer to a SearchThreadData struct containing the
+ * board state and limits.
  * @return NULL upon completion.
  */
 void* search_worker(void* arg);
 
 /**
- * @brief Handle a UCI "ponderhit" event by applying real-time controls.
+ * @brief Handle a UCI "ponderhit" event by applying real-time
+ * controls.
  *
- * This updates the active search thread's soft/hard time limits so it can
- * continue searching with the proper time budget instead of pondering.
+ * This updates the active search thread's soft/hard time limits so it
+ * can continue searching with the proper time budget instead of
+ * pondering.
  */
 void on_ponder_hit(void);
 

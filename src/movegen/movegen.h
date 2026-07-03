@@ -1,6 +1,6 @@
 
-#ifndef MOVEGEN_H
-#define MOVEGEN_H
+#ifndef PROPHET_MOVEGEN_H
+#define PROPHET_MOVEGEN_H
 
 #include "core/chess_types.h"
 #include "movegen/move.h"

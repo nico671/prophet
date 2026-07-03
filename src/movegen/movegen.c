@@ -10,7 +10,11 @@
 
 #include <stdbool.h>
 
-void gen_all_pseudolegal_moves(CBoard* board, MoveList* moveList) // TODO: refactor movegen to have less reused code everywhere, all individual piece gen is abt the same minus pawns and kings
+void gen_all_pseudolegal_moves(
+    CBoard* board,
+    MoveList* moveList) // TODO: refactor movegen to have less reused
+                        // code everywhere, all individual piece gen
+                        // is abt the same minus pawns and kings
 {
     gen_all_pseudolegal_pawn_moves(board, moveList);
     gen_all_pseudolegal_knight_moves(board, moveList);
@@ -20,10 +24,7 @@ void gen_all_pseudolegal_moves(CBoard* board, MoveList* moveList) // TODO: refac
     gen_all_pseudolegal_king_moves(board, moveList);
 }
 
-void init_move_list(MoveList* moveList)
-{
-    moveList->count = 0;
-}
+void init_move_list(MoveList* moveList) { moveList->count = 0; }
 
 void generate_capture_moves(CBoard* board, MoveList* out)
 {
@@ -35,7 +36,8 @@ void generate_capture_moves(CBoard* board, MoveList* out)
     Color side = board->side_to_move;
     for (int i = 0; i < pseudoLegalMoves.count; i++) {
         Move move = pseudoLegalMoves.moves[i];
-        bool tactical = move_is_capture(board, move) || move_is_enpassant(move) || move_is_promotion(move);
+        bool tactical = move_is_capture(board, move) || move_is_enpassant(move)
+            || move_is_promotion(move);
         if (!tactical) {
             continue;
         }
@@ -51,9 +53,11 @@ void generate_capture_moves(CBoard* board, MoveList* out)
 static bool is_square_attacked(CBoard* board, Square square, Color attacker_color)
 {
     // Check for pawn attacks
-    // We need to check if pawns of attacker_color can attack this square
-    // If white pawns attack diagonally upward, we need to check squares diagonally downward
-    // So we use the OPPOSITE color's attack pattern (FLIPPED, like in gen_all_pseudolegal_ep_pawn_moves)
+    // We need to check if pawns of attacker_color can attack this
+    // square If white pawns attack diagonally upward, we need to
+    // check squares diagonally downward So we use the OPPOSITE
+    // color's attack pattern (FLIPPED, like in
+    // gen_all_pseudolegal_ep_pawn_moves)
     Bitboard pawnAttacks = get_pawn_attack_bitboard(square, 1 - attacker_color);
     Bitboard attackerPawns = board->piece_bbs[attacker_color][PAWN];
     if (pawnAttacks & attackerPawns)
@@ -67,7 +71,8 @@ static bool is_square_attacked(CBoard* board, Square square, Color attacker_colo
 
     Bitboard attackerQueens = board->piece_bbs[attacker_color][QUEEN];
     // Check for bishop/queen attacks
-    Bitboard bishopAttacks = get_bishop_attack_bitboard(square, board->occupancy_bbs[2]);
+    Bitboard bishopAttacks
+        = get_bishop_attack_bitboard(square, board->occupancy_bbs[2]);
     Bitboard attackerBishops = board->piece_bbs[attacker_color][BISHOP];
     if (bishopAttacks & (attackerBishops | attackerQueens))
         return true;
@@ -118,7 +123,10 @@ void generate_legal_moves(CBoard* board, MoveList* out)
             }
 
             // Check squares the king moves through
-            if ((side == WHITE && move_get_from_square(move) == E1 && move_get_to_square(move) == G1) || (side == BLACK && move_get_from_square(move) == E8 && move_get_to_square(move) == G8)) // KINGSIDE_CASTLE
+            if ((side == WHITE && move_get_from_square(move) == E1
+                    && move_get_to_square(move) == G1)
+                || (side == BLACK && move_get_from_square(move) == E8
+                    && move_get_to_square(move) == G8)) // KINGSIDE_CASTLE
             {
                 Square through_square = (side == WHITE) ? F1 : F8;
                 if (is_square_attacked(board, through_square, opponent)) {
@@ -133,7 +141,8 @@ void generate_legal_moves(CBoard* board, MoveList* out)
             }
         }
 
-        // Normal legality check for all moves (including castling destination)
+        // Normal legality check for all moves (including castling
+        // destination)
         UndoInfo undoInfo = make_move(board, move);
         if (!is_king_in_check(board, 1 - board->side_to_move)) {
             out->moves[out->count++] = move;

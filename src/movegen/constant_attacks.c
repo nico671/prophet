@@ -271,4 +271,5 @@ const Bitboard pawn_attacks_table[2][64] = {
     }
 };
 
-// FUNCTIONS USED TO GENERATE THE ABOVE ATTACK TABLES CAN BE FOUND IN refs/init_const_attack_tables.c
+// FUNCTIONS USED TO GENERATE THE ABOVE ATTACK TABLES CAN BE FOUND IN
+// refs/init_const_attack_tables.c

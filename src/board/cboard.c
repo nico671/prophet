@@ -54,10 +54,10 @@ void print_cboard(CBoard* board)
     printf("Halfmove clock: %d\n", board->half_move_clock);
     printf("Fullmove number: %d\n", board->full_move_number);
     printf("Castling rights: %s%s%s%s\n",
-           U8_CHECK_BIT(board->castling_rights, 3) ? "K" : "",
-           U8_CHECK_BIT(board->castling_rights, 2) ? "Q" : "",
-           U8_CHECK_BIT(board->castling_rights, 1) ? "k" : "",
-           U8_CHECK_BIT(board->castling_rights, 0) ? "q" : "");
+        U8_CHECK_BIT(board->castling_rights, 3) ? "K" : "",
+        U8_CHECK_BIT(board->castling_rights, 2) ? "Q" : "",
+        U8_CHECK_BIT(board->castling_rights, 1) ? "k" : "",
+        U8_CHECK_BIT(board->castling_rights, 0) ? "q" : "");
     printf("Zobrist Key: %llu\n", board->zobrist_key);
 }
 
@@ -168,7 +168,8 @@ bool fen_string_to_cboard(const char* fen_string, CBoard* board)
         return false;
     }
 
-    board->occupancy_bbs[2] = board->occupancy_bbs[WHITE] | board->occupancy_bbs[BLACK];
+    board->occupancy_bbs[2]
+        = board->occupancy_bbs[WHITE] | board->occupancy_bbs[BLACK];
 
     // now parse remaining fields safely using strtok-like navigation
     const char* p = strchr(fen_string, ' ');
@@ -215,7 +216,7 @@ bool fen_string_to_cboard(const char* fen_string, CBoard* board)
 
     // en passant
     if (*p && *p != '-') {
-        char f = *p;       // file letter 'a'..'h'
+        char f = *p; // file letter 'a'..'h'
         char r = *(p + 1); // rank char '1'..'8'
         if (f >= 'a' && f <= 'h' && r >= '1' && r <= '8') {
             int ep_file = f - 'a';
@@ -245,11 +246,13 @@ bool fen_string_to_cboard(const char* fen_string, CBoard* board)
         }
     }
     // ensure exactly one white king and one black king on board
-    if (bitboard_popcount(board->piece_bbs[WHITE][KING]) != 1 || bitboard_popcount(board->piece_bbs[BLACK][KING]) != 1) {
+    if (bitboard_popcount(board->piece_bbs[WHITE][KING]) != 1
+        || bitboard_popcount(board->piece_bbs[BLACK][KING]) != 1) {
         return false; // Invalid number of kings
     }
     // ensure no pawns on first or last rank
-    if ((board->piece_bbs[WHITE][PAWN] & (RANK_1 | RANK_8)) || (board->piece_bbs[BLACK][PAWN] & (RANK_1 | RANK_8))) {
+    if ((board->piece_bbs[WHITE][PAWN] & (RANK_1 | RANK_8))
+        || (board->piece_bbs[BLACK][PAWN] & (RANK_1 | RANK_8))) {
         return false; // Pawns cannot be on first or last rank
     }
 

@@ -53,15 +53,9 @@ bool move_is_enpassant(Move move)
     return (move_get_move_type(move) == EN_PASSANT);
 }
 
-bool move_is_promotion(Move move)
-{
-    return (move_get_move_type(move) == PROMO);
-}
+bool move_is_promotion(Move move) { return (move_get_move_type(move) == PROMO); }
 
-bool move_is_castling(Move move)
-{
-    return (move_get_move_type(move) == CASTLE);
-}
+bool move_is_castling(Move move) { return (move_get_move_type(move) == CASTLE); }
 
 bool move_is_capture(CBoard* board, Move move)
 {
@@ -69,10 +63,13 @@ bool move_is_capture(CBoard* board, Move move)
         return false;
 
     Square to = move_get_to_square(move);
-    return bitboard_is_bit_set(board->occupancy_bbs[1 - board->side_to_move], to) && !move_is_enpassant(move) && !move_is_castling(move) && !move_is_promotion(move);
+    return bitboard_is_bit_set(board->occupancy_bbs[1 - board->side_to_move], to)
+        && !move_is_enpassant(move) && !move_is_castling(move)
+        && !move_is_promotion(move);
 }
 
 bool move_is_quiet(CBoard* board, Move move)
 {
-    return !move_is_capture(board, move) && !move_is_enpassant(move) && !move_is_castling(move) && !move_is_promotion(move);
+    return !move_is_capture(board, move) && !move_is_enpassant(move)
+        && !move_is_castling(move) && !move_is_promotion(move);
 }
