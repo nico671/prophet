@@ -27,6 +27,19 @@ typedef struct {
     long long hard_limit_ms;
 } TimeLimits;
 
+typedef struct {
+    int depth;
+    bool is_mate;
+    int score_cp;
+    int mate_moves;
+    long long nodes;
+    long long elapsed_ms;
+    long long nps;
+    char pv[2048];
+    Move best_move;
+    Move ponder_move;
+} SearchReportUpdate;
+
 /**
  * @brief Thread-local search state for a single search instance.
  *
@@ -64,9 +77,7 @@ static void clear_search_heuristics(SearchContext* ctx);
 static void age_history(SearchContext* ctx);
 static void update_history(SearchContext* ctx, Color side, Move move, int depth);
 static void penalize_history(SearchContext* ctx, Color side, Move move, int depth);
-static void publish_search_update(SearchReport* report,
-    const SearchReportUpdate* update,
-    bool is_finished);
+static void print_search_update(const SearchReportUpdate* update, bool is_finished);
 
 static PieceType captured_piece_for_move(const CBoard* board, Move move)
 {
@@ -252,19 +263,40 @@ static bool move_allowed_by_search_moves(Move move, const MoveList* search_moves
     return false;
 }
 
-static void publish_search_update(SearchReport* report,
-    const SearchReportUpdate* update, bool is_finished)
+static void print_search_update(const SearchReportUpdate* update, bool is_finished)
 {
-    if (!report || !update) {
+    if (!update) {
         return;
     }
 
-    pthread_mutex_lock(&report->mutex);
-    report->update = *update;
-    report->is_finished = is_finished;
-    report->has_update = true;
-    pthread_cond_signal(&report->cond);
-    pthread_mutex_unlock(&report->mutex);
+    if (update->depth > 0) {
+        if (update->is_mate) {
+            printf("info depth %d score mate %d nodes %lld time %lld nps %lld pv "
+                   "%s\n",
+                update->depth, update->mate_moves, update->nodes,
+                update->elapsed_ms, update->nps, update->pv);
+        } else {
+            printf("info depth %d score cp %d nodes %lld time %lld nps %lld pv "
+                   "%s\n",
+                update->depth, update->score_cp, update->nodes, update->elapsed_ms,
+                update->nps, update->pv);
+        }
+        fflush(stdout);
+    }
+
+    if (is_finished) {
+        char best_move[6];
+        move_to_uci_string(update->best_move, best_move);
+        if (move_get_from_square(update->ponder_move) != NO_SQUARE
+            && move_get_to_square(update->ponder_move) != NO_SQUARE) {
+            char ponder_move[6];
+            move_to_uci_string(update->ponder_move, ponder_move);
+            printf("bestmove %s ponder %s\n", best_move, ponder_move);
+        } else {
+            printf("bestmove %s\n", best_move);
+        }
+        fflush(stdout);
+    }
 }
 
 /**
@@ -440,39 +472,6 @@ static void unmake_null_move(CBoard* board, NullMoveUndo undo)
     board->zobrist_key = undo.previous_zobrist_key;
 }
 
-static void move_to_uci_string(Move move, char* out)
-{
-    if (move_get_from_square(move) == NO_SQUARE
-        || move_get_to_square(move) == NO_SQUARE) {
-        strcpy(out, "0000");
-        return;
-    }
-
-    out[0] = (char)('a' + (move_get_from_square(move) % 8));
-    out[1] = (char)('1' + (move_get_from_square(move) / 8));
-    out[2] = (char)('a' + (move_get_to_square(move) % 8));
-    out[3] = (char)('1' + (move_get_to_square(move) / 8));
-
-    if (move_is_promotion(move)) {
-        PieceType promo = move_get_promotion_piecetype(move);
-        char promo_char = 'q';
-        if (promo == KNIGHT)
-            promo_char = 'n';
-        else if (promo == BISHOP)
-            promo_char = 'b';
-        else if (promo == ROOK)
-            promo_char = 'r';
-        else
-            promo_char = 'q';
-
-        out[4] = promo_char;
-        out[5] = '\0';
-        return;
-    }
-
-    out[4] = '\0';
-}
-
 /**
  * @brief Root search for the best move at a given depth.
  *
@@ -573,7 +572,6 @@ void* search_worker(void* arg)
 {
     // Cast and extract the data
     SearchThreadData* data = (SearchThreadData*)arg;
-    SearchReport* report = data->report;
     SearchContext ctx;
     memset(&ctx, 0, sizeof(ctx));
     ctx.board = data->board;
@@ -686,7 +684,7 @@ void* search_worker(void* arg)
         }
         update.score_cp = best_score;
 
-        publish_search_update(report, &update, false);
+        print_search_update(&update, false);
 
         age_history(&ctx);
         current_depth++;
@@ -744,7 +742,7 @@ void* search_worker(void* arg)
         final_update.is_mate = false;
         final_update.mate_moves = 0;
     }
-    publish_search_update(report, &final_update, true);
+    print_search_update(&final_update, true);
 
     // clear active context reference before returning
     atomic_store(&active_search_context, NULL);

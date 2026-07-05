@@ -5,6 +5,7 @@
 #include "core/chess_types.h"
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 // NOTE: move representation adopted from stockfish
@@ -61,6 +62,9 @@ bool move_is_promotion(Move move);
 bool move_is_castling(Move move);
 bool move_is_capture(CBoard* board, Move move);
 bool move_is_quiet(CBoard* board, Move move);
+void move_to_uci_string(Move move, char out[6]);
+Move move_from_uci_string(const CBoard* board, const char* move_str, char* error_buf,
+    size_t error_buf_size);
 /**
  * @brief Structure to store information needed to undo a move on the
  * chess board. This includes the:

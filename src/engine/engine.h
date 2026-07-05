@@ -62,39 +62,6 @@ typedef struct SearchLimits {
 } SearchLimits;
 
 /**
- * @brief This struct represents an update from the search process,
- * containing information about the current best move, score,
- * principal variation, and other search statistics.
- *
- */
-typedef struct SearchReportUpdate {
-    int depth;
-    bool is_mate;
-    int score_cp;
-    int mate_moves;
-    long long nodes;
-    long long elapsed_ms;
-    long long nps;
-    char pv[2048];
-    Move best_move;
-    Move ponder_move;
-} SearchReportUpdate;
-
-/**
- * @brief Represents a search report containing updates and final
- * results from a given search.
- *
- */
-typedef struct SearchReport {
-    pthread_mutex_t mutex;
-    pthread_cond_t cond;
-    bool has_update;
-    bool is_finished;
-    bool abort;
-    SearchReportUpdate update;
-} SearchReport;
-
-/**
  * @brief Represents the state of the chess engine.
  *
  * This struct holds the current board position, the search thread
@@ -106,18 +73,14 @@ typedef struct SearchReport {
 typedef struct EngineState {
     CBoard board;
     pthread_t search_thread;
-    pthread_t reporter_thread;
     bool is_searching;
-    bool reporter_active;
     bool is_debug_mode;
-    SearchReport report;
 } EngineState;
 
 // The payload we send to the search thread
 typedef struct {
     CBoard board; // A COPY of the board, safe from UCI mutations
     SearchLimits search_limits; // The parsed go parameters
-    SearchReport* report; // Optional output report sink (owned by engine)
 } SearchThreadData;
 
 /**
@@ -141,24 +104,6 @@ void engine_shutdown(void);
  * @brief Set the engine position from a FEN string.
  */
 bool engine_set_position_fen(const char* fen);
-
-/**
- * @brief Parse a UCI move string into a Move using the current engine
- * position.
- *
- * @note This function generates all legal moves in the current
- * position and checks if any of them match the provided UCI move
- * string. This ensures that the move is not only syntactically valid
- * but also legal in the current position (e.g., not moving a piece
- * that isn't there, not leaving the king in check, etc.).
- *
- * @returns parsed Move if successful, or a Move with NO_SQUARE
- * from/to if the move was invalid or illegal. If the move string is
- * valid but the move is not legal in the current position, an error
- * message will be written to error_buf.
- */
-Move engine_parse_and_create_uci_move(const char* move_str, char* error_buf,
-    size_t error_buf_size);
 
 /**
  * @brief Apply a UCI move string to the engine position if it is

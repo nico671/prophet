@@ -64,4 +64,4 @@ src/
 
 ## Credits
 
-  Influenced by [Chess Programming Wiki](https://www.chessprogramming.org/Main_Page) patterns and references (PeSTO-style evaluation, magic bitboards, Zobrist workflows) and [Stockfish](https://github.com/official-stockfish/Stockfish/).
+Influenced by [Chess Programming Wiki](https://www.chessprogramming.org/Main_Page) patterns and references (PeSTO-style evaluation, magic bitboards, Zobrist workflows) and [Stockfish](https://github.com/official-stockfish/Stockfish/).

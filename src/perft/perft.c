@@ -55,8 +55,9 @@ uint64_t divide(CBoard* board, int depth)
         totalNodes += nodes;
 
         // Print the move and its node count
-        char* moveStr = moveToStringCoordinate(move);
-        printf("%s: %llu\n", moveStr, nodes);
+        char move_str[6];
+        move_to_uci_string(move, move_str);
+        printf("%s: %llu\n", move_str, nodes);
 
         // Unmake the move
         unmake_move(board, move, undoInfo);
