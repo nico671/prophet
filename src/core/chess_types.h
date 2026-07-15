@@ -95,7 +95,7 @@ static inline Square square_flip_vertical(Square sq) { return (Square)(sq ^ 56);
  *
  */
 typedef enum { WHITE = 0,
-    BLACK = 1 } Color;
+               BLACK = 1 } Color;
 
 // TODO: opponent color macro instead of 1 - color everywhere in code?
 
@@ -106,11 +106,11 @@ typedef enum { WHITE = 0,
  */
 typedef enum {
     NO_PIECE = 0,
-    PAWN = 1,
-    KNIGHT = 2,
-    BISHOP = 3,
-    ROOK = 4,
-    QUEEN = 5,
-    KING = 6
+    PAWN     = 1,
+    KNIGHT   = 2,
+    BISHOP   = 3,
+    ROOK     = 4,
+    QUEEN    = 5,
+    KING     = 6
 } PieceType;
 #endif // CHESS_TYPES_H

@@ -16,25 +16,25 @@
 // square index for black pieces and reuse the same tables, since the
 // PSQT values are typically mirrored vertically for black and white.
 enum {
-    HC_WHITE_PAWN = 0,
-    HC_BLACK_PAWN = 1,
+    HC_WHITE_PAWN   = 0,
+    HC_BLACK_PAWN   = 1,
     HC_WHITE_KNIGHT = 2,
     HC_BLACK_KNIGHT = 3,
     HC_WHITE_BISHOP = 4,
     HC_BLACK_BISHOP = 5,
-    HC_WHITE_ROOK = 6,
-    HC_BLACK_ROOK = 7,
-    HC_WHITE_QUEEN = 8,
-    HC_BLACK_QUEEN = 9,
-    HC_WHITE_KING = 10,
-    HC_BLACK_KING = 11,
+    HC_WHITE_ROOK   = 6,
+    HC_BLACK_ROOK   = 7,
+    HC_WHITE_QUEEN  = 8,
+    HC_BLACK_QUEEN  = 9,
+    HC_WHITE_KING   = 10,
+    HC_BLACK_KING   = 11,
 };
 
 // Utility macros for table lookups and color math
-#define PCOLOR(p) ((p) & 1) // Extracts color (0 for White, 1 for Black)
+#define PCOLOR(p) ((p) & 1)      // Extracts color (0 for White, 1 for Black)
 #define FLIP(sq) \
-    ((sq) ^ 56) // Flips a square vertically (e.g., A1 -> A8) to
-                // mirror tables for Black
+    ((sq) ^ 56)                  // Flips a square vertically (e.g., A1 -> A8) to
+                                 // mirror tables for Black
 #define OTHER(side) ((side) ^ 1) // Flips the side to move
 
 // Base material values for Midgame (mg) and Endgame (eg).
@@ -867,9 +867,9 @@ static const int* eg_pesto_table[6] = {
 };
 
 static const int game_phase_inc[12] = { 0, 0, 1, 1, 1, 1, 2, 2, 4, 4, 0, 0 };
-static int mg_table[12][64];
-static int eg_table[12][64];
-static bool tables_initialized = false;
+static int       mg_table[12][64];
+static int       eg_table[12][64];
+static bool      tables_initialized = false;
 
 void hc_eval_init(void)
 {
@@ -878,7 +878,7 @@ void hc_eval_init(void)
     }
 
     for (int p = PAWN, piece_index = 0, pc = HC_WHITE_PAWN; p <= KING;
-        p++, piece_index++, pc += 2) {
+         p++, piece_index++, pc += 2) {
         for (int sq = 0; sq < 64; sq++) {
             mg_table[pc][sq]
                 = mg_value[piece_index] + mg_pesto_table[piece_index][sq];
@@ -911,7 +911,7 @@ void hc_eval_init(void)
  * @param phase Pointer to the running game phase accumulator.
  */
 static void accumulate_piece(Bitboard bb, int piece_type, int mg[2], int eg[2],
-    int* phase)
+                             int* phase)
 {
     // Determine which color we are accumulating for
     int color = PCOLOR(piece_type);
@@ -933,8 +933,8 @@ static void accumulate_piece(Bitboard bb, int piece_type, int mg[2], int eg[2],
         *phase += game_phase_inc[piece_type];
 
         bitboard_clear_square_bit(&bb,
-            sq); // Clear the bit for this piece
-                 // to move on to the next one
+                                  sq); // Clear the bit for this piece
+                                       // to move on to the next one
     }
 }
 
@@ -953,29 +953,29 @@ int hc_evaluate_cboard(const CBoard* board)
     // Accumulate positional and material scores for every piece on
     // the board
     accumulate_piece(board->piece_bbs[WHITE][PAWN], HC_WHITE_PAWN, mg, eg,
-        &game_phase);
+                     &game_phase);
     accumulate_piece(board->piece_bbs[BLACK][PAWN], HC_BLACK_PAWN, mg, eg,
-        &game_phase);
+                     &game_phase);
     accumulate_piece(board->piece_bbs[WHITE][KNIGHT], HC_WHITE_KNIGHT, mg, eg,
-        &game_phase);
+                     &game_phase);
     accumulate_piece(board->piece_bbs[BLACK][KNIGHT], HC_BLACK_KNIGHT, mg, eg,
-        &game_phase);
+                     &game_phase);
     accumulate_piece(board->piece_bbs[WHITE][BISHOP], HC_WHITE_BISHOP, mg, eg,
-        &game_phase);
+                     &game_phase);
     accumulate_piece(board->piece_bbs[BLACK][BISHOP], HC_BLACK_BISHOP, mg, eg,
-        &game_phase);
+                     &game_phase);
     accumulate_piece(board->piece_bbs[WHITE][ROOK], HC_WHITE_ROOK, mg, eg,
-        &game_phase);
+                     &game_phase);
     accumulate_piece(board->piece_bbs[BLACK][ROOK], HC_BLACK_ROOK, mg, eg,
-        &game_phase);
+                     &game_phase);
     accumulate_piece(board->piece_bbs[WHITE][QUEEN], HC_WHITE_QUEEN, mg, eg,
-        &game_phase);
+                     &game_phase);
     accumulate_piece(board->piece_bbs[BLACK][QUEEN], HC_BLACK_QUEEN, mg, eg,
-        &game_phase);
+                     &game_phase);
     accumulate_piece(board->piece_bbs[WHITE][KING], HC_WHITE_KING, mg, eg,
-        &game_phase);
+                     &game_phase);
     accumulate_piece(board->piece_bbs[BLACK][KING], HC_BLACK_KING, mg, eg,
-        &game_phase);
+                     &game_phase);
 
     // Interpolate between the midgame and endgame scores based on the
     // current game phase.
@@ -995,5 +995,5 @@ int hc_evaluate_cboard(const CBoard* board)
     // endgame scores, where the weights are determined by how much
     // material is left on the board.
     return (mg_score * mg_phase + eg_score * eg_phase)
-        / 24; // score flipping is handled by search.c
+           / 24; // score flipping is handled by search.c
 }

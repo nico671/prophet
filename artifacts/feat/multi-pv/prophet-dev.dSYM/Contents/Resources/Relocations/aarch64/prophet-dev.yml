@@ -1,0 +1,5 @@
+---
+triple:          'arm64-apple-darwin'
+binary-path:     'artifacts/feat/multi-pv/prophet-dev'
+relocations:     []
+...

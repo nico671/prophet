@@ -7,7 +7,7 @@
 // Static allocations for the network
 static int16_t fc1_w[NNUE_L1_SIZE][NNUE_INPUT_SIZE];
 static int16_t fc1_b[NNUE_L1_SIZE];
-static int8_t fc2_w[NNUE_L2_SIZE][NNUE_L1_SIZE];
+static int8_t  fc2_w[NNUE_L2_SIZE][NNUE_L1_SIZE];
 static int32_t fc2_b[NNUE_L2_SIZE];
 static int32_t fc3_w[1][NNUE_L2_SIZE];
 static int32_t fc3_b[1];
@@ -37,13 +37,13 @@ void nnue_init(const char* filepath)
 static int get_active_features(const CBoard* board, int* features)
 {
     int count = 0;
-    int stm = board->side_to_move;
+    int stm   = board->side_to_move;
 
     for (int c = 0; c < 2; c++) {
         // base_idx based on python implementation: 0-5 for 'my
         // pieces', 6-11 for 'enemy pieces'
         int is_my_piece = (c == stm);
-        int base_idx = is_my_piece ? 0 : 6;
+        int base_idx    = is_my_piece ? 0 : 6;
 
         for (int pt = PAWN; pt <= KING; pt++) {
             Bitboard bb = board->piece_bbs[c][pt];

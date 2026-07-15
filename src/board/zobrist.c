@@ -4,10 +4,10 @@
 
 #include <stdbool.h>
 
-uint64_t piece_keys[12][64];
-uint64_t side_key;
-uint64_t castle_keys[16];
-uint64_t en_passant_keys[8];
+uint64_t    piece_keys[12][64];
+uint64_t    side_key;
+uint64_t    castle_keys[16];
+uint64_t    en_passant_keys[8];
 static bool zobrist_keys_initialized = false;
 
 void init_zobrist_keys(void)
@@ -18,8 +18,8 @@ void init_zobrist_keys(void)
 
     ranctx ctx;
     raninit(&ctx,
-        107035250ULL); // Use a fixed seed for reproducible debug
-                       // sessions
+            107035250ULL); // Use a fixed seed for reproducible debug
+                           // sessions
 
     // piece keys
     for (int p = 0; p < 12; p++) {

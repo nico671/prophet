@@ -1,7 +1,10 @@
 #ifndef PROPHET_SEARCH_H
 #define PROPHET_SEARCH_H
-#include "engine/engine.h"
+#include "board/cboard.h"
 #include "movegen/move.h"
+
+#include <stdatomic.h>
+#include <stdbool.h>
 
 // Search tuning constants
 #define MAX_KILLER_MOVES 2
@@ -17,27 +20,55 @@
 #define MATE_THRESHOLD 199999000
 #define MOVE_OVERHEAD_DEFAULT_MS 50
 
-/**
- * @brief The main thread worker function that executes the search.
- *
- * Handles Iterative Deepening, time management tracking, and dynamic
- * soft-limit extensions (instability checks). Reporting is delegated
- * to the engine.
- *
- * @param arg Pointer to a SearchThreadData struct containing the
- * board state and limits.
- * @return NULL upon completion.
- */
-void* search_worker(void* arg);
+typedef struct SearchLimits {
+    bool     ponder;
+    bool     infinite_search;
+    int      time_for_white_ms;
+    int      time_for_black_ms;
+    int      increment_for_white_ms;
+    int      increment_for_black_ms;
+    int      moves_until_next_time_control;
+    int      depth_limit;
+    int      node_limit;
+    int      search_for_mate_in_n_moves;
+    int      time_limit_ms;
+    MoveList search_moves;
+} SearchLimits;
+
+typedef struct {
+    CBoard       board;
+    SearchLimits limits;
+} SearchInput;
+
+typedef struct {
+    atomic_bool  stop_requested;
+    atomic_bool  pondering;
+    atomic_llong hard_deadline_ms;
+    atomic_llong soft_limit_ms;
+} SearchControl;
 
 /**
- * @brief Handle a UCI "ponderhit" event by applying real-time
- * controls.
- *
- * This updates the active search thread's soft/hard time limits so it
- * can continue searching with the proper time budget instead of
- * pondering.
+ * @brief Reset shared controls before starting a search.
  */
-void on_ponder_hit(void);
+void search_control_reset(SearchControl* control, bool pondering);
+
+/**
+ * @brief Request that the active search stop.
+ */
+void search_request_stop(SearchControl* control);
+
+/**
+ * @brief Apply normal time controls after a UCI ponderhit.
+ */
+void search_handle_ponder_hit(
+    SearchControl* control, const SearchInput* input);
+
+/**
+ * @brief Execute a search synchronously.
+ *
+ * Handles iterative deepening, time management, UCI search reporting,
+ * and dynamic soft-limit extensions (instability checks).
+ */
+void search_run(const SearchInput* input, SearchControl* control);
 
 #endif // SEARCH_H

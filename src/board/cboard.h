@@ -58,8 +58,8 @@ typedef struct CBoard {
      */
     uint8_t castling_rights;
 
-    uint8_t ep_square; /**< Index (0-63) or 64 if none available */
-    uint16_t half_move_clock; /**< Counter for the fifty-move rule */
+    uint8_t  ep_square;        /**< Index (0-63) or 64 if none available */
+    uint16_t half_move_clock;  /**< Counter for the fifty-move rule */
     uint16_t full_move_number; /**< Incremented after every Black move */
 
     // --- Optimization ---
@@ -142,7 +142,7 @@ char* cboard_to_fen(CBoard* board);
  * NO_PIECE if the square is empty.
  */
 static inline PieceType cboard_get_piece_at_square(const CBoard* board,
-    Square square)
+                                                   Square        square)
 {
     if (!board || square < A1 || square >= NO_SQUARE) {
         return NO_PIECE;
@@ -165,7 +165,7 @@ static inline PieceType cboard_get_piece_at_square(const CBoard* board,
  * @param piece The type of piece to add.
  */
 static inline void add_piece_to_cboard(CBoard* board, Square square, Color color,
-    PieceType piece)
+                                       PieceType piece)
 {
     Bitboard* bb = &board->piece_bbs[color][piece];
     if (!bb || square >= NO_SQUARE) {
@@ -185,7 +185,7 @@ static inline void add_piece_to_cboard(CBoard* board, Square square, Color color
  * @param piece The type of piece to remove.
  */
 static inline void remove_piece_from_cboard(CBoard* board, Square square,
-    Color color, PieceType piece)
+                                            Color color, PieceType piece)
 {
     Bitboard* bb = &board->piece_bbs[color][piece];
     if (!bb || square >= NO_SQUARE) {
@@ -206,7 +206,7 @@ static inline void remove_piece_from_cboard(CBoard* board, Square square,
 
 */
 static inline void move_piece_on_cboard(CBoard* board, Square from, Square to,
-    Color side)
+                                        Color side)
 {
     PieceType moving_piece = cboard_get_piece_at_square(board, from);
     if (moving_piece == NO_PIECE) {
@@ -230,7 +230,7 @@ static inline void move_piece_on_cboard(CBoard* board, Square from, Square to,
 
  */
 static inline PieceType cboard_remove_captured_piece(CBoard* board, Square square,
-    Color capturing_color)
+                                                     Color capturing_color)
 {
     Color captured_color = 1 - capturing_color;
 
@@ -252,7 +252,7 @@ static inline PieceType cboard_remove_captured_piece(CBoard* board, Square squar
  * @param color The color of the piece being moved.
  */
 static inline void cboard_update_occupancies_for_move(CBoard* board, Square from,
-    Square to, Color color)
+                                                      Square to, Color color)
 {
     bitboard_clear_square_bit(&board->occupancy_bbs[color], from);
     bitboard_set_square_bit(&board->occupancy_bbs[color], to);
@@ -268,8 +268,8 @@ static inline void cboard_update_occupancies_for_move(CBoard* board, Square from
  * @param capturedColor The color of the piece being captured.
  */
 static inline void cboard_update_occupancies_for_capture(CBoard* board,
-    Square square,
-    Color captured_color)
+                                                         Square  square,
+                                                         Color   captured_color)
 {
     bitboard_clear_square_bit(&board->occupancy_bbs[captured_color], square);
     bitboard_clear_square_bit(&board->occupancy_bbs[2], square);
@@ -285,8 +285,8 @@ static inline void cboard_update_occupancies_for_capture(CBoard* board,
  * @param color The color of the piece being moved.
  */
 static inline void cboard_update_occupancies_for_promotion(CBoard* board,
-    Square from, Square to,
-    Color color)
+                                                           Square from, Square to,
+                                                           Color color)
 {
     cboard_update_occupancies_for_move(board, from, to, color);
 }
@@ -303,8 +303,8 @@ static inline void cboard_update_occupancies_for_promotion(CBoard* board,
  */
 static inline void
 cboard_update_occupancies_for_castling(CBoard* board, Square king_from,
-    Square king_to, Square rook_from,
-    Square rook_to, Color color)
+                                       Square king_to, Square rook_from,
+                                       Square rook_to, Color color)
 {
     bitboard_clear_square_bit(&board->occupancy_bbs[color], king_from);
     bitboard_clear_square_bit(&board->occupancy_bbs[color], rook_from);
@@ -324,7 +324,7 @@ cboard_update_occupancies_for_castling(CBoard* board, Square king_from,
  * @param to The square to which the piece will be moved.
  */
 static inline void cboard_update_castling_rights(CBoard* board, Square from,
-    Square to)
+                                                 Square to)
 {
     // If king moved, lose all castling
     if (bitboard_is_bit_set(board->piece_bbs[WHITE][KING], to)) {

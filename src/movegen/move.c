@@ -86,21 +86,24 @@ bool move_is_promotion(Move move) { return (move_get_move_type(move) == PROMO); 
 
 bool move_is_castling(Move move) { return (move_get_move_type(move) == CASTLE); }
 
-bool move_is_capture(CBoard* board, Move move)
+bool move_is_capture(const CBoard* board, Move move)
 {
     if (move == MOVE_NONE)
         return false;
 
+    if (move_is_enpassant(move)) {
+        return true;
+    }
+
     Square to = move_get_to_square(move);
     return bitboard_is_bit_set(board->occupancy_bbs[1 - board->side_to_move], to)
-        && !move_is_enpassant(move) && !move_is_castling(move)
-        && !move_is_promotion(move);
+           && !move_is_castling(move);
 }
 
-bool move_is_quiet(CBoard* board, Move move)
+bool move_is_quiet(const CBoard* board, Move move)
 {
-    return !move_is_capture(board, move) && !move_is_enpassant(move)
-        && !move_is_castling(move) && !move_is_promotion(move);
+    return !move_is_capture(board, move) && !move_is_castling(move)
+           && !move_is_promotion(move);
 }
 
 void move_to_uci_string(Move move, char out[6])
@@ -155,7 +158,7 @@ Move move_from_uci_string(const CBoard* board, const char* move_str, char* error
         return MOVE_NONE;
     }
 
-    CBoard board_copy = *board;
+    CBoard   board_copy = *board;
     MoveList move_list;
     init_move_list(&move_list);
     generate_legal_moves(&board_copy, &move_list);

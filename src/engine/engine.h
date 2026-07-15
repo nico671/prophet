@@ -1,87 +1,11 @@
 #ifndef PROPHET_ENGINE_H
 #define PROPHET_ENGINE_H
 #include "board/cboard.h"
-#include "movegen/move.h"
 
-#include <pthread.h>
-#include <stdatomic.h>
 #include <stdbool.h>
 #include <stddef.h>
 
-// TODO: I feel like all the structs here are getting a little
-// unwieldy, i think this stems from awkward splitting of uci, engine
-// and search functionality
-
-// Global, thread-safe flag to interrupt the search
-extern atomic_bool search_stop_flag;
-
-// Set when the engine is pondering and receives a ponderhit command,
-// so the search thread can react appropriately
-extern atomic_bool search_is_pondering;
-
-/**
- * @brief This struct encapsulates all the parameters that can be
- * specified in a UCI "go" command, including time controls, depth
- * limits, node limits, and specific moves to search for.
- *
- * It is used to communicate the search parameters from the main
- * thread (which handles UCI commands) to the search thread that
- * performs the actual search. The search thread will read these
- * limits and use them to determine when to stop searching and how to
- * prioritize moves.
- */
-typedef struct SearchLimits {
-    bool ponder; // whether pondering is enabled, meaning should we
-                 // search during opponent's time
-    bool infinite_search; // whether to ignore all other limits and
-                          // search until a stop signal is received
-    int time_for_white_ms; // time remaining for white in
-                           // milliseconds, or -1 if not specified
-    int time_for_black_ms; // time remaining for black in
-                           // milliseconds, or -1 if not specified
-    int increment_for_white_ms; // increment per move for white in
-                                // milliseconds, or -1 if not
-                                // specified
-    int increment_for_black_ms; // increment per move for black in
-                                // milliseconds, or -1 if not
-                                // specified
-    int moves_until_next_time_control; // number of moves until the
-                                       // next time control, or -1 if
-                                       // not specified
-    int depth_limit; // maximum search depth in plies, or -1 if not
-                     // specified
-    int node_limit; // maximum number of nodes to search, or -1 if not
-                    // specified
-    int search_for_mate_in_n_moves; // number of moves to search for a
-                                    // mate, or -1 if not specified
-    int time_limit_ms; // maximum time to search in milliseconds, or
-                       // -1 if not specified
-    MoveList search_moves; // optional list of moves to search for in
-                           // the current position, if empty then
-                           // search all legal moves
-} SearchLimits;
-
-/**
- * @brief Represents the state of the chess engine.
- *
- * This struct holds the current board position, the search thread
- * handle, and flags for whether a search is active and whether debug
- * mode is enabled. It serves as a central repository for the engine's
- * state that can be accessed and modified by various functions
- * throughout the engine's operation.
- */
-typedef struct EngineState {
-    CBoard board;
-    pthread_t search_thread;
-    bool is_searching;
-    bool is_debug_mode;
-} EngineState;
-
-// The payload we send to the search thread
-typedef struct {
-    CBoard board; // A COPY of the board, safe from UCI mutations
-    SearchLimits search_limits; // The parsed go parameters
-} SearchThreadData;
+typedef struct SearchLimits SearchLimits;
 
 /**
  * @brief Initializes the chess engine, setting up global state and
@@ -110,7 +34,7 @@ bool engine_set_position_fen(const char* fen);
  * legal.
  */
 bool engine_apply_uci_move(const char* move_str, char* error_buf,
-    size_t error_buf_size);
+                           size_t error_buf_size);
 
 /**
  * @brief Reset engine state for a new game (board, TT, heuristics).
@@ -122,7 +46,7 @@ void engine_new_game(void);
  * limits.
  */
 bool engine_start_search(const SearchLimits* limits, char* error_buf,
-    size_t error_buf_size);
+                         size_t error_buf_size);
 
 /**
  * @brief Stop any active search thread.

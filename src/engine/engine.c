@@ -9,19 +9,12 @@
 #include "search/search.h"
 #include "tt/tt.h"
 
+#include <pthread.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 // standard starting position FEN string
 #define START_FEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-
-// atomic flag for controlling search thread shutdown
-atomic_bool search_stop_flag = false;
-
-// atomic flag to indicate if the search thread is currently pondering
-// (used for ponderhit handling)
-atomic_bool search_is_pondering = false;
 
 /**
  * @brief Sets the error message in the provided buffer.
@@ -40,8 +33,23 @@ static void set_error(char* error_buf, size_t error_buf_size, const char* messag
     fflush(stderr);
 }
 
-// central engine state struct
+typedef struct {
+    CBoard        board;
+    pthread_t     search_thread;
+    SearchInput   search_input;
+    SearchControl search_control;
+    bool          is_searching;
+    bool          is_debug_mode;
+} EngineState;
+
 static EngineState engine_state = { 0 };
+
+static void* search_thread_main(void* arg)
+{
+    (void)arg;
+    search_run(&engine_state.search_input, &engine_state.search_control);
+    return NULL;
+}
 
 void engine_init(void)
 {
@@ -58,11 +66,9 @@ void engine_init(void)
     // later
     init_tt(64);
 
-    // reset search control flags
-    atomic_store(&search_stop_flag, false);
-    atomic_store(&search_is_pondering, false);
+    search_control_reset(&engine_state.search_control, false);
 
-    engine_state.is_searching = false;
+    engine_state.is_searching  = false;
     engine_state.is_debug_mode = false;
 
     // set initial board position to standard starting position, not
@@ -85,8 +91,7 @@ void engine_stop_search(void)
         return; // no active search to stop
     }
 
-    // signal search thread to stop and wait for it to finish
-    atomic_store(&search_stop_flag, true);
+    search_request_stop(&engine_state.search_control);
 
     // block the main thread until the search thread actually exists
     // prevents starting a new search until the previous search thread
@@ -94,7 +99,6 @@ void engine_stop_search(void)
     pthread_join(engine_state.search_thread, NULL);
 
     engine_state.is_searching = false;
-    atomic_store(&search_is_pondering, false);
 }
 
 bool engine_set_position_fen(const char* fen)
@@ -106,13 +110,13 @@ bool engine_set_position_fen(const char* fen)
 }
 
 bool engine_apply_uci_move(const char* move_str, char* error_buf,
-    size_t error_buf_size)
+                           size_t error_buf_size)
 {
     // parse the move and verify legality using the current engine
     // position
     Move parsed_move
         = move_from_uci_string(&engine_state.board, move_str, error_buf,
-            error_buf_size);
+                               error_buf_size);
 
     if (parsed_move == MOVE_NONE) {
         set_error(error_buf, error_buf_size, "Invalid or illegal move");
@@ -136,7 +140,7 @@ void engine_new_game(void)
 }
 
 bool engine_start_search(const SearchLimits* limits, char* error_buf,
-    size_t error_buf_size)
+                         size_t error_buf_size)
 {
     if (!limits) {
         set_error(error_buf, error_buf_size, "Search limits not provided");
@@ -149,32 +153,16 @@ bool engine_start_search(const SearchLimits* limits, char* error_buf,
         engine_stop_search();
     }
 
-    // reset search control flags before starting the search thread
-    atomic_store(&search_stop_flag, false);
-    atomic_store(&search_is_pondering, limits->ponder);
+    search_control_reset(&engine_state.search_control, limits->ponder);
     engine_state.is_searching = true;
 
-    // Allocate thread data on the heap. We do this instead of passing
-    // a pointer to engine_state directly to prevent the GUI thread
-    // from mutating the board while the search thread is reading it.
-    SearchThreadData* thread_data = malloc(sizeof(SearchThreadData));
-    if (thread_data == NULL) {
-        set_error(error_buf, error_buf_size, "memory allocation failed");
-        engine_state.is_searching = false;
-        return false;
-    }
+    engine_state.search_input.board  = engine_state.board;
+    engine_state.search_input.limits = *limits;
 
-    // create a copy of the current board and search limits for the
-    // search thread to use
-    thread_data->board = engine_state.board;
-    thread_data->search_limits = *limits;
-
-    // dispatch the search_worker function to a new background thread
-    // passing the thread data as an argument
-    if (pthread_create(&engine_state.search_thread, NULL, search_worker, thread_data)
+    if (pthread_create(
+            &engine_state.search_thread, NULL, search_thread_main, NULL)
         != 0) {
         set_error(error_buf, error_buf_size, "failed to create search thread");
-        free(thread_data);
         engine_state.is_searching = false;
         return false;
     }
@@ -184,9 +172,10 @@ bool engine_start_search(const SearchLimits* limits, char* error_buf,
 
 void engine_handle_ponder_hit(void)
 {
-    // delegarte to search module which updates time management
-    // internal state
-    on_ponder_hit();
+    if (engine_state.is_searching) {
+        search_handle_ponder_hit(
+            &engine_state.search_control, &engine_state.search_input);
+    }
 }
 
 bool engine_set_hash_mb(long requested_mb, long* applied_mb)

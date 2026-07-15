@@ -11,6 +11,6 @@ typedef struct {
 } ranctx;
 // Rotation macro for 64-bit bits
 #define rot(x, k) (((x) << (k)) | ((x) >> (64 - (k))))
-void raninit(ranctx* x, uint64_t seed);
+void     raninit(ranctx* x, uint64_t seed);
 uint64_t ranval(ranctx* x);
 #endif // PRNG_H

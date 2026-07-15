@@ -7,8 +7,8 @@ extern const Bitboard rook_occupancy_maps[64];
 extern const Bitboard bishop_occupancy_maps[64];
 extern const Bitboard RMagic[64];
 extern const Bitboard BMagic[64];
-extern const int RBits[64];
-extern const int BBits[64];
+extern const int      RBits[64];
+extern const int      BBits[64];
 
 /**
  * @brief Computes the index into the magic bitboard attack table for
@@ -107,7 +107,7 @@ static inline Bitboard get_bishop_attack_bitboard(Square square, Bitboard occupa
 static inline Bitboard get_queen_attack_bitboard(Square square, Bitboard occupancy)
 {
     return get_rook_attack_bitboard(square, occupancy)
-        | get_bishop_attack_bitboard(square, occupancy);
+           | get_bishop_attack_bitboard(square, occupancy);
 }
 
 /**

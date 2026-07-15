@@ -1,6 +1,7 @@
+#include "uci/uci.h"
 #include "engine/engine.h"
 #include "perft/perft.h"
-#include "uci/uci.h"
+#include "search/search.h"
 
 #include <ctype.h>
 #include <errno.h>
@@ -35,11 +36,11 @@ static bool next_token(const char** command, char* out, size_t out_size)
 static bool is_go_keyword(const char* token)
 {
     return !strcmp(token, "searchmoves") || !strcmp(token, "ponder")
-        || !strcmp(token, "wtime") || !strcmp(token, "btime")
-        || !strcmp(token, "winc") || !strcmp(token, "binc")
-        || !strcmp(token, "movestogo") || !strcmp(token, "depth")
-        || !strcmp(token, "nodes") || !strcmp(token, "mate")
-        || !strcmp(token, "movetime") || !strcmp(token, "infinite");
+           || !strcmp(token, "wtime") || !strcmp(token, "btime")
+           || !strcmp(token, "winc") || !strcmp(token, "binc")
+           || !strcmp(token, "movestogo") || !strcmp(token, "depth")
+           || !strcmp(token, "nodes") || !strcmp(token, "mate")
+           || !strcmp(token, "movetime") || !strcmp(token, "infinite");
 }
 
 static bool parse_next_int_token(const char** command, int* out)
@@ -53,62 +54,21 @@ static bool parse_next_int_token(const char** command, int* out)
     return true;
 }
 
-static bool equals_ignore_case(const char* a, const char* b)
-{
-    while (*a && *b) {
-        if (tolower((unsigned char)*a) != tolower((unsigned char)*b)) {
-            return false;
-        }
-        a++;
-        b++;
-    }
-    return *a == '\0' && *b == '\0';
-}
-
 static void handle_set_option_command(const char* command)
 {
-    command += 9; // Skip "setoption"
-
     char token[64];
-    char name[128]     = "";
-    char value[128]    = "";
-    bool reading_name  = false;
-    bool reading_value = false;
-
-    while (next_token(&command, token, sizeof(token))) {
-        if (equals_ignore_case(token, "name")) {
-            reading_name  = true;
-            reading_value = false;
-            name[0]       = '\0';
-            continue;
-        }
-
-        if (equals_ignore_case(token, "value")) {
-            reading_value = true;
-            reading_name  = false;
-            value[0]      = '\0';
-            continue;
-        }
-
-        if (reading_name) {
-            if (name[0] != '\0' && strlen(name) + 1 < sizeof(name)) {
-                strncat(name, " ", sizeof(name) - strlen(name) - 1);
-            }
-            if (strlen(name) + strlen(token) < sizeof(name)) {
-                strncat(name, token, sizeof(name) - strlen(name) - 1);
-            }
-        } else if (reading_value) {
-            if (value[0] != '\0' && strlen(value) + 1 < sizeof(value)) {
-                strncat(value, " ", sizeof(value) - strlen(value) - 1);
-            }
-            if (strlen(value) + strlen(token) < sizeof(value)) {
-                strncat(value, token, sizeof(value) - strlen(value) - 1);
-            }
-        }
+    char option[64] = "";
+    if (!next_token(&command, token, sizeof(token)) || strcmp(token, "name")
+        || !next_token(&command, option, sizeof(option))) {
+        printf("info string Unsupported option: (none)\n");
+        fflush(stdout);
+        return;
     }
 
-    if (equals_ignore_case(name, "Hash")) {
-        if (value[0] == '\0') {
+    if (!strcmp(option, "Hash")) {
+        char value[64];
+        if (!next_token(&command, token, sizeof(token)) || strcmp(token, "value")
+            || !next_token(&command, value, sizeof(value))) {
             printf("info string setoption Hash requires a value\n");
             fflush(stdout);
             return;
@@ -135,14 +95,15 @@ static void handle_set_option_command(const char* command)
         return;
     }
 
-    if (equals_ignore_case(name, "Clear Hash")) {
+    if (!strcmp(option, "Clear") && next_token(&command, token, sizeof(token))
+        && !strcmp(token, "Hash")) {
         engine_clear_hash();
         printf("info string Hash cleared\n");
         fflush(stdout);
         return;
     }
 
-    printf("info string Unsupported option: %s\n", name[0] ? name : "(none)");
+    printf("info string Unsupported option: %s\n", option);
     fflush(stdout);
 }
 
@@ -167,11 +128,10 @@ void skip_whitespace(const char** str)
 
 void handle_go_command(const char* command)
 {
-    command += 2; // Skip "go"
-    SearchLimits go_cmd         = { 0 };
-    bool search_moves_specified = false;
-    CBoard current_board;
-    bool have_current_board = engine_copy_board(&current_board);
+    SearchLimits go_cmd                 = { 0 };
+    bool         search_moves_specified = false;
+    CBoard       current_board;
+    bool         have_current_board = engine_copy_board(&current_board);
 
     char token[64];
     while (next_token(&command, token, sizeof(token))) {
@@ -179,7 +139,7 @@ void handle_go_command(const char* command)
             search_moves_specified = true;
             while (1) {
                 const char* saved = command;
-                char moveToken[32];
+                char        moveToken[32];
                 if (!next_token(&command, moveToken, sizeof(moveToken))) {
                     break;
                 }
@@ -191,9 +151,9 @@ void handle_go_command(const char* command)
 
                 char error_buf[128] = "";
                 Move move           = have_current_board
-                    ? move_from_uci_string(&current_board, moveToken, error_buf,
-                          sizeof(error_buf))
-                    : MOVE_NONE;
+                                          ? move_from_uci_string(&current_board, moveToken, error_buf,
+                                                                 sizeof(error_buf))
+                                          : MOVE_NONE;
 
                 if (move != MOVE_NONE) {
                     if (go_cmd.search_moves.count < 256) {
@@ -269,7 +229,6 @@ void handle_go_command(const char* command)
 static void handle_perft_command(const char* command)
 {
     engine_stop_search();
-    command += 5; // Skip "perft"
 
     skip_whitespace(&command);
 
@@ -302,12 +261,12 @@ static void handle_perft_command(const char* command)
     }
 
     for (int depth = 1; depth <= max_depth; depth++) {
-        CBoard board   = base_board;
-        clock_t start  = clock();
-        uint64_t nodes = perft(&board, depth);
-        clock_t end    = clock();
-        double elapsed = (double)(end - start) / CLOCKS_PER_SEC;
-        double nps     = elapsed > 0 ? nodes / elapsed : 0;
+        CBoard   board   = base_board;
+        clock_t  start   = clock();
+        uint64_t nodes   = perft(&board, depth);
+        clock_t  end     = clock();
+        double   elapsed = (double)(end - start) / CLOCKS_PER_SEC;
+        double   nps     = elapsed > 0 ? nodes / elapsed : 0;
 
         printf("perft depth %d nodes %" PRIu64 " nps %.0f time %.3f\n", depth, nodes,
                nps, elapsed);
@@ -318,7 +277,6 @@ void handle_position_command(const char* command)
 {
     engine_stop_search();
 
-    command += 8; // Skip "position"
     skip_whitespace(&command);
 
     if (!strncmp(command, "startpos", 8)
@@ -338,7 +296,7 @@ void handle_position_command(const char* command)
         // Find optional " moves " token as a full keyword, not as a
         // set of chars.
         const char* moves_pos = strstr(command, " moves");
-        size_t fen_length
+        size_t      fen_length
             = moves_pos ? (size_t)(moves_pos - command) : strlen(command);
         while (fen_length > 0 && isspace((unsigned char)command[fen_length - 1])) {
             fen_length--;
@@ -402,23 +360,19 @@ void uci_loop(void)
                                   // command length is 512 characters)
     while (safe_line_read(line_input)) {
         const char* p = line_input;
-        skip_whitespace(&p);
-
-        if (*p == '\0') {
+        char        command[32];
+        if (!next_token(&p, command, sizeof(command))) {
             continue; // blank line
         }
-        if (!strncmp(p, "quit", 4)
-            && (p[4] == '\0' || isspace((unsigned char)p[4]))) {
+        if (!strcmp(command, "quit")) {
             engine_shutdown();
             break;
         }
 
-        else if (!strncmp(p, "isready", 7)
-                 && (p[7] == '\0' || isspace((unsigned char)p[7]))) {
+        else if (!strcmp(command, "isready")) {
             printf("readyok\n");
             fflush(stdout);
-        } else if (!strncmp(p, "uci", 3)
-                   && (p[3] == '\0' || isspace((unsigned char)p[3]))) {
+        } else if (!strcmp(command, "uci")) {
             engine_init();
 
             printf("id name Prophet dev\n"); // TODO: figure out how
@@ -430,47 +384,35 @@ void uci_loop(void)
             printf("option name Clear Hash type button\n");
             printf("uciok\n");
             fflush(stdout);
-        } else if (!strncmp(p, "setoption", 9)
-                   && (p[9] == '\0' || isspace((unsigned char)p[9]))) {
+        } else if (!strcmp(command, "setoption")) {
             handle_set_option_command(p);
-        } else if (!strncmp(p, "ucinewgame", 10)
-                   && (p[10] == '\0' || isspace((unsigned char)p[10]))) {
+        } else if (!strcmp(command, "ucinewgame")) {
             engine_new_game();
-        } else if (!strncmp(p, "position", 8)
-                   && (p[8] == '\0' || isspace((unsigned char)p[8]))) {
+        } else if (!strcmp(command, "position")) {
             handle_position_command(p);
-        } else if (!strncmp(p, "go", 2)
-                   && (p[2] == '\0' || isspace((unsigned char)p[2]))) {
+        } else if (!strcmp(command, "go")) {
             handle_go_command(p);
-        } else if (!strncmp(p, "perft", 5)
-                   && (p[5] == '\0' || isspace((unsigned char)p[5]))) {
+        } else if (!strcmp(command, "perft")) {
             handle_perft_command(p);
-        } else if (!strncmp(p, "stop", 4)
-                   && (p[4] == '\0' || isspace((unsigned char)p[4]))) {
+        } else if (!strcmp(command, "stop")) {
             engine_stop_search();
-        } else if (!strncmp(p, "ponderhit", 9)
-                   && (p[9] == '\0' || isspace((unsigned char)p[9]))) {
+        } else if (!strcmp(command, "ponderhit")) {
             engine_handle_ponder_hit();
             if (engine_is_debug_mode()) {
                 printf("info string ponderhit received\n");
             }
-        } else if (!strncmp(p, "debug", 5)
-                   && (p[5] == '\0' || isspace((unsigned char)p[5]))) {
-            p += 5;
-            skip_whitespace(&p);
-            if (!strncmp(p, "on", 2)
-                && (p[2] == '\0' || isspace((unsigned char)p[2]))) {
+        } else if (!strcmp(command, "debug")) {
+            char value[16] = "";
+            if (next_token(&p, value, sizeof(value)) && !strcmp(value, "on")) {
                 engine_set_debug_mode(true);
                 printf("info string Debug mode enabled\n");
-            } else if (!strncmp(p, "off", 3)
-                       && (p[3] == '\0' || isspace((unsigned char)p[3]))) {
+            } else if (!strcmp(value, "off")) {
                 engine_set_debug_mode(false);
                 printf("info string Debug mode disabled\n");
             } else {
                 printf("info string Invalid debug command: %s\n", p);
             }
-        } else if (!strncmp(p, "printboard", 10)
-                   && (p[10] == '\0' || isspace((unsigned char)p[10]))) {
+        } else if (!strcmp(command, "printboard")) {
             if (engine_is_debug_mode()) {
                 engine_print_board();
                 fflush(stdout);
@@ -482,7 +424,7 @@ void uci_loop(void)
             }
         } else {
             if (engine_is_debug_mode()) {
-                printf("info string Ignoring unknown command: %s\n", p);
+                printf("info string Ignoring unknown command: %s\n", command);
                 fflush(stdout);
             }
         }
