@@ -22,11 +22,6 @@ weights are loaded from a developer-local path and are not distributed with the
 repository. Replacing that implementation and returning temporarily to the
 classical evaluator is the next major engine change.
 
-The authoritative list of planned work is in [todo.md](todo.md). In particular,
-the current priorities are rebuilding NNUE from scratch, adding data generation,
-and creating proper benchmark and SPRT testing workflows. The existing
-`scripts/bench.py` is an ad hoc benchmark script, not the finished framework.
-
 ## Build
 
 Prophet currently targets a POSIX environment and uses GCC, pthreads, and
@@ -103,6 +98,18 @@ scripts/
 └── bench.py     Early benchmark script
 refs/                Reference material and table-generation programs
 ```
+
+## Rough Roadmap
+
+Note that these are not in order, moreso just a braindump of things to do.
+
+1. Implement a proper NNUE design and rebuild the evaluation from scratch.
+2. Implement a data generation mode for training the NNUE.
+3. Implement a benchmarking framework for performance testing.
+4. Implement a SPRT testing framework for performance testing.
+5. Implement multipv support.
+6. Implement a proper opening book and endgame tablebase support.
+7. Implement multi-threaded search and parallelization.
 
 ## Credits
 

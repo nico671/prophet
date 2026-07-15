@@ -5,7 +5,6 @@
 #include "movegen/move_make.h"
 #include "movegen/movegen.h"
 #include "movegen/sliding_attacks.h"
-#include "nnue/nnue.h"
 #include "search/search.h"
 #include "tt/tt.h"
 
@@ -57,10 +56,7 @@ void engine_init(void)
     // all functions are idempotent
     init_sliding_attacks();
     init_zobrist_keys();
-    // hc_eval_init(); // TODO: make this a config option b/w
-    // classical eval and nnue eval
-    nnue_init("/Users/nicocarbone/Documents/dev/prophet/artifacts/v0.1.0/"
-              "nnue_weights.bin"); // TODO: make path a config option
+    hc_eval_init();
 
     // initialize 64 MB TT by default, can be overridden by UCI option
     // later

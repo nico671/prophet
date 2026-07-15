@@ -5,7 +5,6 @@
 #include "eval/hceval.h"
 #include "movegen/move_make.h"
 #include "movegen/movegen.h"
-#include "nnue/nnue.h"
 #include "tt/tt.h"
 
 #include <assert.h>
@@ -705,16 +704,16 @@ static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int
     ctx->node_count++;
 
     if (should_stop_search(ctx)) {
-        return nnue_evaluate_cboard(node);
+        return hc_evaluate_cboard(node);
     }
 
     if (ply >= MAX_PLY - 1) {
-        return nnue_evaluate_cboard(node);
+        return hc_evaluate_cboard(node);
     }
 
     bool king_in_check = is_king_in_check(node, node->side_to_move);
     if (!king_in_check) {
-        int stand_pat = nnue_evaluate_cboard(node);
+        int stand_pat = hc_evaluate_cboard(node);
         if (stand_pat >= beta) {
             return stand_pat;
         }
@@ -735,7 +734,7 @@ static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int
         if (king_in_check) {
             return -MATE_SCORE + ply;
         }
-        return nnue_evaluate_cboard(node);
+        return hc_evaluate_cboard(node);
     }
 
     TTEntry* tt_entry     = probe_tt(node->zobrist_key);
@@ -780,7 +779,7 @@ static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int b
     ctx->node_count++;
 
     if (should_stop_search(ctx)) {
-        return nnue_evaluate_cboard(node);
+        return hc_evaluate_cboard(node);
     }
 
     if (ply >= MAX_PLY - 1) {
