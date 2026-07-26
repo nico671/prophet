@@ -103,8 +103,8 @@ static inline void zobrist_toggle_side(uint64_t* key) { *key ^= side_key; }
  * @param new_castling_rights The new castling rights value.
  */
 static inline void zobrist_toggle_castling(uint64_t* key,
-                                           uint8_t   old_castling_rights,
-                                           uint8_t   new_castling_rights)
+                                           uint8_t old_castling_rights,
+                                           uint8_t new_castling_rights)
 {
     *key ^= castle_keys[old_castling_rights & 0x0F];
     *key ^= castle_keys[new_castling_rights & 0x0F];

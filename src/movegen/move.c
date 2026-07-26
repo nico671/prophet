@@ -97,13 +97,13 @@ bool move_is_capture(const CBoard* board, Move move)
 
     Square to = move_get_to_square(move);
     return bitboard_is_bit_set(board->occupancy_bbs[1 - board->side_to_move], to)
-           && !move_is_castling(move);
+        && !move_is_castling(move);
 }
 
 bool move_is_quiet(const CBoard* board, Move move)
 {
     return !move_is_capture(board, move) && !move_is_castling(move)
-           && !move_is_promotion(move);
+        && !move_is_promotion(move);
 }
 
 void move_to_uci_string(Move move, char out[6])
@@ -152,13 +152,13 @@ Move move_from_uci_string(const CBoard* board, const char* move_str, char* error
     }
 
     Square from = algebraic_notation_to_square(move_str);
-    Square to   = algebraic_notation_to_square(move_str + 2);
+    Square to = algebraic_notation_to_square(move_str + 2);
     if (from == NO_SQUARE || to == NO_SQUARE) {
         set_error(error_buf, error_buf_size, "Invalid move format");
         return MOVE_NONE;
     }
 
-    CBoard   board_copy = *board;
+    CBoard board_copy = *board;
     MoveList move_list;
     init_move_list(&move_list);
     generate_legal_moves(&board_copy, &move_list);

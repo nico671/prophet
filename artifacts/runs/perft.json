@@ -1,0 +1,265 @@
+{
+  "result": "pass",
+  "engine_exit_code": 0,
+  "complete": true,
+  "summary": {
+    "passed": 32,
+    "failed": 0
+  },
+  "suites": [
+    {
+      "name": "Initial Position",
+      "depths": [
+        {
+          "depth": 1,
+          "actual_nodes": 20,
+          "expected_nodes": 20,
+          "elapsed_seconds": 0.0,
+          "result": "pass"
+        },
+        {
+          "depth": 2,
+          "actual_nodes": 400,
+          "expected_nodes": 400,
+          "elapsed_seconds": 0.0,
+          "result": "pass"
+        },
+        {
+          "depth": 3,
+          "actual_nodes": 8902,
+          "expected_nodes": 8902,
+          "elapsed_seconds": 0.0,
+          "result": "pass"
+        },
+        {
+          "depth": 4,
+          "actual_nodes": 197281,
+          "expected_nodes": 197281,
+          "elapsed_seconds": 0.01,
+          "result": "pass"
+        },
+        {
+          "depth": 5,
+          "actual_nodes": 4865609,
+          "expected_nodes": 4865609,
+          "elapsed_seconds": 0.156,
+          "result": "pass"
+        },
+        {
+          "depth": 6,
+          "actual_nodes": 119060324,
+          "expected_nodes": 119060324,
+          "elapsed_seconds": 3.577,
+          "result": "pass"
+        }
+      ]
+    },
+    {
+      "name": "Kiwipete Position",
+      "depths": [
+        {
+          "depth": 1,
+          "actual_nodes": 48,
+          "expected_nodes": 48,
+          "elapsed_seconds": 0.0,
+          "result": "pass"
+        },
+        {
+          "depth": 2,
+          "actual_nodes": 2039,
+          "expected_nodes": 2039,
+          "elapsed_seconds": 0.0,
+          "result": "pass"
+        },
+        {
+          "depth": 3,
+          "actual_nodes": 97862,
+          "expected_nodes": 97862,
+          "elapsed_seconds": 0.003,
+          "result": "pass"
+        },
+        {
+          "depth": 4,
+          "actual_nodes": 4085603,
+          "expected_nodes": 4085603,
+          "elapsed_seconds": 0.122,
+          "result": "pass"
+        },
+        {
+          "depth": 5,
+          "actual_nodes": 193690690,
+          "expected_nodes": 193690690,
+          "elapsed_seconds": 5.559,
+          "result": "pass"
+        }
+      ]
+    },
+    {
+      "name": "Position 3",
+      "depths": [
+        {
+          "depth": 1,
+          "actual_nodes": 14,
+          "expected_nodes": 14,
+          "elapsed_seconds": 0.0,
+          "result": "pass"
+        },
+        {
+          "depth": 2,
+          "actual_nodes": 191,
+          "expected_nodes": 191,
+          "elapsed_seconds": 0.0,
+          "result": "pass"
+        },
+        {
+          "depth": 3,
+          "actual_nodes": 2812,
+          "expected_nodes": 2812,
+          "elapsed_seconds": 0.0,
+          "result": "pass"
+        },
+        {
+          "depth": 4,
+          "actual_nodes": 43238,
+          "expected_nodes": 43238,
+          "elapsed_seconds": 0.002,
+          "result": "pass"
+        },
+        {
+          "depth": 5,
+          "actual_nodes": 674624,
+          "expected_nodes": 674624,
+          "elapsed_seconds": 0.025,
+          "result": "pass"
+        },
+        {
+          "depth": 6,
+          "actual_nodes": 11030083,
+          "expected_nodes": 11030083,
+          "elapsed_seconds": 0.41,
+          "result": "pass"
+        }
+      ]
+    },
+    {
+      "name": "Position 4",
+      "depths": [
+        {
+          "depth": 1,
+          "actual_nodes": 6,
+          "expected_nodes": 6,
+          "elapsed_seconds": 0.0,
+          "result": "pass"
+        },
+        {
+          "depth": 2,
+          "actual_nodes": 264,
+          "expected_nodes": 264,
+          "elapsed_seconds": 0.0,
+          "result": "pass"
+        },
+        {
+          "depth": 3,
+          "actual_nodes": 9467,
+          "expected_nodes": 9467,
+          "elapsed_seconds": 0.0,
+          "result": "pass"
+        },
+        {
+          "depth": 4,
+          "actual_nodes": 422333,
+          "expected_nodes": 422333,
+          "elapsed_seconds": 0.013,
+          "result": "pass"
+        },
+        {
+          "depth": 5,
+          "actual_nodes": 15833292,
+          "expected_nodes": 15833292,
+          "elapsed_seconds": 0.503,
+          "result": "pass"
+        }
+      ]
+    },
+    {
+      "name": "Position 5",
+      "depths": [
+        {
+          "depth": 1,
+          "actual_nodes": 44,
+          "expected_nodes": 44,
+          "elapsed_seconds": 0.0,
+          "result": "pass"
+        },
+        {
+          "depth": 2,
+          "actual_nodes": 1486,
+          "expected_nodes": 1486,
+          "elapsed_seconds": 0.0,
+          "result": "pass"
+        },
+        {
+          "depth": 3,
+          "actual_nodes": 62379,
+          "expected_nodes": 62379,
+          "elapsed_seconds": 0.002,
+          "result": "pass"
+        },
+        {
+          "depth": 4,
+          "actual_nodes": 2103487,
+          "expected_nodes": 2103487,
+          "elapsed_seconds": 0.065,
+          "result": "pass"
+        },
+        {
+          "depth": 5,
+          "actual_nodes": 89941194,
+          "expected_nodes": 89941194,
+          "elapsed_seconds": 2.814,
+          "result": "pass"
+        }
+      ]
+    },
+    {
+      "name": "Position 6",
+      "depths": [
+        {
+          "depth": 1,
+          "actual_nodes": 46,
+          "expected_nodes": 46,
+          "elapsed_seconds": 0.0,
+          "result": "pass"
+        },
+        {
+          "depth": 2,
+          "actual_nodes": 2079,
+          "expected_nodes": 2079,
+          "elapsed_seconds": 0.0,
+          "result": "pass"
+        },
+        {
+          "depth": 3,
+          "actual_nodes": 89890,
+          "expected_nodes": 89890,
+          "elapsed_seconds": 0.003,
+          "result": "pass"
+        },
+        {
+          "depth": 4,
+          "actual_nodes": 3894594,
+          "expected_nodes": 3894594,
+          "elapsed_seconds": 0.112,
+          "result": "pass"
+        },
+        {
+          "depth": 5,
+          "actual_nodes": 164075551,
+          "expected_nodes": 164075551,
+          "elapsed_seconds": 4.721,
+          "result": "pass"
+        }
+      ]
+    }
+  ]
+}

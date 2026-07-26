@@ -11,9 +11,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-// standard starting position FEN string
-#define START_FEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-void skip_whitespace(const char** str);
+static void skip_whitespace(const char** str)
+{
+    while (**str && isspace((unsigned char)**str)) {
+        (*str)++;
+    }
+}
 
 static bool next_token(const char** command, char* out, size_t out_size)
 {
@@ -36,11 +39,11 @@ static bool next_token(const char** command, char* out, size_t out_size)
 static bool is_go_keyword(const char* token)
 {
     return !strcmp(token, "searchmoves") || !strcmp(token, "ponder")
-           || !strcmp(token, "wtime") || !strcmp(token, "btime")
-           || !strcmp(token, "winc") || !strcmp(token, "binc")
-           || !strcmp(token, "movestogo") || !strcmp(token, "depth")
-           || !strcmp(token, "nodes") || !strcmp(token, "mate")
-           || !strcmp(token, "movetime") || !strcmp(token, "infinite");
+        || !strcmp(token, "wtime") || !strcmp(token, "btime")
+        || !strcmp(token, "winc") || !strcmp(token, "binc")
+        || !strcmp(token, "movestogo") || !strcmp(token, "depth")
+        || !strcmp(token, "nodes") || !strcmp(token, "mate")
+        || !strcmp(token, "movetime") || !strcmp(token, "infinite");
 }
 
 static bool parse_next_int_token(const char** command, int* out)
@@ -75,8 +78,8 @@ static void handle_set_option_command(const char* command)
         }
 
         char* end_ptr = NULL;
-        errno         = 0;
-        long mb       = strtol(value, &end_ptr, 10);
+        errno = 0;
+        long mb = strtol(value, &end_ptr, 10);
         if (errno != 0 || end_ptr == value || *end_ptr != '\0') {
             printf("info string Invalid Hash value: %s\n", value);
             fflush(stdout);
@@ -119,19 +122,12 @@ int safe_line_read(char* line_input)
     return 1;
 }
 
-void skip_whitespace(const char** str)
-{
-    while (**str && isspace((unsigned char)**str)) {
-        (*str)++;
-    }
-}
-
 void handle_go_command(const char* command)
 {
-    SearchLimits go_cmd                 = { 0 };
-    bool         search_moves_specified = false;
-    CBoard       current_board;
-    bool         have_current_board = engine_copy_board(&current_board);
+    SearchLimits go_cmd = { 0 };
+    bool search_moves_specified = false;
+    CBoard current_board;
+    bool have_current_board = engine_copy_board(&current_board);
 
     char token[64];
     while (next_token(&command, token, sizeof(token))) {
@@ -139,7 +135,7 @@ void handle_go_command(const char* command)
             search_moves_specified = true;
             while (1) {
                 const char* saved = command;
-                char        moveToken[32];
+                char moveToken[32];
                 if (!next_token(&command, moveToken, sizeof(moveToken))) {
                     break;
                 }
@@ -150,15 +146,12 @@ void handle_go_command(const char* command)
                 }
 
                 char error_buf[128] = "";
-                Move move           = have_current_board
-                                          ? move_from_uci_string(&current_board, moveToken, error_buf,
-                                                                 sizeof(error_buf))
-                                          : MOVE_NONE;
+                Move move = have_current_board ? move_from_uci_string(&current_board, moveToken, error_buf, sizeof(error_buf))
+                                               : MOVE_NONE;
 
                 if (move != MOVE_NONE) {
                     if (go_cmd.search_moves.count < 256) {
-                        go_cmd.search_moves.moves[go_cmd.search_moves.count++]
-                            = move;
+                        go_cmd.search_moves.moves[go_cmd.search_moves.count++] = move;
                     }
                 } else if (engine_is_debug_mode()) {
                     printf("info string Invalid move in go "
@@ -261,12 +254,12 @@ static void handle_perft_command(const char* command)
     }
 
     for (int depth = 1; depth <= max_depth; depth++) {
-        CBoard   board   = base_board;
-        clock_t  start   = clock();
-        uint64_t nodes   = perft(&board, depth);
-        clock_t  end     = clock();
-        double   elapsed = (double)(end - start) / CLOCKS_PER_SEC;
-        double   nps     = elapsed > 0 ? nodes / elapsed : 0;
+        CBoard board = base_board;
+        clock_t start = clock();
+        uint64_t nodes = perft(&board, depth);
+        clock_t end = clock();
+        double elapsed = (double)(end - start) / CLOCKS_PER_SEC;
+        double nps = elapsed > 0 ? nodes / elapsed : 0;
 
         printf("perft depth %d nodes %" PRIu64 " nps %.0f time %.3f\n", depth, nodes,
                nps, elapsed);
@@ -296,7 +289,7 @@ void handle_position_command(const char* command)
         // Find optional " moves " token as a full keyword, not as a
         // set of chars.
         const char* moves_pos = strstr(command, " moves");
-        size_t      fen_length
+        size_t fen_length
             = moves_pos ? (size_t)(moves_pos - command) : strlen(command);
         while (fen_length > 0 && isspace((unsigned char)command[fen_length - 1])) {
             fen_length--;
@@ -309,7 +302,7 @@ void handle_position_command(const char* command)
         }
         strncpy(fen_copy, command, fen_length);
         fen_copy[fen_length] = '\0';
-        bool success         = engine_set_position_fen(fen_copy);
+        bool success = engine_set_position_fen(fen_copy);
         if (!success) {
             printf("info string Failed to parse FEN: %s\n", fen_copy);
             fflush(stdout);
@@ -341,7 +334,7 @@ void handle_position_command(const char* command)
 
             strncpy(algebraic_move_str, command, move_length);
             algebraic_move_str[move_length] = '\0';
-            char error_buf[128]             = "";
+            char error_buf[128] = "";
             if (!engine_apply_uci_move(
                     algebraic_move_str, error_buf, sizeof(error_buf))) {
                 printf("info string error: %s, making move %s\n", error_buf,
@@ -356,11 +349,10 @@ void handle_position_command(const char* command)
 }
 void uci_loop(void)
 {
-    static char line_input[8192]; // Buffer for reading input lines (max UCI
-                                  // command length is 512 characters)
+    static char line_input[8192]; // Buffer for reading input lines (max UCI command length is 512 characters)
     while (safe_line_read(line_input)) {
         const char* p = line_input;
-        char        command[32];
+        char command[32];
         if (!next_token(&p, command, sizeof(command))) {
             continue; // blank line
         }

@@ -8,6 +8,10 @@
 #include <stdint.h>
 
 #pragma once
+
+#define START_FEN \
+    "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+
 /**
  * @struct CBoard
  * @brief Complete chess position state used by movegen/search/eval.
@@ -58,8 +62,8 @@ typedef struct CBoard {
      */
     uint8_t castling_rights;
 
-    uint8_t  ep_square;        /**< Index (0-63) or 64 if none available */
-    uint16_t half_move_clock;  /**< Counter for the fifty-move rule */
+    uint8_t ep_square; /**< Index (0-63) or 64 if none available */
+    uint16_t half_move_clock; /**< Counter for the fifty-move rule */
     uint16_t full_move_number; /**< Incremented after every Black move */
 
     // --- Optimization ---
@@ -142,7 +146,7 @@ char* cboard_to_fen(CBoard* board);
  * NO_PIECE if the square is empty.
  */
 static inline PieceType cboard_get_piece_at_square(const CBoard* board,
-                                                   Square        square)
+                                                   Square square)
 {
     if (!board || square < A1 || square >= NO_SQUARE) {
         return NO_PIECE;
@@ -268,8 +272,8 @@ static inline void cboard_update_occupancies_for_move(CBoard* board, Square from
  * @param capturedColor The color of the piece being captured.
  */
 static inline void cboard_update_occupancies_for_capture(CBoard* board,
-                                                         Square  square,
-                                                         Color   captured_color)
+                                                         Square square,
+                                                         Color captured_color)
 {
     bitboard_clear_square_bit(&board->occupancy_bbs[captured_color], square);
     bitboard_clear_square_bit(&board->occupancy_bbs[2], square);

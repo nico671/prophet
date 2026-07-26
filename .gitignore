@@ -2,3 +2,4 @@ build/
 .env
 *.md
 !README.md
+*/__pycache__/

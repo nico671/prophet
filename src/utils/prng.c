@@ -7,10 +7,10 @@
 uint64_t ranval(ranctx* x)
 {
     uint64_t e = x->a - rot(x->b, 7);
-    x->a       = x->b ^ rot(x->c, 13);
-    x->b       = x->c + rot(x->d, 37);
-    x->c       = x->d + e;
-    x->d       = e + x->a;
+    x->a = x->b ^ rot(x->c, 13);
+    x->b = x->c + rot(x->d, 37);
+    x->c = x->d + e;
+    x->d = e + x->a;
     return x->d;
 }
 

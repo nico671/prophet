@@ -71,9 +71,9 @@ static inline int bitboard_lsb_index_safe(Bitboard bb)
 static inline int bitboard_pop_lsb_unsafe(Bitboard* bb)
 {
     int idx = __builtin_ctzll(*bb); // get lsb idx
-    *bb &= *bb - 1;                 // clear lsb, this op flips lsb to 0 and all bits
-                                    // to the right of it to 1, so ANDing with the
-                                    // original bb clears the lsb
+    *bb &= *bb - 1; // clear lsb, this op flips lsb to 0 and all bits
+                    // to the right of it to 1, so ANDing with the
+                    // original bb clears the lsb
     return idx;
 }
 

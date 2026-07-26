@@ -30,14 +30,14 @@ typedef uint16_t Move;
 // Move list structure
 typedef struct {
     Move moves[256]; // Maximum possible moves in a position
-    int  count;
+    int count;
 } MoveList;
 
 typedef enum {
-    NORMAL     = 0,
-    PROMO      = 1u << 14,
+    NORMAL = 0,
+    PROMO = 1u << 14,
     EN_PASSANT = 2u << 14,
-    CASTLE     = 3u << 14
+    CASTLE = 3u << 14
 } MoveType;
 
 /**
@@ -49,7 +49,7 @@ typedef enum {
  * @param promo_piece The piece type for promotion moves.
  * @return Move The created move.
  */
-Move   create_move(Square from, Square to, MoveType type, PieceType promo_piece);
+Move create_move(Square from, Square to, MoveType type, PieceType promo_piece);
 Square move_get_from_square(Move move);
 
 Square move_get_to_square(Move move);
@@ -57,14 +57,14 @@ Square move_get_to_square(Move move);
 MoveType move_get_move_type(Move move);
 
 PieceType move_get_promotion_piecetype(Move move);
-bool      move_is_enpassant(Move move);
-bool      move_is_promotion(Move move);
-bool      move_is_castling(Move move);
-bool      move_is_capture(const CBoard* board, Move move);
-bool      move_is_quiet(const CBoard* board, Move move);
-void      move_to_uci_string(Move move, char out[6]);
-Move      move_from_uci_string(const CBoard* board, const char* move_str, char* error_buf,
-                               size_t error_buf_size);
+bool move_is_enpassant(Move move);
+bool move_is_promotion(Move move);
+bool move_is_castling(Move move);
+bool move_is_capture(const CBoard* board, Move move);
+bool move_is_quiet(const CBoard* board, Move move);
+void move_to_uci_string(Move move, char out[6]);
+Move move_from_uci_string(const CBoard* board, const char* move_str, char* error_buf,
+                          size_t error_buf_size);
 /**
  * @brief Structure to store information needed to undo a move on the
  * chess board. This includes the:
@@ -80,15 +80,15 @@ Move      move_from_uci_string(const CBoard* board, const char* move_str, char* 
  * - previous castling rights, and the previous Zobrist hash key.
  */
 typedef struct UndoInfo {
-    PieceType captured_piecetype;      // What was captured (NO_PIECE if none)
-    Square    captured_square;         // Where the captured piece was (NO_SQUARE
-                                       // if none)
-    uint8_t previous_ep_square;        // Previous en passant square (or
-                                       // NO_SQUARE)
-    uint16_t previous_halfmove_clock;  // Previous 50-move counter
-    uint8_t  previous_castling_rights; // 0..15 bitfield
-    uint64_t previous_zobrist_key;     // Zobrist key before the move was
-                                       // made (used for undoing the move)
+    PieceType captured_piecetype; // What was captured (NO_PIECE if none)
+    Square captured_square; // Where the captured piece was (NO_SQUARE
+                            // if none)
+    uint8_t previous_ep_square; // Previous en passant square (or
+                                // NO_SQUARE)
+    uint16_t previous_halfmove_clock; // Previous 50-move counter
+    uint8_t previous_castling_rights; // 0..15 bitfield
+    uint64_t previous_zobrist_key; // Zobrist key before the move was
+                                   // made (used for undoing the move)
 } UndoInfo;
 
 #endif // PROPHET_MOVE_H

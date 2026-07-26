@@ -12,9 +12,6 @@
 #include <stdio.h>
 #include <string.h>
 
-// standard starting position FEN string
-#define START_FEN "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
-
 /**
  * @brief Sets the error message in the provided buffer.
  * @param error_buf The buffer to store the error message.
@@ -33,12 +30,12 @@ static void set_error(char* error_buf, size_t error_buf_size, const char* messag
 }
 
 typedef struct {
-    CBoard        board;
-    pthread_t     search_thread;
-    SearchInput   search_input;
+    CBoard board;
+    pthread_t search_thread;
+    SearchInput search_input;
     SearchControl search_control;
-    bool          is_searching;
-    bool          is_debug_mode;
+    bool is_searching;
+    bool is_debug_mode;
 } EngineState;
 
 static EngineState engine_state = { 0 };
@@ -64,7 +61,7 @@ void engine_init(void)
 
     search_control_reset(&engine_state.search_control, false);
 
-    engine_state.is_searching  = false;
+    engine_state.is_searching = false;
     engine_state.is_debug_mode = false;
 
     // set initial board position to standard starting position, not
@@ -152,7 +149,7 @@ bool engine_start_search(const SearchLimits* limits, char* error_buf,
     search_control_reset(&engine_state.search_control, limits->ponder);
     engine_state.is_searching = true;
 
-    engine_state.search_input.board  = engine_state.board;
+    engine_state.search_input.board = engine_state.board;
     engine_state.search_input.limits = *limits;
 
     if (pthread_create(

@@ -10,7 +10,7 @@
 #include <stdlib.h>
 
 TTEntry* tt_table = NULL;
-size_t   tt_size  = 0;
+size_t tt_size = 0;
 
 static bool is_move_legal_in_position(CBoard* board, Move move)
 {
@@ -44,11 +44,11 @@ void init_tt(size_t megabytes)
     if (tt_table != NULL) {
         free(tt_table);
         tt_table = NULL;
-        tt_size  = 0;
+        tt_size = 0;
     }
 
     size_t entries = (megabytes * 1024 * 1024) / sizeof(TTEntry);
-    tt_size        = floor_pow2(entries);
+    tt_size = floor_pow2(entries);
     if (tt_size == 0) {
         fprintf(stderr, "Transposition table size must be greater than 0\n");
         exit(1);
@@ -65,10 +65,10 @@ void clear_tt(void)
 {
     for (size_t i = 0; i < tt_size; i++) {
         tt_table[i].zobrist_key = 0;
-        tt_table[i].score       = 0;
-        tt_table[i].depth       = -1;
-        tt_table[i].bound       = TT_ALL;
-        tt_table[i].best_move   = create_move(NO_SQUARE, NO_SQUARE, NORMAL, NO_PIECE);
+        tt_table[i].score = 0;
+        tt_table[i].depth = -1;
+        tt_table[i].bound = TT_ALL;
+        tt_table[i].best_move = create_move(NO_SQUARE, NO_SQUARE, NORMAL, NO_PIECE);
     }
 }
 
@@ -83,23 +83,23 @@ void store_tt(uint64_t key, int depth, int score, TTBound bound, Move best_move)
     TTEntry* entry = &tt_table[index];
 
     bool key_matches = (entry->zobrist_key == key);
-    bool empty_slot  = (entry->zobrist_key == 0);
+    bool empty_slot = (entry->zobrist_key == 0);
 
     // Replace if slot is empty, if we're refreshing same position, or
     // if this entry is more valuable
     if (empty_slot || key_matches || depth > entry->depth || bound == TT_PV) {
         entry->zobrist_key = key;
-        entry->score       = score;
-        entry->depth       = depth;
-        entry->bound       = bound;
-        entry->best_move   = best_move;
+        entry->score = score;
+        entry->depth = depth;
+        entry->bound = bound;
+        entry->best_move = best_move;
     }
 }
 
 TTEntry* probe_tt(uint64_t key)
 {
     if (key == 0 || tt_size == 0 || tt_table == NULL) {
-        return NULL;                    // TT not initialized or invalid key
+        return NULL; // TT not initialized or invalid key
     }
     size_t index = key & (tt_size - 1); // Equivalent to key % tt_size when
                                         // tt_size is a power of 2
@@ -112,7 +112,7 @@ TTEntry* probe_tt(uint64_t key)
 
 int extract_pv_line(CBoard* board, Move* pv_move_list, int max_depth)
 {
-    int      count = 0;
+    int count = 0;
     UndoInfo undo_stack[256];
 
     while (count < max_depth) {
@@ -154,6 +154,6 @@ void free_tt(void)
     if (tt_table != NULL) {
         free(tt_table);
         tt_table = NULL;
-        tt_size  = 0;
+        tt_size = 0;
     }
 }

@@ -106,11 +106,11 @@ typedef enum { WHITE = 0,
  */
 typedef enum {
     NO_PIECE = 0,
-    PAWN     = 1,
-    KNIGHT   = 2,
-    BISHOP   = 3,
-    ROOK     = 4,
-    QUEEN    = 5,
-    KING     = 6
+    PAWN = 1,
+    KNIGHT = 2,
+    BISHOP = 3,
+    ROOK = 4,
+    QUEEN = 5,
+    KING = 6
 } PieceType;
 #endif // CHESS_TYPES_H
