@@ -30,6 +30,10 @@ build build_mode="dev":
         cc + " " + cstd + " " + warnflags + " " + cppflags + " " + dev_cflags + " " + sources + " -o artifacts/" + branch + "/prophet-" + build_mode \
     } }}
 
+run build_mode="dev":
+    @echo "Running chess engine in [{{build_mode}}] mode for branch [{{branch}}]..."
+    @artifacts/{{branch}}/prophet-{{build_mode}}
+
 clean:
     rm -rf {{builddir}} artifacts/{{branch}}/prophet-*
 

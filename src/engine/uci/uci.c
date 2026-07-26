@@ -1,7 +1,7 @@
-#include "engine/uci/uci.h"
-#include "engine/engine.h"
 #include "chess/perft/perft.h"
+#include "engine/engine.h"
 #include "engine/search/search.h"
+#include "engine/uci/uci.h"
 
 #include <ctype.h>
 #include <errno.h>
@@ -11,6 +11,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+/**
+ * @brief Skip leading whitespace characters in a string.
+ *
+ * @param str Pointer to the string to process. This pointer will be updated to point
+ * to the first non-whitespace character in the string.
+ */
 static void skip_whitespace(const char** str)
 {
     while (**str && isspace((unsigned char)**str)) {
@@ -18,6 +25,15 @@ static void skip_whitespace(const char** str)
     }
 }
 
+/**
+ * @brief Extract the next token from a command string.
+ *
+ * @param command Pointer to the command string. This pointer will be updated to point
+ * to the character after the extracted token.
+ * @param out Buffer to store the extracted token.
+ * @param out_size Size of the output buffer.
+ * @return true if a token was extracted, false otherwise.
+ */
 static bool next_token(const char** command, char* out, size_t out_size)
 {
     skip_whitespace(command);
@@ -108,16 +124,45 @@ static void handle_set_option_command(const char* command)
     fflush(stdout);
 }
 
-int safe_line_read(char* line_input)
+static bool safe_line_read(char** line_input, size_t* capacity)
 {
-    if (fgets(line_input, 8192, stdin) == NULL) {
-        return 0;
+    if (*line_input == NULL || *capacity == 0) {
+        *capacity = 256;
+        *line_input = malloc(*capacity);
+        if (*line_input == NULL) {
+            return false;
+        }
     }
-    size_t ender_pos = strcspn(line_input, "\r\n");
-    if (ender_pos < strlen(line_input)) {
-        line_input[ender_pos] = '\0'; // Remove newline characters
+
+    size_t len = 0;
+    int ch = EOF;
+    while ((ch = fgetc(stdin)) != EOF) {
+        if (ch == '\n') {
+            break;
+        }
+        if (ch == '\r') {
+            continue;
+        }
+
+        if (len + 1 >= *capacity) {
+            size_t new_capacity = *capacity * 2;
+            char* new_line_input = realloc(*line_input, new_capacity);
+            if (new_line_input == NULL) {
+                return false;
+            }
+            *line_input = new_line_input;
+            *capacity = new_capacity;
+        }
+
+        (*line_input)[len++] = (char)ch;
     }
-    return 1;
+
+    if (ch == EOF && len == 0) {
+        return false;
+    }
+
+    (*line_input)[len] = '\0';
+    return true;
 }
 
 void handle_go_command(const char* command)
@@ -341,13 +386,14 @@ void handle_position_command(const char* command)
 }
 void uci_loop(void)
 {
-    static char line_input[8192]; // Buffer for reading input lines (max UCI command length is 512
-                                  // characters)
-    while (safe_line_read(line_input)) {
+    char* line_input = NULL;
+    size_t line_capacity = 0;
+
+    while (safe_line_read(&line_input, &line_capacity)) {
         const char* p = line_input;
         char command[32];
         if (!next_token(&p, command, sizeof(command))) {
-            continue; // blank line
+            continue; // continue if input is empty or only whitespace
         }
         if (!strcmp(command, "quit")) {
             engine_shutdown();
@@ -414,4 +460,6 @@ void uci_loop(void)
             }
         }
     }
+
+    free(line_input);
 }
