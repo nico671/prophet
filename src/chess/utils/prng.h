@@ -11,6 +11,9 @@ typedef struct {
 } ranctx;
 // Rotation macro for 64-bit bits
 #define rot(x, k) (((x) << (k)) | ((x) >> (64 - (k))))
+/** @brief Seeds a Bob Jenkins RKISS generator. */
 void raninit(ranctx* x, uint64_t seed);
+
+/** @brief Returns the next value from a seeded RKISS generator. */
 uint64_t ranval(ranctx* x);
 #endif // PRNG_H

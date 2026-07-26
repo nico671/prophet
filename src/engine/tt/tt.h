@@ -7,23 +7,9 @@
 #include <stdint.h>
 
 /**
- * @brief Represents the type of a transposition table entry
+ * @brief Bound type stored in a transposition-table entry.
  *
- * PV-nodes (Knuth's Type 1) are nodes that have a score that ends up
- * being inside the window. So if the bounds passed are [a,b], with
- * the score returned s, a<s<b. These nodes have all moves searched,
- * and the value returned is exact (i.e., not a bound), which
- * propagates up to the root along with a principal variation.
- *
- * Cut-nodes, known as fail-high nodes, are nodes in which a
- * beta-cutoff was performed. So with bounds [a,b], s>=b. A minimum of
- * one move at a Cut-node needs to be searched. The score returned is
- * a lower bound (might be greater) on the exact score of the node
- *
- * All-nodes, known as fail-low nodes, are nodes in which no move's
- * score exceeded alpha. With bounds [a,b], s<=a. Every move at an
- * All-node is searched, and the score returned is an upper bound, the
- * exact score might be less.
+ * PV is exact, CUT is a lower bound, and ALL is an upper bound.
  */
 typedef enum {
     TT_PV,
@@ -41,11 +27,23 @@ typedef struct {
 
 extern TTEntry* tt_table;
 extern size_t tt_size; // Number of entries (must be a power of 2)
+
+/** @brief Reconstructs a principal variation from transposition-table moves. */
 int extract_pv_line(CBoard* board, Move* pv_move_list, int max_depth);
+
+/** @brief Allocates and clears a table of up to @p megabytes. */
 void init_tt(size_t megabytes);
+
+/** @brief Invalidates every transposition-table entry. */
 void clear_tt(void);
+
+/** @brief Stores a search result, replacing the current slot when appropriate. */
 void store_tt(uint64_t key, int depth, int score, TTBound bound, Move best_move);
+
+/** @brief Returns the matching entry for @p key, or NULL. */
 TTEntry* probe_tt(uint64_t key);
+
+/** @brief Releases the allocated table and resets its globals. */
 void free_tt(void);
 
 #endif // PROPHET_TT_H

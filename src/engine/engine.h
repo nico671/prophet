@@ -8,13 +8,9 @@
 typedef struct SearchLimits SearchLimits;
 
 /**
- * @brief Initializes the chess engine, setting up global state and
- * data structures including sliding attack tables, Zobrist hashing
- * keys, evaluation parameters, and the transposition table. This
- * function is idempotent and can be safely called multiple times
- * without adverse effects. It must be called before any search or
- * move generation functions are used to ensure that all necessary
- * data structures are properly initialized.
+ * @brief Initializes tables, evaluation state, and the transposition table.
+ *
+ * Safe to call more than once; call before search or move generation.
  */
 void engine_init(void);
 
@@ -44,7 +40,8 @@ void engine_new_game(void);
  * @brief Start a search for the current position with the provided
  * limits.
  */
-bool engine_start_search(const SearchLimits* limits, char* error_buf, size_t error_buf_size);
+bool engine_start_search(const SearchLimits* limits, char* error_buf,
+                         size_t error_buf_size);
 
 /**
  * @brief Stop any active search thread.

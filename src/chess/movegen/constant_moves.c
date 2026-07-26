@@ -15,32 +15,33 @@ void gen_all_pseudolegal_king_noncastling_moves(CBoard* board, MoveList* move_li
 {
     Color side_to_move = board->side_to_move;
     Bitboard side_to_move_king_bb = board->piece_bbs[side_to_move][KING];
-    Bitboard opponent_pieces_bb
-        = board->occupancy_bbs[1 - side_to_move] & ~(board->piece_bbs[1 - side_to_move][KING]);
+    Bitboard opponent_pieces_bb = board->occupancy_bbs[1 - side_to_move]
+        & ~(board->piece_bbs[1 - side_to_move][KING]);
     if (!bitboard_is_empty(side_to_move_king_bb)) {
-        Square from
-            = bitboard_pop_lsb_unsafe(&side_to_move_king_bb); // because of if gaurd, we know
-                                                              // there exists some lsb, so use
-                                                              // unsafe version for efficiency
+        Square from = bitboard_pop_lsb_unsafe(
+            &side_to_move_king_bb); // because of if gaurd, we know
+                                    // there exists some lsb, so use
+                                    // unsafe version for efficiency
         Bitboard king_attacks_bb = get_king_attack_bitboard(from);
 
         Bitboard king_captures_bb = king_attacks_bb & opponent_pieces_bb;
         while (king_captures_bb) {
-            Square to = bitboard_pop_lsb_unsafe(&king_captures_bb); // because of while condition,
-                                                                    // we know there exists some
-                                                                    // lsb, so use unsafe version
-                                                                    // for efficiency
+            Square to = bitboard_pop_lsb_unsafe(
+                &king_captures_bb); // because of while condition,
+                                    // we know there exists some
+                                    // lsb, so use unsafe version
+                                    // for efficiency
             Move move = create_move(from, to, NORMAL, NO_PIECE);
             move_list->moves[move_list->count++] = move;
         }
 
         Bitboard king_quite_moves_bb = king_attacks_bb & ~(board->occupancy_bbs[2]);
         while (king_quite_moves_bb) {
-            Square to
-                = bitboard_pop_lsb_unsafe(&king_quite_moves_bb); // because of while condition,
-                                                                 // we know there exists some
-                                                                 // lsb, so use unsafe version
-                                                                 // for efficiency
+            Square to = bitboard_pop_lsb_unsafe(
+                &king_quite_moves_bb); // because of while condition,
+                                       // we know there exists some
+                                       // lsb, so use unsafe version
+                                       // for efficiency
             Move move = create_move(from, to, NORMAL, NO_PIECE);
             move_list->moves[move_list->count++] = move;
         }
@@ -184,13 +185,15 @@ void gen_all_pseudolegal_double_pawn_pushes(CBoard* board, MoveList* move_list)
         Bitboard single_pawn_pushes_bb
             = bitboard_shift_north(side_to_move_pawns_bb) & empty_squares_bb;
         // Second push must also land on empty square
-        double_pawn_pushes_bb = bitboard_shift_north(single_pawn_pushes_bb) & empty_squares_bb;
+        double_pawn_pushes_bb
+            = bitboard_shift_north(single_pawn_pushes_bb) & empty_squares_bb;
     } else {
         // First push must land on empty square
         Bitboard single_pawn_pushes_bb
             = bitboard_shift_south(side_to_move_pawns_bb) & empty_squares_bb;
         // Second push must also land on empty square
-        double_pawn_pushes_bb = bitboard_shift_south(single_pawn_pushes_bb) & empty_squares_bb;
+        double_pawn_pushes_bb
+            = bitboard_shift_south(single_pawn_pushes_bb) & empty_squares_bb;
     }
 
     // Iterate through each square in the double pushes bitboard
@@ -210,8 +213,8 @@ void gen_all_pseudolegal_pawn_captures(CBoard* board, MoveList* move_list)
     side_to_move_pawns_bb &= ~promotion_rank_bb; // exclude side_to_move_pawns_bb on
                                                  // promotion rank, handled in
                                                  // promotions function
-    Bitboard opponent_pieces_bb
-        = board->occupancy_bbs[1 - side_to_move] & ~(board->piece_bbs[1 - side_to_move][KING]);
+    Bitboard opponent_pieces_bb = board->occupancy_bbs[1 - side_to_move]
+        & ~(board->piece_bbs[1 - side_to_move][KING]);
 
     while (side_to_move_pawns_bb) {
         Square from = bitboard_pop_lsb_unsafe(&side_to_move_pawns_bb);
@@ -231,8 +234,8 @@ void gen_all_pseudolegal_pawn_promotions(CBoard* board, MoveList* move_list)
     Color side_to_move = board->side_to_move;
     Bitboard side_to_move_pawns_bb = board->piece_bbs[side_to_move][PAWN];
     Bitboard empty_squares_bb = ~(board->occupancy_bbs[2]);
-    Bitboard opponent_pieces_bb
-        = board->occupancy_bbs[1 - side_to_move] & ~(board->piece_bbs[1 - side_to_move][KING]);
+    Bitboard opponent_pieces_bb = board->occupancy_bbs[1 - side_to_move]
+        & ~(board->piece_bbs[1 - side_to_move][KING]);
 
     Bitboard promotion_rank_bb = (side_to_move == WHITE) ? RANK_7 : RANK_2;
     side_to_move_pawns_bb &= promotion_rank_bb;

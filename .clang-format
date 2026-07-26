@@ -1,5 +1,5 @@
 BasedOnStyle: WebKit
 SortIncludes: true
 AlignAfterOpenBracket: true
-ColumnLimit: 100
-ReflowComments: true
+ColumnLimit: 90
+ReflowComments: true                                                                    

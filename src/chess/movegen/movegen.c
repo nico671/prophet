@@ -10,10 +10,11 @@
 
 #include <stdbool.h>
 
-void gen_all_pseudolegal_moves(CBoard* board,
-                               MoveList* moveList) // TODO: refactor movegen to have less reused
-                                                   // code everywhere, all individual piece gen
-                                                   // is abt the same minus pawns and kings
+void gen_all_pseudolegal_moves(
+    CBoard* board,
+    MoveList* moveList) // TODO: refactor movegen to have less reused
+                        // code everywhere, all individual piece gen
+                        // is abt the same minus pawns and kings
 {
     gen_all_pseudolegal_pawn_moves(board, moveList);
     gen_all_pseudolegal_knight_moves(board, moveList);

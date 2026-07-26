@@ -2,9 +2,9 @@
 
 #include "chess/board/cboard.h"
 #include "chess/board/zobrist.h"
-#include "engine/eval/hceval.h"
 #include "chess/movegen/move_make.h"
 #include "chess/movegen/movegen.h"
+#include "engine/eval/hceval.h"
 #include "engine/tt/tt.h"
 
 #include <assert.h>
@@ -47,8 +47,8 @@ static TimeLimits compute_time_limits(SearchLimits search_limits, Color side_to_
 static bool should_stop_search(SearchContext* ctx);
 static int search_root_best_move(SearchContext* ctx, CBoard* board, int depth,
                                  Move* prev_best_move);
-static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int beta, Color color,
-                   int ply);
+static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int beta,
+                   Color color, int ply);
 static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int ply);
 static void score_moves(SearchContext* ctx, CBoard* board, MoveList* move_list,
                         ScoredMove* scored_moves, Move tt_move, int ply);
@@ -70,7 +70,10 @@ static PieceType captured_piece_for_move(const CBoard* board, Move move)
     return cboard_get_piece_at_square(board, to);
 }
 
-static bool is_mate_score(int score) { return score >= MATE_THRESHOLD || score <= -MATE_THRESHOLD; }
+static bool is_mate_score(int score)
+{
+    return score >= MATE_THRESHOLD || score <= -MATE_THRESHOLD;
+}
 
 static inline bool is_valid_square_index(Square square)
 {
@@ -386,7 +389,8 @@ static void unmake_null_move(CBoard* board, NullMoveUndo undo)
  * Applies move ordering, iterates legal root moves, and updates the
  * TT with the best score found at this depth.
  */
-static int search_root_best_move(SearchContext* ctx, CBoard* board, int depth, Move* prev_best_move)
+static int search_root_best_move(SearchContext* ctx, CBoard* board, int depth,
+                                 Move* prev_best_move)
 {
     MoveList move_list;
     init_move_list(&move_list);
@@ -524,8 +528,10 @@ void search_run(const SearchInput* input, SearchControl* control)
         }
 
         Move depth_best_move = best_move;
-        int score = search_root_best_move(&ctx, &ctx.board, current_depth, &depth_best_move);
-        if (!should_stop_search(&ctx) && move_get_from_square(depth_best_move) != NO_SQUARE) {
+        int score
+            = search_root_best_move(&ctx, &ctx.board, current_depth, &depth_best_move);
+        if (!should_stop_search(&ctx)
+            && move_get_from_square(depth_best_move) != NO_SQUARE) {
             best_move = depth_best_move;
             best_score = score;
         }
@@ -588,7 +594,8 @@ void search_run(const SearchInput* input, SearchControl* control)
             }
 
             // Early Abort Optimization
-            if (time_limits.hard_limit_ms > 0 && elapsed > (time_limits.hard_limit_ms * 0.6)) {
+            if (time_limits.hard_limit_ms > 0
+                && elapsed > (time_limits.hard_limit_ms * 0.6)) {
                 break;
             }
         }
@@ -630,7 +637,8 @@ static void score_moves(SearchContext* ctx, CBoard* board, MoveList* move_list,
             PieceType captured_piecetype = captured_piece_for_move(board, curr_move);
             int mvv_lva = 0;
             if (captured_piecetype != NO_PIECE && attacker_piecetype != NO_PIECE) {
-                mvv_lva = piece_value(captured_piecetype) - piece_value(attacker_piecetype);
+                mvv_lva
+                    = piece_value(captured_piecetype) - piece_value(attacker_piecetype);
             }
 
             int promo_bonus = 0;
@@ -751,8 +759,8 @@ static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int
 /**
  * @brief Alpha-beta negamax with TT, null-move pruning, and PVS/LMR.
  */
-static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int beta, Color color,
-                   int ply)
+static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int beta,
+                   Color color, int ply)
 {
     ctx->node_count++;
 
@@ -796,8 +804,8 @@ static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int b
         int reduction = 2 + (depth >= 6 ? 1 : 0);
         NullMoveUndo null_undo_info = make_null_move(node);
         Color next_side = 1 - side;
-        int null_score
-            = -negamax(ctx, node, depth - 1 - reduction, -beta, -beta + 1, next_side, ply + 1);
+        int null_score = -negamax(ctx, node, depth - 1 - reduction, -beta, -beta + 1,
+                                  next_side, ply + 1);
         unmake_null_move(node, null_undo_info);
 
         if (null_score >= beta) {
@@ -848,7 +856,8 @@ static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int b
             }
 
             // PVS scout search with null window (\alpha , \alpha + 1)
-            eval = -negamax(ctx, node, reduced_depth, -alpha - 1, -alpha, next_side, ply + 1);
+            eval = -negamax(ctx, node, reduced_depth, -alpha - 1, -alpha, next_side,
+                            ply + 1);
 
             // Re-search if scout failed high (score > alpha), search
             // with full window
@@ -898,6 +907,7 @@ static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int b
     } else if (max_eval >= beta) {
         bound = TT_CUT;
     }
-    store_tt(node->zobrist_key, depth, to_tt_score(max_eval, ply), bound, best_move_at_node);
+    store_tt(node->zobrist_key, depth, to_tt_score(max_eval, ply), bound,
+             best_move_at_node);
     return max_eval;
 }

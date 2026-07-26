@@ -99,12 +99,14 @@ bool move_is_capture(const CBoard* board, Move move)
 
 bool move_is_quiet(const CBoard* board, Move move)
 {
-    return !move_is_capture(board, move) && !move_is_castling(move) && !move_is_promotion(move);
+    return !move_is_capture(board, move) && !move_is_castling(move)
+        && !move_is_promotion(move);
 }
 
 void move_to_uci_string(Move move, char out[6])
 {
-    if (move_get_from_square(move) == NO_SQUARE || move_get_to_square(move) == NO_SQUARE) {
+    if (move_get_from_square(move) == NO_SQUARE
+        || move_get_to_square(move) == NO_SQUARE) {
         strcpy(out, "0000");
         return;
     }
@@ -158,7 +160,8 @@ Move move_from_uci_string(const CBoard* board, const char* move_str, char* error
     init_move_list(&move_list);
     generate_legal_moves(&board_copy, &move_list);
 
-    char promotion_char = move_len == 5 ? (char)tolower((unsigned char)move_str[4]) : '\0';
+    char promotion_char
+        = move_len == 5 ? (char)tolower((unsigned char)move_str[4]) : '\0';
 
     for (int i = 0; i < move_list.count; i++) {
         Move move = move_list.moves[i];
@@ -173,7 +176,8 @@ Move move_from_uci_string(const CBoard* board, const char* move_str, char* error
         }
 
         PieceType promo = move_get_promotion_piecetype(move);
-        if ((promotion_char == 'n' && promo == KNIGHT) || (promotion_char == 'b' && promo == BISHOP)
+        if ((promotion_char == 'n' && promo == KNIGHT)
+            || (promotion_char == 'b' && promo == BISHOP)
             || (promotion_char == 'r' && promo == ROOK)
             || (promotion_char == 'q' && promo == QUEEN)) {
             return move;

@@ -53,7 +53,8 @@ void print_cboard(CBoard* board)
     printf("En passant square: %d\n", board->ep_square);
     printf("Halfmove clock: %d\n", board->half_move_clock);
     printf("Fullmove number: %d\n", board->full_move_number);
-    printf("Castling rights: %s%s%s%s\n", U8_CHECK_BIT(board->castling_rights, 3) ? "K" : "",
+    printf("Castling rights: %s%s%s%s\n",
+           U8_CHECK_BIT(board->castling_rights, 3) ? "K" : "",
            U8_CHECK_BIT(board->castling_rights, 2) ? "Q" : "",
            U8_CHECK_BIT(board->castling_rights, 1) ? "k" : "",
            U8_CHECK_BIT(board->castling_rights, 0) ? "q" : "");

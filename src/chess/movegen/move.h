@@ -33,7 +33,12 @@ typedef struct {
     int count;
 } MoveList;
 
-typedef enum { NORMAL = 0, PROMO = 1u << 14, EN_PASSANT = 2u << 14, CASTLE = 3u << 14 } MoveType;
+typedef enum {
+    NORMAL = 0,
+    PROMO = 1u << 14,
+    EN_PASSANT = 2u << 14,
+    CASTLE = 3u << 14
+} MoveType;
 
 /**
  * @brief Creates a move with the specified parameters.
@@ -45,19 +50,38 @@ typedef enum { NORMAL = 0, PROMO = 1u << 14, EN_PASSANT = 2u << 14, CASTLE = 3u 
  * @return Move The created move.
  */
 Move create_move(Square from, Square to, MoveType type, PieceType promo_piece);
+
+/** @brief Returns the encoded source square. */
 Square move_get_from_square(Move move);
 
+/** @brief Returns the encoded destination square. */
 Square move_get_to_square(Move move);
 
+/** @brief Returns the encoded move type. */
 MoveType move_get_move_type(Move move);
 
+/** @brief Returns the promotion piece encoded in @p move. */
 PieceType move_get_promotion_piecetype(Move move);
+
+/** @brief Reports whether @p move is an en-passant capture. */
 bool move_is_enpassant(Move move);
+
+/** @brief Reports whether @p move promotes a pawn. */
 bool move_is_promotion(Move move);
+
+/** @brief Reports whether @p move is castling. */
 bool move_is_castling(Move move);
+
+/** @brief Reports whether @p move captures, including en passant. */
 bool move_is_capture(const CBoard* board, Move move);
+
+/** @brief Reports whether @p move is neither a capture nor a promotion. */
 bool move_is_quiet(const CBoard* board, Move move);
+
+/** @brief Writes a UCI move string to the caller-provided six-byte buffer. */
 void move_to_uci_string(Move move, char out[6]);
+
+/** @brief Parses a legal UCI move in @p board, or returns MOVE_NONE. */
 Move move_from_uci_string(const CBoard* board, const char* move_str, char* error_buf,
                           size_t error_buf_size);
 /**

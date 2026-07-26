@@ -73,7 +73,8 @@ static inline int get_piece_index(PieceType piece, Color color)
  * @note This function includes a defensive guard to prevent toggling
  * for NO_SQUARE and ensures that the piece index is within bounds.
  */
-static inline void zobrist_toggle_piece(uint64_t* key, PieceType piece, Color color, Square square)
+static inline void zobrist_toggle_piece(uint64_t* key, PieceType piece, Color color,
+                                        Square square)
 {
     if ((unsigned)square < 64U) { // ensure valid square index
         int idx = get_piece_index(piece, color);

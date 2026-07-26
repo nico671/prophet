@@ -58,9 +58,11 @@ static bool should_hash_ep(const CBoard* board, Square ep_square)
         if (ep_square < A6 || ep_square > H6)
             return false;
 
-        if (ep_file > 0 && bitboard_is_bit_set(board->piece_bbs[WHITE][PAWN], ep_square - 9))
+        if (ep_file > 0
+            && bitboard_is_bit_set(board->piece_bbs[WHITE][PAWN], ep_square - 9))
             return true;
-        if (ep_file < 7 && bitboard_is_bit_set(board->piece_bbs[WHITE][PAWN], ep_square - 7))
+        if (ep_file < 7
+            && bitboard_is_bit_set(board->piece_bbs[WHITE][PAWN], ep_square - 7))
             return true;
         return false;
     }

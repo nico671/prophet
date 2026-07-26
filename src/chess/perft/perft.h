@@ -5,7 +5,10 @@
 
 #include <stdint.h>
 
+/** @brief Counts legal move-tree nodes to @p depth without changing @p board. */
 uint64_t perft(CBoard* board, int depth);
+
+/** @brief Prints and counts per-root-move perft totals. */
 uint64_t divide(CBoard* board, int depth);
 
 typedef struct {
@@ -15,5 +18,6 @@ typedef struct {
     int max_depth;
 } PerftTest;
 
+/** @brief Runs the built-in perft regression positions. */
 void run_perft_test_suite(void);
 #endif // PERFT_CORE_H

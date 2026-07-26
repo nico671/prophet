@@ -1,10 +1,10 @@
 #include "engine/engine.h"
 
 #include "chess/board/zobrist.h"
-#include "engine/eval/hceval.h"
 #include "chess/movegen/move_make.h"
 #include "chess/movegen/movegen.h"
 #include "chess/movegen/sliding_attacks.h"
+#include "engine/eval/hceval.h"
 #include "engine/search/search.h"
 #include "engine/tt/tt.h"
 
@@ -130,7 +130,8 @@ void engine_new_game(void)
     clear_tt();
 }
 
-bool engine_start_search(const SearchLimits* limits, char* error_buf, size_t error_buf_size)
+bool engine_start_search(const SearchLimits* limits, char* error_buf,
+                         size_t error_buf_size)
 {
     if (!limits) {
         set_error(error_buf, error_buf_size, "Search limits not provided");
@@ -149,7 +150,8 @@ bool engine_start_search(const SearchLimits* limits, char* error_buf, size_t err
     engine_state.search_input.board = engine_state.board;
     engine_state.search_input.limits = *limits;
 
-    if (pthread_create(&engine_state.search_thread, NULL, search_thread_main, NULL) != 0) {
+    if (pthread_create(&engine_state.search_thread, NULL, search_thread_main, NULL)
+        != 0) {
         set_error(error_buf, error_buf_size, "failed to create search thread");
         engine_state.is_searching = false;
         return false;
@@ -161,7 +163,8 @@ bool engine_start_search(const SearchLimits* limits, char* error_buf, size_t err
 void engine_handle_ponder_hit(void)
 {
     if (engine_state.is_searching) {
-        search_handle_ponder_hit(&engine_state.search_control, &engine_state.search_input);
+        search_handle_ponder_hit(&engine_state.search_control,
+                                 &engine_state.search_input);
     }
 }
 

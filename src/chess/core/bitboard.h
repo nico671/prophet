@@ -9,12 +9,7 @@
 /**
  * @brief Little-endian rank-file mapping bitboard representation.
  *
- * In this representation, the least significant bit (LSB) corresponds
- * to square A1, and the most significant bit (MSB) corresponds to
- * square H8.
- *
- * The bits are ordered such that the first 8 bits represent rank 1
- * (A1 to H1) and so on up to rank 8 (A8 to H8).
+ * A1 is the least significant bit and H8 is the most significant bit.
  */
 typedef uint64_t Bitboard;
 
@@ -38,13 +33,7 @@ static inline int bitboard_popcount(Bitboard bb) { return __builtin_popcountll(b
 static inline int bitboard_lsb_index_unsafe(Bitboard bb) { return __builtin_ctzll(bb); }
 
 /**
- * @brief Returns the index (0-63) of the least significant 1 bit in a
- * bitboard.
- * @note  This function is safe to use even if the bitboard is empty.
- *
- * @param bb The bitboard to analyze.
- * @return int The index of the least significant 1 bit, or NO_SQUARE
- * if the bitboard is empty.
+ * @brief Returns the least-significant set-bit index, or NO_SQUARE.
  */
 static inline int bitboard_lsb_index_safe(Bitboard bb)
 {
@@ -52,18 +41,9 @@ static inline int bitboard_lsb_index_safe(Bitboard bb)
 }
 
 /**
- * @brief Pops and returns the index (0-63) of the least significant 1
- * bit in a bitboard. The bitboard is modified in place by clearing
- * the least significant 1 bit.
+ * @brief Clears and returns the least-significant set-bit index.
  *
- * @note This function does not check if the bitboard is empty before
- * popping. It should only be used when the caller is certain that the
- * bitboard contains at least one piece, as calling it on an empty
- * bitboard will result in undefined behavior.
- *
- * @param bb The bitboard to pop from.
- * @return int The index of the least significant 1 bit, or NO_SQUARE
- * if the bitboard is empty.
+ * @note The input must be nonzero.
  */
 static inline int bitboard_pop_lsb_unsafe(Bitboard* bb)
 {
@@ -118,7 +98,10 @@ static const Bitboard RANK_8 = RANK_1 << 56;
  * @param sq The square index (0-63) to test.
  * @return int 1 if the bit is set, 0 otherwise.
  */
-static inline int bitboard_is_bit_set(Bitboard bb, Square sq) { return (int)((bb >> sq) & 1ULL); }
+static inline int bitboard_is_bit_set(Bitboard bb, Square sq)
+{
+    return (int)((bb >> sq) & 1ULL);
+}
 
 /**
  * @brief Shifts a bitboard one rank north (toward rank 8).

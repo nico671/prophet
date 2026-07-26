@@ -1,7 +1,7 @@
+#include "engine/uci/uci.h"
 #include "chess/perft/perft.h"
 #include "engine/engine.h"
 #include "engine/search/search.h"
-#include "engine/uci/uci.h"
 
 #include <ctype.h>
 #include <errno.h>
@@ -13,10 +13,11 @@
 #include <time.h>
 
 /**
- * @brief Skip leading whitespace characters in a string.
+ * @brief Advances a command cursor past leading whitespace.
  *
- * @param str Pointer to the string to process. This pointer will be updated to point
- * to the first non-whitespace character in the string.
+ * Leaves the cursor at the first non-whitespace character or NUL.
+ *
+ * @param str Address of the cursor to advance.
  */
 static void skip_whitespace(const char** str)
 {
@@ -26,13 +27,14 @@ static void skip_whitespace(const char** str)
 }
 
 /**
- * @brief Extract the next token from a command string.
+ * @brief Reads one whitespace-delimited token and advances the command cursor.
  *
- * @param command Pointer to the command string. This pointer will be updated to point
- * to the character after the extracted token.
- * @param out Buffer to store the extracted token.
- * @param out_size Size of the output buffer.
- * @return true if a token was extracted, false otherwise.
+ * Long tokens are truncated to fit @p out.
+ *
+ * @param command Address of the cursor to read and advance.
+ * @param out Destination buffer for a NUL-terminated token.
+ * @param out_size Capacity of @p out, which must be greater than zero.
+ * @return true when a token was read, or false when only whitespace remains.
  */
 static bool next_token(const char** command, char* out, size_t out_size)
 {
@@ -52,14 +54,32 @@ static bool next_token(const char** command, char* out, size_t out_size)
     return true;
 }
 
+/**
+ * @brief Reports whether a token starts a recognized `go` argument.
+ *
+ * Used to end a `searchmoves` list. Keep it in sync with handle_go_command().
+ *
+ * @param token NUL-terminated token to classify.
+ * @return true when @p token is a supported `go` keyword.
+ */
 static bool is_go_keyword(const char* token)
 {
-    return !strcmp(token, "searchmoves") || !strcmp(token, "ponder") || !strcmp(token, "wtime")
-        || !strcmp(token, "btime") || !strcmp(token, "winc") || !strcmp(token, "binc")
-        || !strcmp(token, "movestogo") || !strcmp(token, "depth") || !strcmp(token, "nodes")
-        || !strcmp(token, "mate") || !strcmp(token, "movetime") || !strcmp(token, "infinite");
+    return !strcmp(token, "searchmoves") || !strcmp(token, "ponder")
+        || !strcmp(token, "wtime") || !strcmp(token, "btime") || !strcmp(token, "winc")
+        || !strcmp(token, "binc") || !strcmp(token, "movestogo")
+        || !strcmp(token, "depth") || !strcmp(token, "nodes") || !strcmp(token, "mate")
+        || !strcmp(token, "movetime") || !strcmp(token, "infinite");
 }
 
+/**
+ * @brief Reads the next `go` numeric argument as an integer.
+ *
+ * Missing values fail; malformed values follow atoi() semantics and become zero.
+ *
+ * @param command Address of the cursor to read and advance.
+ * @param out Destination for the parsed value.
+ * @return false if no token is present; true after storing the atoi() result.
+ */
 static bool parse_next_int_token(const char** command, int* out)
 {
     char token[64];
@@ -71,6 +91,13 @@ static bool parse_next_int_token(const char** command, int* out)
     return true;
 }
 
+/**
+ * @brief Applies one supported UCI `setoption` command.
+ *
+ * Supports `Hash` and `Clear Hash`. Resizing stops an active search.
+ *
+ * @param command Remaining text from a `setoption` command.
+ */
 static void handle_set_option_command(const char* command)
 {
     char token[64];
@@ -124,6 +151,16 @@ static void handle_set_option_command(const char* command)
     fflush(stdout);
 }
 
+/**
+ * @brief Reads one CRLF- or LF-terminated UCI input line from standard input.
+ *
+ * Reuses and grows the caller-owned buffer. Returns false on EOF or allocation
+ * failure.
+ *
+ * @param line_input Address of the reusable, heap-allocated input buffer.
+ * @param capacity Address of that buffer's allocated capacity.
+ * @return true with a NUL-terminated line in @p line_input, otherwise false.
+ */
 static bool safe_line_read(char** line_input, size_t* capacity)
 {
     if (*line_input == NULL || *capacity == 0) {
@@ -165,6 +202,15 @@ static bool safe_line_read(char** line_input, size_t* capacity)
     return true;
 }
 
+/**
+ * @brief Parses a UCI `go` command and starts the requested search.
+ *
+ * `searchmoves` is validated against the current board. Invalid moves are
+ * ignored; an empty requested list emits `bestmove 0000`. Unknown fields are
+ * ignored and numeric fields use atoi()-style parsing.
+ *
+ * @param command Remaining text from a `go` command.
+ */
 void handle_go_command(const char* command)
 {
     SearchLimits go_cmd = { 0 };
@@ -190,7 +236,8 @@ void handle_go_command(const char* command)
 
                 char error_buf[128] = "";
                 Move move = have_current_board
-                    ? move_from_uci_string(&current_board, moveToken, error_buf, sizeof(error_buf))
+                    ? move_from_uci_string(&current_board, moveToken, error_buf,
+                                           sizeof(error_buf))
                     : MOVE_NONE;
 
                 if (move != MOVE_NONE) {
@@ -245,7 +292,8 @@ void handle_go_command(const char* command)
         printf("  time_for_black_ms: %d\n", go_cmd.time_for_black_ms);
         printf("  increment_for_white_ms: %d\n", go_cmd.increment_for_white_ms);
         printf("  increment_for_black_ms: %d\n", go_cmd.increment_for_black_ms);
-        printf("  moves_until_next_time_control: %d\n", go_cmd.moves_until_next_time_control);
+        printf("  moves_until_next_time_control: %d\n",
+               go_cmd.moves_until_next_time_control);
         printf("  depth_limit: %d\n", go_cmd.depth_limit);
         printf("  node_limit: %d\n", go_cmd.node_limit);
         printf("  search_for_mate_in_n_moves: %d\n", go_cmd.search_for_mate_in_n_moves);
@@ -260,6 +308,14 @@ void handle_go_command(const char* command)
     }
 }
 
+/**
+ * @brief Runs Prophet's non-standard perft command on the current position.
+ *
+ * Supports `perft <depth>` and `perft suite`; stops an active search first.
+ * NPS uses CPU time and is for development only.
+ *
+ * @param command Remaining text from a `perft` command.
+ */
 static void handle_perft_command(const char* command)
 {
     engine_stop_search();
@@ -302,10 +358,20 @@ static void handle_perft_command(const char* command)
         double elapsed = (double)(end - start) / CLOCKS_PER_SEC;
         double nps = elapsed > 0 ? nodes / elapsed : 0;
 
-        printf("perft depth %d nodes %" PRIu64 " nps %.0f time %.3f\n", depth, nodes, nps, elapsed);
+        printf("perft depth %d nodes %" PRIu64 " nps %.0f time %.3f\n", depth, nodes, nps,
+               elapsed);
         fflush(stdout);
     }
 }
+/**
+ * @brief Replaces the engine position and optionally plays a UCI move list.
+ *
+ * Accepts `startpos` or `fen`, optionally followed by `moves`, and stops an
+ * active search before changing the board. Invalid moves are reported but do
+ * not abort the remaining list.
+ *
+ * @param command Remaining text from a `position` command.
+ */
 void handle_position_command(const char* command)
 {
     engine_stop_search();
@@ -374,8 +440,10 @@ void handle_position_command(const char* command)
             strncpy(algebraic_move_str, command, move_length);
             algebraic_move_str[move_length] = '\0';
             char error_buf[128] = "";
-            if (!engine_apply_uci_move(algebraic_move_str, error_buf, sizeof(error_buf))) {
-                printf("info string error: %s, making move %s\n", error_buf, algebraic_move_str);
+            if (!engine_apply_uci_move(algebraic_move_str, error_buf,
+                                       sizeof(error_buf))) {
+                printf("info string error: %s, making move %s\n", error_buf,
+                       algebraic_move_str);
                 fflush(stdout);
             }
             command += move_length;
@@ -384,6 +452,12 @@ void handle_position_command(const char* command)
         }
     }
 }
+/**
+ * @brief Runs the stdin/stdout UCI command loop until `quit` or input EOF.
+ *
+ * Commands are dispatched serially while searches run on the engine thread.
+ * `isready` responds immediately; `quit` shuts down the engine.
+ */
 void uci_loop(void)
 {
     char* line_input = NULL;
