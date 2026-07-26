@@ -4,9 +4,9 @@
 // #include <stdio.h>
 // #include <stdlib.h>
 // #include <time.h>
-// #include "movegen/sliding_attacks.h"
-// #include "core/bitboard.h"
-// #include "core/bitops.h"
+// #include "chess/movegen/sliding_attacks.h"
+// #include "chess/core/bitboard.h"
+// #include "chess/core/bitops.h"
 
 // // Generate a random 64-bit number with few bits set (sparse)
 // static Bitboard randomBitboard()

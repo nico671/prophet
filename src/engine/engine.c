@@ -1,12 +1,12 @@
 #include "engine/engine.h"
 
-#include "board/zobrist.h"
-#include "eval/hceval.h"
-#include "movegen/move_make.h"
-#include "movegen/movegen.h"
-#include "movegen/sliding_attacks.h"
-#include "search/search.h"
-#include "tt/tt.h"
+#include "chess/board/zobrist.h"
+#include "engine/eval/hceval.h"
+#include "chess/movegen/move_make.h"
+#include "chess/movegen/movegen.h"
+#include "chess/movegen/sliding_attacks.h"
+#include "engine/search/search.h"
+#include "engine/tt/tt.h"
 
 #include <pthread.h>
 #include <stdio.h>
@@ -102,14 +102,12 @@ bool engine_set_position_fen(const char* fen)
     return fen_string_to_cboard(fen, &engine_state.board);
 }
 
-bool engine_apply_uci_move(const char* move_str, char* error_buf,
-                           size_t error_buf_size)
+bool engine_apply_uci_move(const char* move_str, char* error_buf, size_t error_buf_size)
 {
     // parse the move and verify legality using the current engine
     // position
     Move parsed_move
-        = move_from_uci_string(&engine_state.board, move_str, error_buf,
-                               error_buf_size);
+        = move_from_uci_string(&engine_state.board, move_str, error_buf, error_buf_size);
 
     if (parsed_move == MOVE_NONE) {
         set_error(error_buf, error_buf_size, "Invalid or illegal move");
@@ -132,8 +130,7 @@ void engine_new_game(void)
     clear_tt();
 }
 
-bool engine_start_search(const SearchLimits* limits, char* error_buf,
-                         size_t error_buf_size)
+bool engine_start_search(const SearchLimits* limits, char* error_buf, size_t error_buf_size)
 {
     if (!limits) {
         set_error(error_buf, error_buf_size, "Search limits not provided");
@@ -152,9 +149,7 @@ bool engine_start_search(const SearchLimits* limits, char* error_buf,
     engine_state.search_input.board = engine_state.board;
     engine_state.search_input.limits = *limits;
 
-    if (pthread_create(
-            &engine_state.search_thread, NULL, search_thread_main, NULL)
-        != 0) {
+    if (pthread_create(&engine_state.search_thread, NULL, search_thread_main, NULL) != 0) {
         set_error(error_buf, error_buf_size, "failed to create search thread");
         engine_state.is_searching = false;
         return false;
@@ -166,8 +161,7 @@ bool engine_start_search(const SearchLimits* limits, char* error_buf,
 void engine_handle_ponder_hit(void)
 {
     if (engine_state.is_searching) {
-        search_handle_ponder_hit(
-            &engine_state.search_control, &engine_state.search_input);
+        search_handle_ponder_hit(&engine_state.search_control, &engine_state.search_input);
     }
 }
 

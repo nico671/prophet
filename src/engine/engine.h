@@ -1,6 +1,6 @@
 #ifndef PROPHET_ENGINE_H
 #define PROPHET_ENGINE_H
-#include "board/cboard.h"
+#include "chess/board/cboard.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -33,8 +33,7 @@ bool engine_set_position_fen(const char* fen);
  * @brief Apply a UCI move string to the engine position if it is
  * legal.
  */
-bool engine_apply_uci_move(const char* move_str, char* error_buf,
-                           size_t error_buf_size);
+bool engine_apply_uci_move(const char* move_str, char* error_buf, size_t error_buf_size);
 
 /**
  * @brief Reset engine state for a new game (board, TT, heuristics).
@@ -45,8 +44,7 @@ void engine_new_game(void);
  * @brief Start a search for the current position with the provided
  * limits.
  */
-bool engine_start_search(const SearchLimits* limits, char* error_buf,
-                         size_t error_buf_size);
+bool engine_start_search(const SearchLimits* limits, char* error_buf, size_t error_buf_size);
 
 /**
  * @brief Stop any active search thread.

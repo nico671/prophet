@@ -82,18 +82,18 @@ just format
 
 ```text
 src/
-├── main.c        UCI entry point
-├── board/       Position state, FEN handling, and Zobrist hashing
-├── core/        Chess types and bitboard helpers
-├── engine/      Engine state and search-thread lifecycle
-├── eval/        Classical evaluation
-├── movegen/     Attack tables, move generation, and make/unmake
-├── nnue/        Experimental neural evaluation
-├── perft/       Move-generation validation
-├── search/      Search, ordering, reporting, and time management
-├── tt/          Transposition table
-├── uci/         UCI command parsing
-└── utils/       Shared utilities
+├── chess/       Chess types, board state, move generation, hashing, and perft
+│   ├── board/
+│   ├── core/
+│   ├── movegen/
+│   ├── perft/
+│   └── utils/
+└── engine/      Search, evaluation, transposition table, threading, and UCI
+    ├── eval/
+    ├── search/
+    ├── tt/
+    ├── uci/
+    └── main.c
 scripts/
 └── bench.py     Early benchmark script
 refs/                Reference material and table-generation programs
