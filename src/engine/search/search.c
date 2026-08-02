@@ -364,7 +364,7 @@ static NullMoveUndo make_null_move(CBoard* board)
     board->ep_square = NO_SQUARE;
     board->half_move_clock++;
 
-    board->side_to_move = 1 - board->side_to_move;
+    board->side_to_move = color_opposite(board->side_to_move);
     if (board->side_to_move == WHITE) {
         board->full_move_number++;
     }
@@ -803,7 +803,7 @@ static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int b
     if (!king_in_check && depth >= 3 && !is_mate_score(alpha) && !is_mate_score(beta)) {
         int reduction = 2 + (depth >= 6 ? 1 : 0);
         NullMoveUndo null_undo_info = make_null_move(node);
-        Color next_side = 1 - side;
+        Color next_side = color_opposite(side);
         int null_score = -negamax(ctx, node, depth - 1 - reduction, -beta, -beta + 1,
                                   next_side, ply + 1);
         unmake_null_move(node, null_undo_info);
@@ -842,7 +842,7 @@ static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int b
         }
 
         num_legal_moves_searched++;
-        Color next_side = 1 - side;
+        Color next_side = color_opposite(side);
         int eval;
 
         if (num_legal_moves_searched == 1) {

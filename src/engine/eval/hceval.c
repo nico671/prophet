@@ -10,6 +10,8 @@
 
 #include <stdbool.h>
 
+#define PCOLOR(p) ((p) & 1)
+
 // Piece codes for indexing into the PSQT tables. We use a single
 // array for both colors, so white pieces are at even indices and
 // black pieces are at odd indices. This allows us to easily flip the
@@ -29,13 +31,6 @@ enum {
     HC_WHITE_KING = 10,
     HC_BLACK_KING = 11,
 };
-
-// Utility macros for table lookups and color math
-#define PCOLOR(p) ((p) & 1) // Extracts color (0 for White, 1 for Black)
-#define FLIP(sq)                                                                         \
-    ((sq) ^ 56) // Flips a square vertically (e.g., A1 -> A8) to
-                // mirror tables for Black
-#define OTHER(side) ((side) ^ 1) // Flips the side to move
 
 // Base material values for Midgame (mg) and Endgame (eg).
 static const int mg_value[6] = { 82, 337, 365, 477, 1025, 0 };
@@ -154,10 +149,10 @@ void hc_eval_init(void)
         for (int sq = 0; sq < 64; sq++) {
             mg_table[pc][sq] = mg_value[piece_index] + mg_pesto_table[piece_index][sq];
             eg_table[pc][sq] = eg_value[piece_index] + eg_pesto_table[piece_index][sq];
-            mg_table[pc + 1][sq]
-                = mg_value[piece_index] + mg_pesto_table[piece_index][FLIP(sq)];
-            eg_table[pc + 1][sq]
-                = eg_value[piece_index] + eg_pesto_table[piece_index][FLIP(sq)];
+            mg_table[pc + 1][sq] = mg_value[piece_index]
+                + mg_pesto_table[piece_index][SQUARE_FLIP_VERTICAL(sq)];
+            eg_table[pc + 1][sq] = eg_value[piece_index]
+                + eg_pesto_table[piece_index][SQUARE_FLIP_VERTICAL(sq)];
         }
     }
 
@@ -241,8 +236,8 @@ int hc_evaluate_cboard(const CBoard* board)
 
     // Interpolate between the midgame and endgame scores based on the
     // current game phase.
-    int mg_score = mg[board->side_to_move] - mg[OTHER(board->side_to_move)];
-    int eg_score = eg[board->side_to_move] - eg[OTHER(board->side_to_move)];
+    int mg_score = mg[board->side_to_move] - mg[OPPOSITE_COLOR(board->side_to_move)];
+    int eg_score = eg[board->side_to_move] - eg[OPPOSITE_COLOR(board->side_to_move)];
     int mg_phase = game_phase;
     // Clamp the game phase to a maximum of 24, which corresponds to
     // the standard starting position (2 knights + 2 bishops + 2 rooks

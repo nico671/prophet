@@ -84,19 +84,21 @@ typedef enum {
 #define NO_SQUARE 64
 
 /**
- * @brief Flip a square vertically (A1 <-> A8), useful for
- * side-to-move symmetry.
- */
-static inline Square square_flip_vertical(Square sq) { return (Square)(sq ^ 56); }
-
-/**
  * @brief Enum for player colors in chess. WHITE is represented by 0
  * and BLACK by 1.
  *
  */
 typedef enum { WHITE = 0, BLACK = 1 } Color;
 
-// TODO: opponent color macro instead of 1 - color everywhere in code?
+/**
+ * @brief Flips a square vertically (A1 <-> A8).
+ */
+static inline Square square_flip_vertical(Square square) { return (Square)(square ^ 56); }
+
+/**
+ * @brief Returns the opposing color.
+ */
+static inline Color color_opposite(Color color) { return (Color)(color ^ 1); }
 
 /**
  * @brief Enum for chess piece types. The piece types are assigned

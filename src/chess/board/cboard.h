@@ -158,7 +158,7 @@ static inline void move_piece_on_cboard(CBoard* board, Square from, Square to, C
 static inline PieceType cboard_remove_captured_piece(CBoard* board, Square square,
                                                      Color capturing_color)
 {
-    Color captured_color = 1 - capturing_color;
+    Color captured_color = color_opposite(capturing_color);
 
     PieceType captured_piece = cboard_get_piece_at_square(board, square);
     if (captured_piece == NO_PIECE) {

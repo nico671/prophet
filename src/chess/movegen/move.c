@@ -93,7 +93,8 @@ bool move_is_capture(const CBoard* board, Move move)
     }
 
     Square to = move_get_to_square(move);
-    return bitboard_is_bit_set(board->occupancy_bbs[1 - board->side_to_move], to)
+    return bitboard_is_bit_set(board->occupancy_bbs[color_opposite(board->side_to_move)],
+                               to)
         && !move_is_castling(move);
 }
 

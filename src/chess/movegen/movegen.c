@@ -57,7 +57,8 @@ static bool is_square_attacked(CBoard* board, Square square, Color attacker_colo
     // check squares diagonally downward So we use the OPPOSITE
     // color's attack pattern (FLIPPED, like in
     // gen_all_pseudolegal_ep_pawn_moves)
-    Bitboard pawnAttacks = get_pawn_attack_bitboard(square, 1 - attacker_color);
+    Bitboard pawnAttacks
+        = get_pawn_attack_bitboard(square, color_opposite(attacker_color));
     Bitboard attackerPawns = board->piece_bbs[attacker_color][PAWN];
     if (pawnAttacks & attackerPawns)
         return true;
@@ -97,7 +98,7 @@ bool is_king_in_check(CBoard* board, Color side)
         return true;
     }
     Square king_square = bitboard_lsb_index_unsafe(king);
-    Color opponent_color = 1 - side;
+    Color opponent_color = color_opposite(side);
     return is_square_attacked(board, king_square, opponent_color);
 }
 
@@ -113,7 +114,7 @@ void generate_legal_moves(CBoard* board, MoveList* out)
         // Special handling for castling
         if (move_is_castling(move)) {
             Color side = board->side_to_move;
-            Color opponent = 1 - side;
+            Color opponent = color_opposite(side);
 
             // Cannot castle if in check
             if (is_king_in_check(board, side)) {
@@ -142,7 +143,7 @@ void generate_legal_moves(CBoard* board, MoveList* out)
         // Normal legality check for all moves (including castling
         // destination)
         UndoInfo undoInfo = make_move(board, move);
-        if (!is_king_in_check(board, 1 - board->side_to_move)) {
+        if (!is_king_in_check(board, color_opposite(board->side_to_move))) {
             out->moves[out->count++] = move;
         }
         unmake_move(board, move, undoInfo);

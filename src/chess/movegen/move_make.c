@@ -51,7 +51,7 @@ static inline void update_game_state(CBoard* board, Square to, bool is_capture)
     board->ep_square = NO_SQUARE;
 
     // Switch sides
-    board->side_to_move = 1 - board->side_to_move;
+    board->side_to_move = color_opposite(board->side_to_move);
 
     // Increment fullmove after black moves
     if (board->side_to_move == WHITE) {
@@ -128,7 +128,7 @@ static inline UndoInfo make_capture_move(CBoard* board, Move move)
 
     // Update zobrist: remove captured_piecetype piece from 'to'
     // square
-    Color captured_color = 1 - board->side_to_move;
+    Color captured_color = color_opposite(board->side_to_move);
     zobrist_toggle_piece(&board->zobrist_key, captured_piecetype, captured_color, to);
 
     // Remove old EP square from hash if any
@@ -232,7 +232,7 @@ static inline UndoInfo make_ep_capture_move(CBoard* board, Move move)
     zobrist_toggle_piece(&board->zobrist_key, PAWN, board->side_to_move, from);
 
     // Update zobrist: remove captured_piecetype pawn from its square
-    Color captured_color = 1 - board->side_to_move;
+    Color captured_color = color_opposite(board->side_to_move);
     zobrist_toggle_piece(&board->zobrist_key, PAWN, captured_color, captured_pawn_square);
 
     // Remove old EP square from hash
@@ -288,7 +288,7 @@ static inline UndoInfo make_promotion_move(CBoard* board, Move move)
     if (is_promotion_capture) {
         captured_piecetype = cboard_remove_captured_piece(board, to, board->side_to_move);
         // Update occupancies for capture
-        Color captured_color = 1 - board->side_to_move;
+        Color captured_color = color_opposite(board->side_to_move);
         cboard_update_occupancies_for_capture(board, to, captured_color);
     }
 
@@ -305,7 +305,7 @@ static inline UndoInfo make_promotion_move(CBoard* board, Move move)
     // Update zobrist: if capture, remove captured_piecetype piece
     // from 'to' square
     if (is_promotion_capture && captured_piecetype != NO_PIECE) {
-        Color captured_color = 1 - board->side_to_move;
+        Color captured_color = color_opposite(board->side_to_move);
         zobrist_toggle_piece(&board->zobrist_key, captured_piecetype, captured_color, to);
     }
 
@@ -522,7 +522,7 @@ static inline void unmake_promotion_move(CBoard* board, Move move, UndoInfo undo
 
     // If promotion capture, restore captured_piecetype piece
     if (is_promotion_capture && undo_info.captured_piecetype != NO_PIECE) {
-        Color opponent_color = 1 - board->side_to_move;
+        Color opponent_color = color_opposite(board->side_to_move);
         add_piece_to_cboard(board, to, opponent_color, undo_info.captured_piecetype);
         if (opponent_color == WHITE)
             bitboard_set_square_bit(&board->occupancy_bbs[WHITE], to);
@@ -553,7 +553,7 @@ static inline void unmake_en_passant_move(CBoard* board, Move move, UndoInfo und
     // Restore captured_piecetype pawn
     Square captured_pawn_square = to + (8 * (2 * board->side_to_move - 1));
 
-    Color opponent_color = 1 - board->side_to_move;
+    Color opponent_color = color_opposite(board->side_to_move);
     add_piece_to_cboard(board, captured_pawn_square, opponent_color, PAWN);
     bitboard_set_square_bit(&board->occupancy_bbs[opponent_color], captured_pawn_square);
     bitboard_set_square_bit(&board->occupancy_bbs[2], captured_pawn_square);
@@ -602,7 +602,7 @@ static inline void unmake_regular_move(CBoard* board, Move move, UndoInfo undo_i
     // If it was a capture, restore the captured_piecetype piece
     if (undo_info.captured_square != NO_SQUARE
         && undo_info.captured_piecetype != NO_PIECE) {
-        Color opponent_color = 1 - board->side_to_move;
+        Color opponent_color = color_opposite(board->side_to_move);
         add_piece_to_cboard(board, to, opponent_color, undo_info.captured_piecetype);
         bitboard_set_square_bit(&board->occupancy_bbs[opponent_color], to);
         bitboard_set_square_bit(&board->occupancy_bbs[2], to);
@@ -616,7 +616,7 @@ void unmake_move(CBoard* board, Move move, UndoInfo undo_info)
 
     // Switch side back first (before any checks that depend on
     // sideToMove)
-    board->side_to_move = 1 - board->side_to_move;
+    board->side_to_move = color_opposite(board->side_to_move);
 
     // Restore game state
     board->ep_square = undo_info.previous_ep_square;

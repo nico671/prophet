@@ -15,8 +15,8 @@ void gen_all_pseudolegal_king_noncastling_moves(CBoard* board, MoveList* move_li
 {
     Color side_to_move = board->side_to_move;
     Bitboard side_to_move_king_bb = board->piece_bbs[side_to_move][KING];
-    Bitboard opponent_pieces_bb = board->occupancy_bbs[1 - side_to_move]
-        & ~(board->piece_bbs[1 - side_to_move][KING]);
+    Bitboard opponent_pieces_bb = board->occupancy_bbs[color_opposite(side_to_move)]
+        & ~(board->piece_bbs[color_opposite(side_to_move)][KING]);
     if (!bitboard_is_empty(side_to_move_king_bb)) {
         Square from = bitboard_pop_lsb_unsafe(
             &side_to_move_king_bb); // because of if gaurd, we know
@@ -121,8 +121,8 @@ void gen_all_pseudolegal_knight_moves(CBoard* board, MoveList* move_list)
 {
     Bitboard side_to_move_knights_bb = board->piece_bbs[board->side_to_move][KNIGHT];
     Bitboard friendly_pieces_bb = board->occupancy_bbs[board->side_to_move];
-    Bitboard enemy_pieces_bb = board->occupancy_bbs[1 - board->side_to_move]
-        & ~(board->piece_bbs[1 - board->side_to_move][KING]);
+    Bitboard enemy_pieces_bb = board->occupancy_bbs[color_opposite(board->side_to_move)]
+        & ~(board->piece_bbs[color_opposite(board->side_to_move)][KING]);
 
     while (side_to_move_knights_bb) {
         Square from = bitboard_pop_lsb_unsafe(&side_to_move_knights_bb);
@@ -213,8 +213,8 @@ void gen_all_pseudolegal_pawn_captures(CBoard* board, MoveList* move_list)
     side_to_move_pawns_bb &= ~promotion_rank_bb; // exclude side_to_move_pawns_bb on
                                                  // promotion rank, handled in
                                                  // promotions function
-    Bitboard opponent_pieces_bb = board->occupancy_bbs[1 - side_to_move]
-        & ~(board->piece_bbs[1 - side_to_move][KING]);
+    Bitboard opponent_pieces_bb = board->occupancy_bbs[color_opposite(side_to_move)]
+        & ~(board->piece_bbs[color_opposite(side_to_move)][KING]);
 
     while (side_to_move_pawns_bb) {
         Square from = bitboard_pop_lsb_unsafe(&side_to_move_pawns_bb);
@@ -234,8 +234,8 @@ void gen_all_pseudolegal_pawn_promotions(CBoard* board, MoveList* move_list)
     Color side_to_move = board->side_to_move;
     Bitboard side_to_move_pawns_bb = board->piece_bbs[side_to_move][PAWN];
     Bitboard empty_squares_bb = ~(board->occupancy_bbs[2]);
-    Bitboard opponent_pieces_bb = board->occupancy_bbs[1 - side_to_move]
-        & ~(board->piece_bbs[1 - side_to_move][KING]);
+    Bitboard opponent_pieces_bb = board->occupancy_bbs[color_opposite(side_to_move)]
+        & ~(board->piece_bbs[color_opposite(side_to_move)][KING]);
 
     Bitboard promotion_rank_bb = (side_to_move == WHITE) ? RANK_7 : RANK_2;
     side_to_move_pawns_bb &= promotion_rank_bb;
