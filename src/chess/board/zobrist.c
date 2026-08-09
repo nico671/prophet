@@ -12,14 +12,14 @@ static bool zobrist_keys_initialized = false;
 
 void init_zobrist_keys(void)
 {
-    if (zobrist_keys_initialized)
+    if (zobrist_keys_initialized) {
         return;
+    }
     zobrist_keys_initialized = true;
 
     ranctx ctx;
     raninit(&ctx,
-            107035250ULL); // Use a fixed seed for reproducible debug
-                           // sessions
+            107035250ULL); // Use a fixed seed for reproducible debug sessions
 
     // piece keys
     for (int p = 0; p < 12; p++) {
@@ -55,26 +55,30 @@ static bool should_hash_ep(const CBoard* board, Square ep_square)
     // must move from rank 7 to 5 for ep to be possible, and vice
     // versa for black capturing
     if (board->side_to_move == WHITE) {
-        if (ep_square < A6 || ep_square > H6)
+        if (ep_square < A6 || ep_square > H6) {
             return false;
+        }
 
-        if (ep_file > 0
-            && bitboard_is_bit_set(board->piece_bbs[WHITE][PAWN], ep_square - 9))
+        if (ep_file > 0 && bitboard_is_bit_set(board->piece_bbs[WHITE][PAWN], ep_square - 9)) {
             return true;
-        if (ep_file < 7
-            && bitboard_is_bit_set(board->piece_bbs[WHITE][PAWN], ep_square - 7))
+        }
+        if (ep_file < 7 && bitboard_is_bit_set(board->piece_bbs[WHITE][PAWN], ep_square - 7)) {
             return true;
+        }
         return false;
     }
 
     // same logic but with rank 3 for black to capture
-    if (ep_square < A3 || ep_square > H3)
+    if (ep_square < A3 || ep_square > H3) {
         return false;
+    }
 
-    if (ep_file > 0 && bitboard_is_bit_set(board->piece_bbs[BLACK][PAWN], ep_square + 7))
+    if (ep_file > 0 && bitboard_is_bit_set(board->piece_bbs[BLACK][PAWN], ep_square + 7)) {
         return true;
-    if (ep_file < 7 && bitboard_is_bit_set(board->piece_bbs[BLACK][PAWN], ep_square + 9))
+    }
+    if (ep_file < 7 && bitboard_is_bit_set(board->piece_bbs[BLACK][PAWN], ep_square + 9)) {
         return true;
+    }
     return false;
 }
 

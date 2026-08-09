@@ -24,8 +24,7 @@ static void set_error(char* error_buf, size_t error_buf_size, const char* messag
         return;
     }
     snprintf(error_buf, error_buf_size, "%s", message);
-    // flush so that error messages are not delayed (important for
-    // GUIs)
+    // flush so that error messages are not delayed (important for GUIs)
     fflush(stderr);
 }
 
@@ -61,7 +60,7 @@ void engine_init(void)
 
     search_control_reset(&engine_state.search_control, false);
 
-    engine_state.is_searching = false;
+    engine_state.is_searching  = false;
     engine_state.is_debug_mode = false;
 
     // set initial board position to standard starting position, not
@@ -104,8 +103,7 @@ bool engine_set_position_fen(const char* fen)
 
 bool engine_apply_uci_move(const char* move_str, char* error_buf, size_t error_buf_size)
 {
-    // parse the move and verify legality using the current engine
-    // position
+    // parse the move and verify legality using the current engine position
     Move parsed_move
         = move_from_uci_string(&engine_state.board, move_str, error_buf, error_buf_size);
 
@@ -130,8 +128,7 @@ void engine_new_game(void)
     clear_tt();
 }
 
-bool engine_start_search(const SearchLimits* limits, char* error_buf,
-                         size_t error_buf_size)
+bool engine_start_search(const SearchLimits* limits, char* error_buf, size_t error_buf_size)
 {
     if (!limits) {
         set_error(error_buf, error_buf_size, "Search limits not provided");
@@ -145,13 +142,12 @@ bool engine_start_search(const SearchLimits* limits, char* error_buf,
     }
 
     search_control_reset(&engine_state.search_control, limits->ponder);
-    engine_state.is_searching = true;
+    engine_state.is_searching        = true;
 
-    engine_state.search_input.board = engine_state.board;
+    engine_state.search_input.board  = engine_state.board;
     engine_state.search_input.limits = *limits;
 
-    if (pthread_create(&engine_state.search_thread, NULL, search_thread_main, NULL)
-        != 0) {
+    if (pthread_create(&engine_state.search_thread, NULL, search_thread_main, NULL) != 0) {
         set_error(error_buf, error_buf_size, "failed to create search thread");
         engine_state.is_searching = false;
         return false;
@@ -163,8 +159,7 @@ bool engine_start_search(const SearchLimits* limits, char* error_buf,
 void engine_handle_ponder_hit(void)
 {
     if (engine_state.is_searching) {
-        search_handle_ponder_hit(&engine_state.search_control,
-                                 &engine_state.search_input);
+        search_handle_ponder_hit(&engine_state.search_control, &engine_state.search_input);
     }
 }
 
@@ -184,8 +179,8 @@ bool engine_set_hash_mb(long requested_mb, long* applied_mb)
     init_tt((size_t)mb);
 
     if (applied_mb) {
-        *applied_mb = mb; // report the actual applied size back to
-                          // the caller (after clamping)
+        *applied_mb = mb; // report the actual applied size back to the caller
+                          // (after clamping)
     }
 
     return true;
@@ -193,16 +188,25 @@ bool engine_set_hash_mb(long requested_mb, long* applied_mb)
 
 void engine_clear_hash(void)
 {
-    engine_stop_search(); // ensure no active search is using the TT
-                          // before clearing it
+    engine_stop_search(); // ensure no active search is using the TT before
+                          // clearing it
     clear_tt();
 }
 
-void engine_print_board(void) { print_cboard(&engine_state.board); }
+void engine_print_board(void)
+{
+    print_cboard(&engine_state.board);
+}
 
-void engine_set_debug_mode(bool enabled) { engine_state.is_debug_mode = enabled; }
+void engine_set_debug_mode(bool enabled)
+{
+    engine_state.is_debug_mode = enabled;
+}
 
-bool engine_is_debug_mode(void) { return engine_state.is_debug_mode; }
+bool engine_is_debug_mode(void)
+{
+    return engine_state.is_debug_mode;
+}
 
 bool engine_copy_board(CBoard* out_board)
 {

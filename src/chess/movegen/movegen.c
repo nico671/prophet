@@ -10,11 +10,10 @@
 
 #include <stdbool.h>
 
-void gen_all_pseudolegal_moves(
-    CBoard* board,
-    MoveList* moveList) // TODO: refactor movegen to have less reused
-                        // code everywhere, all individual piece gen
-                        // is abt the same minus pawns and kings
+void gen_all_pseudolegal_moves(CBoard* board,
+                               MoveList* moveList) // TODO: refactor movegen to have less reused
+// code everywhere, all individual piece gen
+// is abt the same minus pawns and kings
 {
     gen_all_pseudolegal_pawn_moves(board, moveList);
     gen_all_pseudolegal_knight_moves(board, moveList);
@@ -24,7 +23,10 @@ void gen_all_pseudolegal_moves(
     gen_all_pseudolegal_king_moves(board, moveList);
 }
 
-void init_move_list(MoveList* moveList) { moveList->count = 0; }
+void init_move_list(MoveList* moveList)
+{
+    moveList->count = 0;
+}
 
 void generate_capture_moves(CBoard* board, MoveList* out)
 {
@@ -35,7 +37,7 @@ void generate_capture_moves(CBoard* board, MoveList* out)
 
     Color side = board->side_to_move;
     for (int i = 0; i < pseudoLegalMoves.count; i++) {
-        Move move = pseudoLegalMoves.moves[i];
+        Move move     = pseudoLegalMoves.moves[i];
         bool tactical = move_is_capture(board, move) || move_is_promotion(move);
         if (!tactical) {
             continue;
@@ -57,36 +59,40 @@ static bool is_square_attacked(CBoard* board, Square square, Color attacker_colo
     // check squares diagonally downward So we use the OPPOSITE
     // color's attack pattern (FLIPPED, like in
     // gen_all_pseudolegal_ep_pawn_moves)
-    Bitboard pawnAttacks
-        = get_pawn_attack_bitboard(square, color_opposite(attacker_color));
+    Bitboard pawnAttacks   = get_pawn_attack_bitboard(square, color_opposite(attacker_color));
     Bitboard attackerPawns = board->piece_bbs[attacker_color][PAWN];
-    if (pawnAttacks & attackerPawns)
+    if (pawnAttacks & attackerPawns) {
         return true;
+    }
 
     // Check for knight attacks
-    Bitboard knightAttacks = get_knight_attack_bitboard(square);
+    Bitboard knightAttacks   = get_knight_attack_bitboard(square);
     Bitboard attackerKnights = board->piece_bbs[attacker_color][KNIGHT];
-    if (knightAttacks & attackerKnights)
+    if (knightAttacks & attackerKnights) {
         return true;
+    }
 
     Bitboard attackerQueens = board->piece_bbs[attacker_color][QUEEN];
     // Check for bishop/queen attacks
-    Bitboard bishopAttacks = get_bishop_attack_bitboard(square, board->occupancy_bbs[2]);
+    Bitboard bishopAttacks   = get_bishop_attack_bitboard(square, board->occupancy_bbs[2]);
     Bitboard attackerBishops = board->piece_bbs[attacker_color][BISHOP];
-    if (bishopAttacks & (attackerBishops | attackerQueens))
+    if (bishopAttacks & (attackerBishops | attackerQueens)) {
         return true;
+    }
 
     // Check for rook/queen attacks
-    Bitboard rookAttacks = get_rook_attack_bitboard(square, board->occupancy_bbs[2]);
+    Bitboard rookAttacks   = get_rook_attack_bitboard(square, board->occupancy_bbs[2]);
     Bitboard attackerRooks = board->piece_bbs[attacker_color][ROOK];
-    if (rookAttacks & (attackerRooks | attackerQueens))
+    if (rookAttacks & (attackerRooks | attackerQueens)) {
         return true;
+    }
 
     // Check for king attacks
-    Bitboard kingAttacks = get_king_attack_bitboard(square);
+    Bitboard kingAttacks  = get_king_attack_bitboard(square);
     Bitboard attackerKing = board->piece_bbs[attacker_color][KING];
-    if (kingAttacks & attackerKing)
+    if (kingAttacks & attackerKing) {
         return true;
+    }
 
     return false;
 }
@@ -97,7 +103,7 @@ bool is_king_in_check(CBoard* board, Color side)
     if (king == 0) {
         return true;
     }
-    Square king_square = bitboard_lsb_index_unsafe(king);
+    Square king_square   = bitboard_lsb_index_unsafe(king);
     Color opponent_color = color_opposite(side);
     return is_square_attacked(board, king_square, opponent_color);
 }
@@ -113,7 +119,7 @@ void generate_legal_moves(CBoard* board, MoveList* out)
 
         // Special handling for castling
         if (move_is_castling(move)) {
-            Color side = board->side_to_move;
+            Color side     = board->side_to_move;
             Color opponent = color_opposite(side);
 
             // Cannot castle if in check

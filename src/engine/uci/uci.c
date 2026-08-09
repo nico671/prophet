@@ -1,4 +1,5 @@
 #include "engine/uci/uci.h"
+
 #include "chess/perft/perft.h"
 #include "engine/engine.h"
 #include "engine/search/search.h"
@@ -64,17 +65,17 @@ static bool next_token(const char** command, char* out, size_t out_size)
  */
 static bool is_go_keyword(const char* token)
 {
-    return !strcmp(token, "searchmoves") || !strcmp(token, "ponder")
-        || !strcmp(token, "wtime") || !strcmp(token, "btime") || !strcmp(token, "winc")
-        || !strcmp(token, "binc") || !strcmp(token, "movestogo")
-        || !strcmp(token, "depth") || !strcmp(token, "nodes") || !strcmp(token, "mate")
-        || !strcmp(token, "movetime") || !strcmp(token, "infinite");
+    return !strcmp(token, "searchmoves") || !strcmp(token, "ponder") || !strcmp(token, "wtime")
+        || !strcmp(token, "btime") || !strcmp(token, "winc") || !strcmp(token, "binc")
+        || !strcmp(token, "movestogo") || !strcmp(token, "depth") || !strcmp(token, "nodes")
+        || !strcmp(token, "mate") || !strcmp(token, "movetime") || !strcmp(token, "infinite");
 }
 
 /**
  * @brief Reads the next `go` numeric argument as an integer.
  *
- * Missing values fail; malformed values follow atoi() semantics and become zero.
+ * Missing values fail; malformed values follow atoi() semantics and become
+ * zero.
  *
  * @param command Address of the cursor to read and advance.
  * @param out Destination for the parsed value.
@@ -119,8 +120,8 @@ static void handle_set_option_command(const char* command)
         }
 
         char* end_ptr = NULL;
-        errno = 0;
-        long mb = strtol(value, &end_ptr, 10);
+        errno         = 0;
+        long mb       = strtol(value, &end_ptr, 10);
         if (errno != 0 || end_ptr == value || *end_ptr != '\0') {
             printf("info string Invalid Hash value: %s\n", value);
             fflush(stdout);
@@ -164,7 +165,7 @@ static void handle_set_option_command(const char* command)
 static bool safe_line_read(char** line_input, size_t* capacity)
 {
     if (*line_input == NULL || *capacity == 0) {
-        *capacity = 256;
+        *capacity   = 256;
         *line_input = malloc(*capacity);
         if (*line_input == NULL) {
             return false;
@@ -172,7 +173,7 @@ static bool safe_line_read(char** line_input, size_t* capacity)
     }
 
     size_t len = 0;
-    int ch = EOF;
+    int ch     = EOF;
     while ((ch = fgetc(stdin)) != EOF) {
         if (ch == '\n') {
             break;
@@ -182,13 +183,13 @@ static bool safe_line_read(char** line_input, size_t* capacity)
         }
 
         if (len + 1 >= *capacity) {
-            size_t new_capacity = *capacity * 2;
+            size_t new_capacity  = *capacity * 2;
             char* new_line_input = realloc(*line_input, new_capacity);
             if (new_line_input == NULL) {
                 return false;
             }
             *line_input = new_line_input;
-            *capacity = new_capacity;
+            *capacity   = new_capacity;
         }
 
         (*line_input)[len++] = (char)ch;
@@ -213,7 +214,7 @@ static bool safe_line_read(char** line_input, size_t* capacity)
  */
 void handle_go_command(const char* command)
 {
-    SearchLimits go_cmd = { 0 };
+    SearchLimits go_cmd         = { 0 };
     bool search_moves_specified = false;
     CBoard current_board;
     bool have_current_board = engine_copy_board(&current_board);
@@ -235,9 +236,8 @@ void handle_go_command(const char* command)
                 }
 
                 char error_buf[128] = "";
-                Move move = have_current_board
-                    ? move_from_uci_string(&current_board, moveToken, error_buf,
-                                           sizeof(error_buf))
+                Move move           = have_current_board
+                    ? move_from_uci_string(&current_board, moveToken, error_buf, sizeof(error_buf))
                     : MOVE_NONE;
 
                 if (move != MOVE_NONE) {
@@ -292,8 +292,7 @@ void handle_go_command(const char* command)
         printf("  time_for_black_ms: %d\n", go_cmd.time_for_black_ms);
         printf("  increment_for_white_ms: %d\n", go_cmd.increment_for_white_ms);
         printf("  increment_for_black_ms: %d\n", go_cmd.increment_for_black_ms);
-        printf("  moves_until_next_time_control: %d\n",
-               go_cmd.moves_until_next_time_control);
+        printf("  moves_until_next_time_control: %d\n", go_cmd.moves_until_next_time_control);
         printf("  depth_limit: %d\n", go_cmd.depth_limit);
         printf("  node_limit: %d\n", go_cmd.node_limit);
         printf("  search_for_mate_in_n_moves: %d\n", go_cmd.search_for_mate_in_n_moves);
@@ -351,15 +350,14 @@ static void handle_perft_command(const char* command)
     }
 
     for (int depth = 1; depth <= max_depth; depth++) {
-        CBoard board = base_board;
-        clock_t start = clock();
+        CBoard board   = base_board;
+        clock_t start  = clock();
         uint64_t nodes = perft(&board, depth);
-        clock_t end = clock();
+        clock_t end    = clock();
         double elapsed = (double)(end - start) / CLOCKS_PER_SEC;
-        double nps = elapsed > 0 ? nodes / elapsed : 0;
+        double nps     = elapsed > 0 ? nodes / elapsed : 0;
 
-        printf("perft depth %d nodes %" PRIu64 " nps %.0f time %.3f\n", depth, nodes, nps,
-               elapsed);
+        printf("perft depth %d nodes %" PRIu64 " nps %.0f time %.3f\n", depth, nodes, nps, elapsed);
         fflush(stdout);
     }
 }
@@ -395,7 +393,7 @@ void handle_position_command(const char* command)
         // Find optional " moves " token as a full keyword, not as a
         // set of chars.
         const char* moves_pos = strstr(command, " moves");
-        size_t fen_length = moves_pos ? (size_t)(moves_pos - command) : strlen(command);
+        size_t fen_length     = moves_pos ? (size_t)(moves_pos - command) : strlen(command);
         while (fen_length > 0 && isspace((unsigned char)command[fen_length - 1])) {
             fen_length--;
         }
@@ -407,7 +405,7 @@ void handle_position_command(const char* command)
         }
         strncpy(fen_copy, command, fen_length);
         fen_copy[fen_length] = '\0';
-        bool success = engine_set_position_fen(fen_copy);
+        bool success         = engine_set_position_fen(fen_copy);
         if (!success) {
             printf("info string Failed to parse FEN: %s\n", fen_copy);
             fflush(stdout);
@@ -439,11 +437,9 @@ void handle_position_command(const char* command)
 
             strncpy(algebraic_move_str, command, move_length);
             algebraic_move_str[move_length] = '\0';
-            char error_buf[128] = "";
-            if (!engine_apply_uci_move(algebraic_move_str, error_buf,
-                                       sizeof(error_buf))) {
-                printf("info string error: %s, making move %s\n", error_buf,
-                       algebraic_move_str);
+            char error_buf[128]             = "";
+            if (!engine_apply_uci_move(algebraic_move_str, error_buf, sizeof(error_buf))) {
+                printf("info string error: %s, making move %s\n", error_buf, algebraic_move_str);
                 fflush(stdout);
             }
             command += move_length;
@@ -460,7 +456,7 @@ void handle_position_command(const char* command)
  */
 void uci_loop(void)
 {
-    char* line_input = NULL;
+    char* line_input     = NULL;
     size_t line_capacity = 0;
 
     while (safe_line_read(&line_input, &line_capacity)) {
@@ -481,8 +477,8 @@ void uci_loop(void)
             engine_init();
 
             printf("id name Prophet dev\n"); // TODO: figure out how
-                                             // to put actual version
-                                             // info here
+            // to put actual version
+            // info here
             printf("id author Nicolas Carbone\n");
             printf("option name Hash type spin default 64 min 1 max "
                    "1024\n");

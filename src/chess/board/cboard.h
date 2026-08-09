@@ -100,8 +100,7 @@ static inline PieceType cboard_get_piece_at_square(const CBoard* board, Square s
  * @param color The color of the piece to add.
  * @param piece The type of piece to add.
  */
-static inline void add_piece_to_cboard(CBoard* board, Square square, Color color,
-                                       PieceType piece)
+static inline void add_piece_to_cboard(CBoard* board, Square square, Color color, PieceType piece)
 {
     Bitboard* bb = &board->piece_bbs[color][piece];
     if (!bb || square >= NO_SQUARE) {
@@ -158,7 +157,7 @@ static inline void move_piece_on_cboard(CBoard* board, Square from, Square to, C
 static inline PieceType cboard_remove_captured_piece(CBoard* board, Square square,
                                                      Color capturing_color)
 {
-    Color captured_color = color_opposite(capturing_color);
+    Color captured_color     = color_opposite(capturing_color);
 
     PieceType captured_piece = cboard_get_piece_at_square(board, square);
     if (captured_piece == NO_PIECE) {
@@ -177,8 +176,8 @@ static inline PieceType cboard_remove_captured_piece(CBoard* board, Square squar
  * @param to The square to which the piece will be moved.
  * @param color The color of the piece being moved.
  */
-static inline void cboard_update_occupancies_for_move(CBoard* board, Square from,
-                                                      Square to, Color color)
+static inline void cboard_update_occupancies_for_move(CBoard* board, Square from, Square to,
+                                                      Color color)
 {
     bitboard_clear_square_bit(&board->occupancy_bbs[color], from);
     bitboard_set_square_bit(&board->occupancy_bbs[color], to);
@@ -209,8 +208,8 @@ static inline void cboard_update_occupancies_for_capture(CBoard* board, Square s
  * @param to The square to which the pawn will be moved.
  * @param color The color of the piece being moved.
  */
-static inline void cboard_update_occupancies_for_promotion(CBoard* board, Square from,
-                                                           Square to, Color color)
+static inline void cboard_update_occupancies_for_promotion(CBoard* board, Square from, Square to,
+                                                           Color color)
 {
     cboard_update_occupancies_for_move(board, from, to, color);
 }
@@ -219,8 +218,7 @@ static inline void cboard_update_occupancies_for_promotion(CBoard* board, Square
  * @brief Updates the occupancy bitboards when castling.
  */
 static inline void cboard_update_occupancies_for_castling(CBoard* board, Square king_from,
-                                                          Square king_to,
-                                                          Square rook_from,
+                                                          Square king_to, Square rook_from,
                                                           Square rook_to, Color color)
 {
     bitboard_clear_square_bit(&board->occupancy_bbs[color], king_from);
@@ -252,24 +250,32 @@ static inline void cboard_update_castling_rights(CBoard* board, Square from, Squ
     }
 
     // If rook moved from corner, lose that side's castling
-    if (from == H1)
+    if (from == H1) {
         U8_CLEAR_BIT(board->castling_rights, 3);
-    if (from == A1)
+    }
+    if (from == A1) {
         U8_CLEAR_BIT(board->castling_rights, 2);
-    if (from == H8)
+    }
+    if (from == H8) {
         U8_CLEAR_BIT(board->castling_rights, 1);
-    if (from == A8)
+    }
+    if (from == A8) {
         U8_CLEAR_BIT(board->castling_rights, 0);
+    }
 
     // If rook was captured on corner square, lose that side's
     // castling
-    if (to == H1)
+    if (to == H1) {
         U8_CLEAR_BIT(board->castling_rights, 3);
-    if (to == A1)
+    }
+    if (to == A1) {
         U8_CLEAR_BIT(board->castling_rights, 2);
-    if (to == H8)
+    }
+    if (to == H8) {
         U8_CLEAR_BIT(board->castling_rights, 1);
-    if (to == A8)
+    }
+    if (to == A8) {
         U8_CLEAR_BIT(board->castling_rights, 0);
+    }
 }
 #endif // CBOARD_H

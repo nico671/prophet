@@ -18,18 +18,18 @@
 // square index for black pieces and reuse the same tables, since the
 // PSQT values are typically mirrored vertically for black and white.
 enum {
-    HC_WHITE_PAWN = 0,
-    HC_BLACK_PAWN = 1,
+    HC_WHITE_PAWN   = 0,
+    HC_BLACK_PAWN   = 1,
     HC_WHITE_KNIGHT = 2,
     HC_BLACK_KNIGHT = 3,
     HC_WHITE_BISHOP = 4,
     HC_BLACK_BISHOP = 5,
-    HC_WHITE_ROOK = 6,
-    HC_BLACK_ROOK = 7,
-    HC_WHITE_QUEEN = 8,
-    HC_BLACK_QUEEN = 9,
-    HC_WHITE_KING = 10,
-    HC_BLACK_KING = 11,
+    HC_WHITE_ROOK   = 6,
+    HC_BLACK_ROOK   = 7,
+    HC_WHITE_QUEEN  = 8,
+    HC_BLACK_QUEEN  = 9,
+    HC_WHITE_KING   = 10,
+    HC_BLACK_KING   = 11,
 };
 
 // Base material values for Midgame (mg) and Endgame (eg).
@@ -47,10 +47,9 @@ static const int mg_pawn_table[64] = {
 };
 
 static const int eg_pawn_table[64] = {
-    0,  0,   0,  0,  0,  0,  0,  0,  178, 173, 158, 134, 147, 132, 165, 187,
-    94, 100, 85, 67, 56, 53, 82, 84, 32,  24,  13,  5,   -2,  4,   17,  17,
-    13, 9,   -3, -7, -7, -8, 3,  -1, 4,   7,   -6,  1,   0,   -5,  -1,  -8,
-    13, 8,   8,  10, 13, 0,  2,  -7, 0,   0,   0,   0,   0,   0,   0,   0,
+    0,  0,  0,  0,  0,  0, 0,  0,  178, 173, 158, 134, 147, 132, 165, 187, 94, 100, 85, 67, 56, 53,
+    82, 84, 32, 24, 13, 5, -2, 4,  17,  17,  13,  9,   -3,  -7,  -7,  -8,  3,  -1,  4,  7,  -6, 1,
+    0,  -5, -1, -8, 13, 8, 8,  10, 13,  0,   2,   -7,  0,   0,   0,   0,   0,  0,   0,  0,
 };
 
 static const int mg_knight_table[64] = {
@@ -89,10 +88,9 @@ static const int mg_rook_table[64] = {
 };
 
 static const int eg_rook_table[64] = {
-    13, 10, 18, 15, 12, 12, 8,   5,   11, 13, 13, 11, -3, 3,   8,  3,
-    7,  7,  7,  5,  4,  -3, -5,  -3,  4,  3,  13, 1,  2,  1,   -1, 2,
-    3,  5,  8,  4,  -5, -6, -8,  -11, -4, 0,  -5, -1, -7, -12, -8, -16,
-    -6, -6, 0,  2,  -9, -9, -11, -3,  -9, 2,  3,  -1, -5, -13, 4,  -20,
+    13, 10,  18, 15,  12, 12, 8, 5, 11, 13, 13,  11, -3, 3, 8,  3,  7,  7,   7,  5,   4,  -3,
+    -5, -3,  4,  3,   13, 1,  2, 1, -1, 2,  3,   5,  8,  4, -5, -6, -8, -11, -4, 0,   -5, -1,
+    -7, -12, -8, -16, -6, -6, 0, 2, -9, -9, -11, -3, -9, 2, 3,  -1, -5, -13, 4,  -20,
 };
 
 static const int mg_queen_table[64] = {
@@ -124,13 +122,11 @@ static const int eg_king_table[64] = {
 };
 
 static const int* mg_pesto_table[6] = {
-    mg_pawn_table, mg_knight_table, mg_bishop_table,
-    mg_rook_table, mg_queen_table,  mg_king_table,
+    mg_pawn_table, mg_knight_table, mg_bishop_table, mg_rook_table, mg_queen_table, mg_king_table,
 };
 
 static const int* eg_pesto_table[6] = {
-    eg_pawn_table, eg_knight_table, eg_bishop_table,
-    eg_rook_table, eg_queen_table,  eg_king_table,
+    eg_pawn_table, eg_knight_table, eg_bishop_table, eg_rook_table, eg_queen_table, eg_king_table,
 };
 
 static const int game_phase_inc[12] = { 0, 0, 1, 1, 1, 1, 2, 2, 4, 4, 0, 0 };
@@ -149,10 +145,10 @@ void hc_eval_init(void)
         for (int sq = 0; sq < 64; sq++) {
             mg_table[pc][sq] = mg_value[piece_index] + mg_pesto_table[piece_index][sq];
             eg_table[pc][sq] = eg_value[piece_index] + eg_pesto_table[piece_index][sq];
-            mg_table[pc + 1][sq] = mg_value[piece_index]
-                + mg_pesto_table[piece_index][SQUARE_FLIP_VERTICAL(sq)];
-            eg_table[pc + 1][sq] = eg_value[piece_index]
-                + eg_pesto_table[piece_index][SQUARE_FLIP_VERTICAL(sq)];
+            mg_table[pc + 1][sq]
+                = mg_value[piece_index] + mg_pesto_table[piece_index][square_flip_vertical(sq)];
+            eg_table[pc + 1][sq]
+                = eg_value[piece_index] + eg_pesto_table[piece_index][square_flip_vertical(sq)];
         }
     }
 
@@ -175,17 +171,15 @@ void hc_eval_init(void)
  * @param eg Array holding the running endgame scores [White, Black].
  * @param phase Pointer to the running game phase accumulator.
  */
-static void accumulate_piece(Bitboard bb, int piece_type, int mg[2], int eg[2],
-                             int* phase)
+static void accumulate_piece(Bitboard bb, int piece_type, int mg[2], int eg[2], int* phase)
 {
     // Determine which color we are accumulating for
     int color = PCOLOR(piece_type);
 
     while (!bitboard_is_empty(bb)) {
-        Square sq = bitboard_lsb_index_unsafe(
-            bb); // Get the index of the least significant 1-bit
-                 // (the next piece), can use unsafe version since
-                 // we check for empty beforehand
+        Square sq = bitboard_lsb_index_unsafe(bb); // Get the index of the least significant 1-bit
+        // (the next piece), can use unsafe version since
+        // we check for empty beforehand
 
         // Add the pre-initialized PSQT values for this square to the
         // color's total
@@ -219,14 +213,10 @@ int hc_evaluate_cboard(const CBoard* board)
     // the board
     accumulate_piece(board->piece_bbs[WHITE][PAWN], HC_WHITE_PAWN, mg, eg, &game_phase);
     accumulate_piece(board->piece_bbs[BLACK][PAWN], HC_BLACK_PAWN, mg, eg, &game_phase);
-    accumulate_piece(board->piece_bbs[WHITE][KNIGHT], HC_WHITE_KNIGHT, mg, eg,
-                     &game_phase);
-    accumulate_piece(board->piece_bbs[BLACK][KNIGHT], HC_BLACK_KNIGHT, mg, eg,
-                     &game_phase);
-    accumulate_piece(board->piece_bbs[WHITE][BISHOP], HC_WHITE_BISHOP, mg, eg,
-                     &game_phase);
-    accumulate_piece(board->piece_bbs[BLACK][BISHOP], HC_BLACK_BISHOP, mg, eg,
-                     &game_phase);
+    accumulate_piece(board->piece_bbs[WHITE][KNIGHT], HC_WHITE_KNIGHT, mg, eg, &game_phase);
+    accumulate_piece(board->piece_bbs[BLACK][KNIGHT], HC_BLACK_KNIGHT, mg, eg, &game_phase);
+    accumulate_piece(board->piece_bbs[WHITE][BISHOP], HC_WHITE_BISHOP, mg, eg, &game_phase);
+    accumulate_piece(board->piece_bbs[BLACK][BISHOP], HC_BLACK_BISHOP, mg, eg, &game_phase);
     accumulate_piece(board->piece_bbs[WHITE][ROOK], HC_WHITE_ROOK, mg, eg, &game_phase);
     accumulate_piece(board->piece_bbs[BLACK][ROOK], HC_BLACK_ROOK, mg, eg, &game_phase);
     accumulate_piece(board->piece_bbs[WHITE][QUEEN], HC_WHITE_QUEEN, mg, eg, &game_phase);
@@ -236,8 +226,8 @@ int hc_evaluate_cboard(const CBoard* board)
 
     // Interpolate between the midgame and endgame scores based on the
     // current game phase.
-    int mg_score = mg[board->side_to_move] - mg[OPPOSITE_COLOR(board->side_to_move)];
-    int eg_score = eg[board->side_to_move] - eg[OPPOSITE_COLOR(board->side_to_move)];
+    int mg_score = mg[board->side_to_move] - mg[color_opposite(board->side_to_move)];
+    int eg_score = eg[board->side_to_move] - eg[color_opposite(board->side_to_move)];
     int mg_phase = game_phase;
     // Clamp the game phase to a maximum of 24, which corresponds to
     // the standard starting position (2 knights + 2 bishops + 2 rooks

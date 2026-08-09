@@ -1,5 +1,13 @@
 BasedOnStyle: WebKit
 SortIncludes: true
 AlignAfterOpenBracket: true
-ColumnLimit: 90
-ReflowComments: true                                                                    
+AlignConsecutiveAssignments: AcrossEmptyLines
+AllowShortBlocksOnASingleLine: false
+AllowShortFunctionsOnASingleLine: false
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+ColumnLimit: 100
+BinPackParameters: true
+BreakAfterReturnType: None
+AllowAllParametersOfDeclarationOnNextLine: true
+ReflowComments: true

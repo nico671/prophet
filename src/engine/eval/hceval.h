@@ -11,9 +11,8 @@
 #define HC_BISHOP_VALUE 325
 #define HC_ROOK_VALUE 500
 #define HC_QUEEN_VALUE 900
-#define HC_KING_VALUE                                                                    \
-    10000 // Extremely high value to ensure the engine always
-          // prioritizes king safety
+#define HC_KING_VALUE 10000 // Extremely high value to ensure the engine always
+// prioritizes king safety
 
 /**
  * @brief Initializes the hand-crafted evaluation tables.

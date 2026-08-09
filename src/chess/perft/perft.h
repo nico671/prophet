@@ -5,7 +5,8 @@
 
 #include <stdint.h>
 
-/** @brief Counts legal move-tree nodes to @p depth without changing @p board. */
+/** @brief Counts legal move-tree nodes to @p depth without changing @p board.
+ */
 uint64_t perft(CBoard* board, int depth);
 
 /** @brief Prints and counts per-root-move perft totals. */

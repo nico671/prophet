@@ -40,8 +40,7 @@ void engine_new_game(void);
  * @brief Start a search for the current position with the provided
  * limits.
  */
-bool engine_start_search(const SearchLimits* limits, char* error_buf,
-                         size_t error_buf_size);
+bool engine_start_search(const SearchLimits* limits, char* error_buf, size_t error_buf_size);
 
 /**
  * @brief Stop any active search thread.

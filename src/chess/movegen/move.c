@@ -51,63 +51,74 @@ Move create_move(Square from, Square to, MoveType type, PieceType promo_piecetyp
 
 Square move_get_from_square(Move move)
 {
-    if (move == MOVE_NONE)
+    if (move == MOVE_NONE) {
         return NO_SQUARE;
+    }
     return (Square)((move >> 6) & 0x3F);
 }
 
 Square move_get_to_square(Move move)
 {
-    if (move == MOVE_NONE)
+    if (move == MOVE_NONE) {
         return NO_SQUARE;
+    }
     return (Square)(move & 0x3F);
 }
 
 MoveType move_get_move_type(Move move)
 {
-    if (move == MOVE_NONE)
+    if (move == MOVE_NONE) {
         return NORMAL;
+    }
     return (MoveType)(move & 0xC000);
 }
 
 PieceType move_get_promotion_piecetype(Move move)
 {
-    if (move_get_move_type(move) != PROMO)
+    if (move_get_move_type(move) != PROMO) {
         return NO_PIECE;
+    }
     return (PieceType)(((move >> 12) & 0x3) + KNIGHT);
 }
 
-bool move_is_enpassant(Move move) { return (move_get_move_type(move) == EN_PASSANT); }
+bool move_is_enpassant(Move move)
+{
+    return (move_get_move_type(move) == EN_PASSANT);
+}
 
-bool move_is_promotion(Move move) { return (move_get_move_type(move) == PROMO); }
+bool move_is_promotion(Move move)
+{
+    return (move_get_move_type(move) == PROMO);
+}
 
-bool move_is_castling(Move move) { return (move_get_move_type(move) == CASTLE); }
+bool move_is_castling(Move move)
+{
+    return (move_get_move_type(move) == CASTLE);
+}
 
 bool move_is_capture(const CBoard* board, Move move)
 {
-    if (move == MOVE_NONE)
+    if (move == MOVE_NONE) {
         return false;
+    }
 
     if (move_is_enpassant(move)) {
         return true;
     }
 
     Square to = move_get_to_square(move);
-    return bitboard_is_bit_set(board->occupancy_bbs[color_opposite(board->side_to_move)],
-                               to)
+    return bitboard_is_bit_set(board->occupancy_bbs[color_opposite(board->side_to_move)], to)
         && !move_is_castling(move);
 }
 
 bool move_is_quiet(const CBoard* board, Move move)
 {
-    return !move_is_capture(board, move) && !move_is_castling(move)
-        && !move_is_promotion(move);
+    return !move_is_capture(board, move) && !move_is_castling(move) && !move_is_promotion(move);
 }
 
 void move_to_uci_string(Move move, char out[6])
 {
-    if (move_get_from_square(move) == NO_SQUARE
-        || move_get_to_square(move) == NO_SQUARE) {
+    if (move_get_from_square(move) == NO_SQUARE || move_get_to_square(move) == NO_SQUARE) {
         strcpy(out, "0000");
         return;
     }
@@ -150,7 +161,7 @@ Move move_from_uci_string(const CBoard* board, const char* move_str, char* error
     }
 
     Square from = algebraic_notation_to_square(move_str);
-    Square to = algebraic_notation_to_square(move_str + 2);
+    Square to   = algebraic_notation_to_square(move_str + 2);
     if (from == NO_SQUARE || to == NO_SQUARE) {
         set_error(error_buf, error_buf_size, "Invalid move format");
         return MOVE_NONE;
@@ -161,8 +172,7 @@ Move move_from_uci_string(const CBoard* board, const char* move_str, char* error
     init_move_list(&move_list);
     generate_legal_moves(&board_copy, &move_list);
 
-    char promotion_char
-        = move_len == 5 ? (char)tolower((unsigned char)move_str[4]) : '\0';
+    char promotion_char = move_len == 5 ? (char)tolower((unsigned char)move_str[4]) : '\0';
 
     for (int i = 0; i < move_list.count; i++) {
         Move move = move_list.moves[i];
@@ -177,8 +187,7 @@ Move move_from_uci_string(const CBoard* board, const char* move_str, char* error
         }
 
         PieceType promo = move_get_promotion_piecetype(move);
-        if ((promotion_char == 'n' && promo == KNIGHT)
-            || (promotion_char == 'b' && promo == BISHOP)
+        if ((promotion_char == 'n' && promo == KNIGHT) || (promotion_char == 'b' && promo == BISHOP)
             || (promotion_char == 'r' && promo == ROOK)
             || (promotion_char == 'q' && promo == QUEEN)) {
             return move;

@@ -19,9 +19,15 @@ typedef uint64_t Bitboard;
  * @param bb The bitboard to check.
  * @return true if the bitboard is empty, false otherwise.
  */
-static inline bool bitboard_is_empty(Bitboard bb) { return bb == 0ULL; }
+static inline bool bitboard_is_empty(Bitboard bb)
+{
+    return bb == 0ULL;
+}
 
-static inline int bitboard_popcount(Bitboard bb) { return __builtin_popcountll(bb); }
+static inline int bitboard_popcount(Bitboard bb)
+{
+    return __builtin_popcountll(bb);
+}
 
 /**
  * @brief Returns the index (0-63) of the least significant 1 bit in a
@@ -30,7 +36,10 @@ static inline int bitboard_popcount(Bitboard bb) { return __builtin_popcountll(b
  * @param bb The bitboard to analyze.
  * @return int The index of the least significant 1 bit.
  */
-static inline int bitboard_lsb_index_unsafe(Bitboard bb) { return __builtin_ctzll(bb); }
+static inline int bitboard_lsb_index_unsafe(Bitboard bb)
+{
+    return __builtin_ctzll(bb);
+}
 
 /**
  * @brief Returns the least-significant set-bit index, or NO_SQUARE.
@@ -49,8 +58,8 @@ static inline int bitboard_pop_lsb_unsafe(Bitboard* bb)
 {
     int idx = __builtin_ctzll(*bb); // get lsb idx
     *bb &= *bb - 1; // clear lsb, this op flips lsb to 0 and all bits
-                    // to the right of it to 1, so ANDing with the
-                    // original bb clears the lsb
+    // to the right of it to 1, so ANDing with the
+    // original bb clears the lsb
     return idx;
 }
 
@@ -61,7 +70,10 @@ static inline int bitboard_pop_lsb_unsafe(Bitboard* bb)
  * @param sq The square index (0-63).
  * @return Bitboard The resulting bitboard.
  */
-static inline Bitboard bitboard_square_mask(Square sq) { return (Bitboard)1ULL << sq; }
+static inline Bitboard bitboard_square_mask(Square sq)
+{
+    return (Bitboard)1ULL << sq;
+}
 
 /**
  * @brief Sets the bit corresponding to a square in a bitboard.
@@ -109,7 +121,10 @@ static inline int bitboard_is_bit_set(Bitboard bb, Square sq)
  * @param bb The bitboard to shift.
  * @return Bitboard The shifted bitboard.
  */
-static inline Bitboard bitboard_shift_north(Bitboard bb) { return bb << 8; }
+static inline Bitboard bitboard_shift_north(Bitboard bb)
+{
+    return bb << 8;
+}
 
 /**
  * @brief Shifts a bitboard one rank south (toward rank 1).
@@ -117,6 +132,9 @@ static inline Bitboard bitboard_shift_north(Bitboard bb) { return bb << 8; }
  * @param bb The bitboard to shift.
  * @return Bitboard The shifted bitboard.
  */
-static inline Bitboard bitboard_shift_south(Bitboard bb) { return bb >> 8; }
+static inline Bitboard bitboard_shift_south(Bitboard bb)
+{
+    return bb >> 8;
+}
 
 #endif // BITBOARD_H

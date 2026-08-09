@@ -33,12 +33,7 @@ typedef struct {
     int count;
 } MoveList;
 
-typedef enum {
-    NORMAL = 0,
-    PROMO = 1u << 14,
-    EN_PASSANT = 2u << 14,
-    CASTLE = 3u << 14
-} MoveType;
+typedef enum { NORMAL = 0, PROMO = 1u << 14, EN_PASSANT = 2u << 14, CASTLE = 3u << 14 } MoveType;
 
 /**
  * @brief Creates a move with the specified parameters.
@@ -101,9 +96,9 @@ Move move_from_uci_string(const CBoard* board, const char* move_str, char* error
 typedef struct UndoInfo {
     PieceType captured_piecetype; // What was captured (NO_PIECE if none)
     Square captured_square; // Where the captured piece was (NO_SQUARE
-                            // if none)
+    // if none)
     uint8_t previous_ep_square; // Previous en passant square (or
-                                // NO_SQUARE)
+    // NO_SQUARE)
     uint16_t previous_halfmove_clock; // Previous 50-move counter
     uint8_t previous_castling_rights; // 0..15 bitfield
     uint64_t previous_zobrist_key; // Zobrist key before the move was

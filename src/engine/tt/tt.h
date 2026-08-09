@@ -37,7 +37,8 @@ void init_tt(size_t megabytes);
 /** @brief Invalidates every transposition-table entry. */
 void clear_tt(void);
 
-/** @brief Stores a search result, replacing the current slot when appropriate. */
+/** @brief Stores a search result, replacing the current slot when appropriate.
+ */
 void store_tt(uint64_t key, int depth, int score, TTBound bound, Move best_move);
 
 /** @brief Returns the matching entry for @p key, or NULL. */

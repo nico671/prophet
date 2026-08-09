@@ -93,12 +93,18 @@ typedef enum { WHITE = 0, BLACK = 1 } Color;
 /**
  * @brief Flips a square vertically (A1 <-> A8).
  */
-static inline Square square_flip_vertical(Square square) { return (Square)(square ^ 56); }
+static inline Square square_flip_vertical(Square square)
+{
+    return (Square)(square ^ 56);
+}
 
 /**
  * @brief Returns the opposing color.
  */
-static inline Color color_opposite(Color color) { return (Color)(color ^ 1); }
+static inline Color color_opposite(Color color)
+{
+    return (Color)(color ^ 1);
+}
 
 /**
  * @brief Enum for chess piece types. The piece types are assigned
@@ -107,11 +113,11 @@ static inline Color color_opposite(Color color) { return (Color)(color ^ 1); }
  */
 typedef enum {
     NO_PIECE = 0,
-    PAWN = 1,
-    KNIGHT = 2,
-    BISHOP = 3,
-    ROOK = 4,
-    QUEEN = 5,
-    KING = 6
+    PAWN     = 1,
+    KNIGHT   = 2,
+    BISHOP   = 3,
+    ROOK     = 4,
+    QUEEN    = 5,
+    KING     = 6
 } PieceType;
 #endif // CHESS_TYPES_H
