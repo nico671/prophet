@@ -56,8 +56,9 @@ go depth 6
 quit
 ```
 
-Supported engine options are `Hash` (1-1024 MB) and `Clear Hash`. Prophet also
-provides non-standard `perft` and `printboard` commands for development.
+Supported engine options are `Hash` (1-1024 MB), `Clear Hash`, and `MultiPV`
+(1-256). Prophet also provides non-standard `perft` and `printboard` commands
+for development.
 `printboard` requires `debug on`.
 
 ## Validation and formatting

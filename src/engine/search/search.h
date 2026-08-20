@@ -32,6 +32,7 @@ typedef struct SearchLimits {
     int node_limit;
     int search_for_mate_in_n_moves;
     int time_limit_ms;
+    int multipv;
     MoveList search_moves;
 } SearchLimits;
 
