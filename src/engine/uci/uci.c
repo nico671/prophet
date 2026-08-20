@@ -95,7 +95,7 @@ static bool parse_next_int_token(const char** command, int* out)
 /**
  * @brief Applies one supported UCI `setoption` command.
  *
- * Supports `Hash` and `Clear Hash`. Resizing stops an active search.
+ * Supports `Hash`, `Clear Hash`, and `MultiPV`.
  *
  * @param command Remaining text from a `setoption` command.
  */
@@ -136,6 +136,38 @@ static void handle_set_option_command(const char* command)
         }
 
         printf("info string Hash set to %ld MB\n", applied_mb);
+        fflush(stdout);
+        return;
+    }
+
+    if (!strcmp(option, "MultiPV")) {
+        char value[64];
+        if (!next_token(&command, token, sizeof(token)) || strcmp(token, "value")
+            || !next_token(&command, value, sizeof(value))) {
+            printf("info string setoption MultiPV requires a value\n");
+            fflush(stdout);
+            return;
+        }
+
+        char* end_ptr = NULL;
+        errno         = 0;
+        long requested = strtol(value, &end_ptr, 10);
+        if (errno != 0 || end_ptr == value || *end_ptr != '\0') {
+            printf("info string Invalid MultiPV value: %s\n", value);
+            fflush(stdout);
+            return;
+        }
+
+        int requested_multipv = requested < 1 ? 1
+            : requested > MAX_LEGAL_MOVES ? MAX_LEGAL_MOVES : (int)requested;
+        int applied_multipv = 1;
+        if (!engine_set_multipv(requested_multipv, &applied_multipv)) {
+            printf("info string Failed to set MultiPV value\n");
+            fflush(stdout);
+            return;
+        }
+
+        printf("info string MultiPV set to %d\n", applied_multipv);
         fflush(stdout);
         return;
     }
@@ -215,6 +247,7 @@ static bool safe_line_read(char** line_input, size_t* capacity)
 void handle_go_command(const char* command)
 {
     SearchLimits go_cmd         = { 0 };
+    go_cmd.multipv               = engine_get_multipv();
     bool search_moves_specified = false;
     CBoard current_board;
     bool have_current_board = engine_copy_board(&current_board);
@@ -297,6 +330,7 @@ void handle_go_command(const char* command)
         printf("  node_limit: %d\n", go_cmd.node_limit);
         printf("  search_for_mate_in_n_moves: %d\n", go_cmd.search_for_mate_in_n_moves);
         printf("  time_limit_ms: %d\n", go_cmd.time_limit_ms);
+        printf("  multipv: %d\n", go_cmd.multipv);
         printf("  search_moves count: %d\n", go_cmd.search_moves.count);
     }
 
@@ -483,6 +517,7 @@ void uci_loop(void)
             printf("option name Hash type spin default 64 min 1 max "
                    "1024\n");
             printf("option name Clear Hash type button\n");
+            printf("option name MultiPV type spin default 1 min 1 max 256\n");
             printf("uciok\n");
             fflush(stdout);
         } else if (!strcmp(command, "setoption")) {

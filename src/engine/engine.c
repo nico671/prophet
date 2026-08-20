@@ -35,6 +35,7 @@ typedef struct {
     SearchControl search_control;
     bool is_searching;
     bool is_debug_mode;
+    int multipv;
 } EngineState;
 
 static EngineState engine_state = { 0 };
@@ -62,6 +63,7 @@ void engine_init(void)
 
     engine_state.is_searching  = false;
     engine_state.is_debug_mode = false;
+    engine_state.multipv       = 1;
 
     // set initial board position to standard starting position, not
     // sure if this is technically uci compliant but hasn't made a
@@ -173,17 +175,40 @@ bool engine_set_hash_mb(long requested_mb, long* applied_mb)
     } else if (mb > 1024) {
         mb = 1024;
     }
-    // We must stop the search before resizing the hash, search should
-    // be stopped before resizing the hash but just to be safe
+    // We must stop the search before resizing the hash, search should be stopped before resizing
+    // the hash but just to be safe
     engine_stop_search();
     init_tt((size_t)mb);
 
     if (applied_mb) {
-        *applied_mb = mb; // report the actual applied size back to the caller
-                          // (after clamping)
+        *applied_mb = mb; // report the actual applied size back to the caller (after clamping)
     }
 
     return true;
+}
+
+bool engine_set_multipv(int requested_multipv, int* applied_multipv)
+{
+    int multipv = requested_multipv;
+    if (multipv < 1) {
+        multipv = 1;
+    } else if (multipv > MAX_LEGAL_MOVES) {
+        multipv = MAX_LEGAL_MOVES;
+    }
+
+    engine_stop_search();
+    engine_state.multipv = multipv;
+
+    if (applied_multipv) {
+        *applied_multipv = multipv;
+    }
+
+    return true;
+}
+
+int engine_get_multipv(void)
+{
+    return engine_state.multipv;
 }
 
 void engine_clear_hash(void)

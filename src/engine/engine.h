@@ -60,6 +60,16 @@ void engine_handle_ponder_hit(void);
 bool engine_set_hash_mb(long requested_mb, long* applied_mb);
 
 /**
+ * @brief Set the number of principal variations to report.
+ */
+bool engine_set_multipv(int requested_multipv, int* applied_multipv);
+
+/**
+ * @brief Get the configured number of principal variations to report.
+ */
+int engine_get_multipv(void);
+
+/**
  * @brief Clear the transposition table.
  */
 void engine_clear_hash(void);
