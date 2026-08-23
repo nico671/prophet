@@ -4,8 +4,15 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 typedef struct SearchLimits SearchLimits;
+
+typedef struct {
+    uint64_t nodes;
+    int64_t elapsed_ms;
+    size_t positions;
+} EngineBenchmarkResult;
 
 /**
  * @brief Initializes tables, evaluation state, and the transposition table.
@@ -41,6 +48,10 @@ void engine_new_game(void);
  * limits.
  */
 bool engine_start_search(const SearchLimits* limits, char* error_buf, size_t error_buf_size);
+
+/** @brief Run the built-in benchmark at a fixed depth. */
+bool engine_run_benchmark(int depth, EngineBenchmarkResult* result, char* error_buf,
+                          size_t error_buf_size);
 
 /**
  * @brief Stop any active search thread.

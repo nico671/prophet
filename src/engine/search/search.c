@@ -533,15 +533,15 @@ static int search_root_moves(SearchContext* ctx, CBoard* board, int depth, Move*
         }
 
         UndoInfo undo_info = make_move(board, move);
-        int score = -negamax(ctx, board, depth - 1, -MATE_SCORE, MATE_SCORE,
-                             board->side_to_move, 1);
+        int score
+            = -negamax(ctx, board, depth - 1, -MATE_SCORE, MATE_SCORE, board->side_to_move, 1);
         unmake_move(board, move, undo_info);
 
         if (should_stop_search(ctx)) {
             return 0;
         }
 
-        root_moves[root_move_count++] = (RootMove){ .move = move, .score = score };
+        root_moves[root_move_count++] = (RootMove) { .move = move, .score = score };
     }
 
     if (root_move_count == 0) {
@@ -579,15 +579,16 @@ static void print_pv_info(int depth, int multipv, int score, long long nodes, lo
         printf("info depth %d multipv %d score mate %d nodes %lld time %lld nps %lld pv %s\n",
                depth, multipv, mate_moves, nodes, elapsed, nps, pv_string);
     } else {
-        printf("info depth %d multipv %d score cp %d nodes %lld time %lld nps %lld pv %s\n",
-               depth, multipv, score, nodes, elapsed, nps, pv_string);
+        printf("info depth %d multipv %d score cp %d nodes %lld time %lld nps %lld pv %s\n", depth,
+               multipv, score, nodes, elapsed, nps, pv_string);
     }
 }
 
-void search_run(const SearchInput* input, SearchControl* control)
+SearchResult search_run(const SearchInput* input, SearchControl* control)
 {
+    SearchResult result = { 0 };
     if (!input || !control) {
-        return;
+        return result;
     }
 
     SearchContext ctx;
@@ -652,13 +653,13 @@ void search_run(const SearchInput* input, SearchControl* control)
         int root_move_count = 0;
         if (ctx.limits.multipv > 1) {
             Move depth_best_move = best_move;
-            root_move_count = search_root_moves(&ctx, &ctx.board, current_depth, &depth_best_move,
-                                                root_moves);
+            root_move_count
+                = search_root_moves(&ctx, &ctx.board, current_depth, &depth_best_move, root_moves);
         } else {
             Move depth_best_move = best_move;
             int score = search_root_best_move(&ctx, &ctx.board, current_depth, &depth_best_move);
             if (move_get_from_square(depth_best_move) != NO_SQUARE) {
-                root_moves[0] = (RootMove){ .move = depth_best_move, .score = score };
+                root_moves[0]   = (RootMove) { .move = depth_best_move, .score = score };
                 root_move_count = 1;
             }
         }
@@ -675,20 +676,24 @@ void search_run(const SearchInput* input, SearchControl* control)
         long long nodes   = ctx.node_count;
         long long nps     = elapsed > 0 ? (nodes * 1000LL) / elapsed : nodes;
 
-        int report_count = root_move_count < ctx.limits.multipv ? root_move_count
-                                                                 : ctx.limits.multipv;
-        for (int rank = 0; rank < report_count; rank++) {
-            Move pv_line[MAX_LEGAL_MOVES];
-            int pv_limit = current_depth < MAX_LEGAL_MOVES ? current_depth : MAX_LEGAL_MOVES;
-            pv_line[0] = root_moves[rank].move;
+        int report_count
+            = root_move_count < ctx.limits.multipv ? root_move_count : ctx.limits.multipv;
+        if (!input->suppress_uci_output) {
+            for (int rank = 0; rank < report_count; rank++) {
+                Move pv_line[MAX_LEGAL_MOVES];
+                int pv_limit    = current_depth < MAX_LEGAL_MOVES ? current_depth : MAX_LEGAL_MOVES;
+                pv_line[0]      = root_moves[rank].move;
 
-            CBoard pv_board = ctx.board;
-            make_move(&pv_board, pv_line[0]);
-            int pv_length = 1 + extract_pv_line(&pv_board, pv_line + 1, pv_limit - 1);
-            print_pv_info(current_depth, rank + 1, root_moves[rank].score, nodes, elapsed, nps,
-                          pv_line, pv_length);
+                CBoard pv_board = ctx.board;
+                make_move(&pv_board, pv_line[0]);
+                int pv_length = 1 + extract_pv_line(&pv_board, pv_line + 1, pv_limit - 1);
+                print_pv_info(current_depth, rank + 1, root_moves[rank].score, nodes, elapsed, nps,
+                              pv_line, pv_length);
+            }
         }
-        fflush(stdout);
+        if (!input->suppress_uci_output) {
+            fflush(stdout);
+        }
 
         age_history(&ctx);
         current_depth++;
@@ -730,10 +735,17 @@ void search_run(const SearchInput* input, SearchControl* control)
         }
     }
 
-    char best_move_string[6];
-    move_to_uci_string(best_move, best_move_string);
-    printf("bestmove %s\n", best_move_string);
-    fflush(stdout);
+    if (!input->suppress_uci_output) {
+        char best_move_string[6];
+        move_to_uci_string(best_move, best_move_string);
+        printf("bestmove %s\n", best_move_string);
+        fflush(stdout);
+    }
+
+    result.nodes      = (uint64_t)ctx.node_count;
+    result.elapsed_ms = (int64_t)(now_ms() - ctx.start_time_ms);
+    result.completed  = !atomic_load(&control->stop_requested);
+    return result;
 }
 
 static void score_moves(SearchContext* ctx, CBoard* board, MoveList* move_list,

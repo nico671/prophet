@@ -4,10 +4,12 @@
 #include "chess/movegen/move_make.h"
 #include "chess/movegen/movegen.h"
 #include "chess/movegen/sliding_attacks.h"
+#include "engine/benchmark.h"
 #include "engine/eval/hceval.h"
 #include "engine/search/search.h"
 #include "engine/tt/tt.h"
 
+#include <inttypes.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <string.h>
@@ -43,7 +45,7 @@ static EngineState engine_state = { 0 };
 static void* search_thread_main(void* arg)
 {
     (void)arg;
-    search_run(&engine_state.search_input, &engine_state.search_control);
+    (void)search_run(&engine_state.search_input, &engine_state.search_control);
     return NULL;
 }
 
@@ -144,10 +146,11 @@ bool engine_start_search(const SearchLimits* limits, char* error_buf, size_t err
     }
 
     search_control_reset(&engine_state.search_control, limits->ponder);
-    engine_state.is_searching        = true;
+    engine_state.is_searching                     = true;
 
-    engine_state.search_input.board  = engine_state.board;
-    engine_state.search_input.limits = *limits;
+    engine_state.search_input.board               = engine_state.board;
+    engine_state.search_input.limits              = *limits;
+    engine_state.search_input.suppress_uci_output = false;
 
     if (pthread_create(&engine_state.search_thread, NULL, search_thread_main, NULL) != 0) {
         set_error(error_buf, error_buf_size, "failed to create search thread");
@@ -155,6 +158,115 @@ bool engine_start_search(const SearchLimits* limits, char* error_buf, size_t err
         return false;
     }
 
+    return true;
+}
+
+bool engine_run_benchmark(int depth, EngineBenchmarkResult* result, char* error_buf,
+                          size_t error_buf_size)
+{
+    if (depth < 1 || depth > 64) {
+        set_error(error_buf, error_buf_size, "Benchmark depth must be in [1, 64]");
+        return false;
+    }
+
+    engine_stop_search();
+
+    CBoard saved_board = engine_state.board;
+    size_t position_count;
+    const BenchmarkPosition* positions     = benchmark_positions(&position_count);
+    EngineBenchmarkResult benchmark_result = { 0 };
+    bool success                           = true;
+    char setup_error[128]                  = "";
+
+    clear_tt();
+
+    for (size_t i = 0; i < position_count; i++) {
+        if (!engine_set_position_fen(positions[i].fen)) {
+            set_error(error_buf, error_buf_size, "Failed to parse benchmark position");
+            success = false;
+            break;
+        }
+
+        if (positions[i].moves) {
+            const char* move = positions[i].moves;
+            while (*move) {
+                while (*move == ' ') {
+                    move++;
+                }
+                if (!*move) {
+                    break;
+                }
+
+                const char* move_end = move;
+                while (*move_end && *move_end != ' ') {
+                    move_end++;
+                }
+
+                size_t move_length = (size_t)(move_end - move);
+                if (move_length >= sizeof(setup_error)) {
+                    set_error(error_buf, error_buf_size, "Benchmark move is too long");
+                    success = false;
+                    break;
+                }
+
+                char move_string[sizeof(setup_error)];
+                memcpy(move_string, move, move_length);
+                move_string[move_length] = '\0';
+                setup_error[0]           = '\0';
+                if (!engine_apply_uci_move(move_string, setup_error, sizeof(setup_error))) {
+                    set_error(error_buf, error_buf_size, "Failed to apply benchmark move");
+                    success = false;
+                    break;
+                }
+                move = move_end;
+            }
+            if (!success) {
+                break;
+            }
+        }
+
+        SearchLimits limits = { 0 };
+        limits.depth_limit  = depth;
+        limits.multipv      = 1;
+
+        SearchControl control;
+        search_control_reset(&control, false);
+        SearchInput input = {
+            .board               = engine_state.board,
+            .limits              = limits,
+            .suppress_uci_output = true,
+        };
+        SearchResult search_result = search_run(&input, &control);
+        if (!search_result.completed) {
+            set_error(error_buf, error_buf_size, "Benchmark search was stopped");
+            success = false;
+            break;
+        }
+
+        benchmark_result.nodes += search_result.nodes;
+        benchmark_result.elapsed_ms += search_result.elapsed_ms;
+        benchmark_result.positions++;
+
+        uint64_t position_nps = search_result.elapsed_ms > 0
+            ? (search_result.nodes * 1000ULL) / (uint64_t)search_result.elapsed_ms
+            : 0;
+        fprintf(stderr,
+                "Bench position %zu/%zu nodes %" PRIu64 " time %" PRId64 " nps %" PRIu64 "\n",
+                i + 1, position_count, search_result.nodes, search_result.elapsed_ms,
+                position_nps);
+        fflush(stderr);
+    }
+
+    engine_state.board = saved_board;
+    clear_tt();
+
+    if (!success) {
+        return false;
+    }
+
+    if (result) {
+        *result = benchmark_result;
+    }
     return true;
 }
 

@@ -5,6 +5,7 @@
 
 #include <stdatomic.h>
 #include <stdbool.h>
+#include <stdint.h>
 
 // Search tuning constants
 #define MAX_KILLER_MOVES 2
@@ -39,7 +40,14 @@ typedef struct SearchLimits {
 typedef struct {
     CBoard board;
     SearchLimits limits;
+    bool suppress_uci_output;
 } SearchInput;
+
+typedef struct {
+    uint64_t nodes;
+    int64_t elapsed_ms;
+    bool completed;
+} SearchResult;
 
 typedef struct {
     atomic_bool stop_requested;
@@ -69,6 +77,6 @@ void search_handle_ponder_hit(SearchControl* control, const SearchInput* input);
  * Handles iterative deepening, time management, UCI search reporting,
  * and dynamic soft-limit extensions (instability checks).
  */
-void search_run(const SearchInput* input, SearchControl* control);
+SearchResult search_run(const SearchInput* input, SearchControl* control);
 
 #endif // SEARCH_H

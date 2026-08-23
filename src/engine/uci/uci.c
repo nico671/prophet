@@ -395,6 +395,51 @@ static void handle_perft_command(const char* command)
         fflush(stdout);
     }
 }
+
+/**
+ * @brief Runs Prophet's non-standard fixed-position benchmark.
+ *
+ * Supports `bench` and `bench <depth>` with a depth from 1 through 64.
+ */
+static void handle_bench_command(const char* command)
+{
+    const char* cursor = command;
+    skip_whitespace(&cursor);
+
+    int depth = 12;
+    if (*cursor) {
+        char* end_ptr        = NULL;
+        errno                = 0;
+        long parsed          = strtol(cursor, &end_ptr, 10);
+        const char* trailing = end_ptr;
+        skip_whitespace(&trailing);
+        if (errno == ERANGE || end_ptr == cursor || parsed < 1 || parsed > 64 || *trailing) {
+            printf("info string Usage: bench [depth], where depth is in [1, 64]\n");
+            fflush(stdout);
+            return;
+        }
+        depth = (int)parsed;
+    }
+
+    EngineBenchmarkResult result;
+    char error_buf[128] = "";
+    if (!engine_run_benchmark(depth, &result, error_buf, sizeof(error_buf))) {
+        printf("info string %s\n", error_buf[0] ? error_buf : "Benchmark failed");
+        fflush(stdout);
+        return;
+    }
+
+    uint64_t nps
+        = result.elapsed_ms > 0 ? (result.nodes * 1000ULL) / (uint64_t)result.elapsed_ms : 0;
+    printf("info string bench positions %zu depth %d\n", result.positions, depth);
+    fflush(stdout);
+    printf("info string bench nodes %" PRIu64 "\n", result.nodes);
+    fflush(stdout);
+    printf("info string bench time %" PRId64 "\n", result.elapsed_ms);
+    fflush(stdout);
+    printf("info string bench nps %" PRIu64 "\n", nps);
+    fflush(stdout);
+}
 /**
  * @brief Replaces the engine position and optionally plays a UCI move list.
  *
@@ -530,6 +575,8 @@ void uci_loop(void)
             handle_go_command(p);
         } else if (!strcmp(command, "perft")) {
             handle_perft_command(p);
+        } else if (!strcmp(command, "bench")) {
+            handle_bench_command(p);
         } else if (!strcmp(command, "stop")) {
             engine_stop_search();
         } else if (!strcmp(command, "ponderhit")) {
