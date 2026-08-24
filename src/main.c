@@ -9,6 +9,7 @@
 
 int main(void)
 {
+    engine_init();
     uci_loop();
     return 0;
 }

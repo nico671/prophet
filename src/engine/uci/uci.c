@@ -553,8 +553,6 @@ void uci_loop(void)
             printf("readyok\n");
             fflush(stdout);
         } else if (!strcmp(command, "uci")) {
-            engine_init();
-
             printf("id name Prophet dev\n"); // TODO: figure out how
             // to put actual version
             // info here
