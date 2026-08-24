@@ -48,5 +48,15 @@ perft build_mode="dev":
     
     printf 'uci\nisready\nperft suite\nquit\n' | "$target"
 
+bench depth="7" build_mode="dev":
+    #!/usr/bin/env bash
+    just build {{build_mode}}
+    set -euo pipefail
+
+    target="artifacts/{{branch}}/prophet-{{build_mode}}"
+    echo "Running benchmark at depth {{depth}} using engine binary at $target..."
+
+    printf 'uci\nisready\nbench {{depth}}\nquit\n' | "$target"
+
 format:
     @find src/ \( -name "*.c" -o -name "*.h" \) -exec clang-format -i {} +
