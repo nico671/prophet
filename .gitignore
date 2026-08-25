@@ -3,3 +3,8 @@ build/
 *.md
 !README.md
 */__pycache__/
+artifacts/
+!artifacts/v0.0.1/
+docs/
+validation-runs/
+validation-worktrees/

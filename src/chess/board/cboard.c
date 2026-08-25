@@ -302,7 +302,7 @@ char* cboard_to_fen(CBoard* board)
 
             if (piece_char) {
                 if (rank_empty_count > 0) {
-                    p += sprintf(p, "%d", rank_empty_count);
+                    p += snprintf(p, 128 - (size_t)(p - fen_string), "%d", rank_empty_count);
                     rank_empty_count = 0;
                 }
                 *p++ = piece_char;
@@ -312,7 +312,7 @@ char* cboard_to_fen(CBoard* board)
         }
 
         if (rank_empty_count > 0) {
-            p += sprintf(p, "%d", rank_empty_count);
+            p += snprintf(p, 128 - (size_t)(p - fen_string), "%d", rank_empty_count);
         }
 
         if (rank > 0) {
@@ -361,7 +361,8 @@ char* cboard_to_fen(CBoard* board)
     *p++ = ' ';
 
     // halfmove clock and fullmove number
-    p += sprintf(p, "%u %u", board->half_move_clock, board->full_move_number);
+    p += snprintf(p, 128 - (size_t)(p - fen_string), "%u %u", board->half_move_clock,
+                  board->full_move_number);
 
     *p = '\0';
     return fen_string;

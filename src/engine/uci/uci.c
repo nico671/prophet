@@ -362,6 +362,7 @@ static void handle_perft_command(const char* command)
         command += 5;
         skip_whitespace(&command);
         run_perft_test_suite();
+        fflush(stdout);
         return;
     }
 

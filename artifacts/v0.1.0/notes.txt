@@ -1,1 +1,0 @@
-implemented basic nnue evaluation (all pieces features, 768->8->8->1 network, no accumulator in C implementation yet, just direct evaluation of the network). 
