@@ -1,0 +1,26 @@
+name: Publish validated macOS release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: |
+          git merge-base --is-ancestor validation-cutover-2026-08-24 "${GITHUB_SHA}"
+          git for-each-ref "refs/tags/${GITHUB_REF_NAME}" --format='%(contents)' > validation-manifest.json
+          test -s validation-manifest.json
+          python3 -c 'import json, os; assert json.load(open("validation-manifest.json"))["candidate"]["sha"] == os.environ["GITHUB_SHA"]'
+      - run: brew install just
+      - run: just build release dist/prophet-macos-arm64 1
+      - run: gh release create "${GITHUB_REF_NAME}" dist/prophet-macos-arm64 validation-manifest.json --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
