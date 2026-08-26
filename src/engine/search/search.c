@@ -5,6 +5,7 @@
 #include "chess/movegen/move_make.h"
 #include "chess/movegen/movegen.h"
 #include "engine/eval/hceval.h"
+#include "engine/search/see.h"
 #include "engine/tt/tt.h"
 
 #include <assert.h>
@@ -18,6 +19,7 @@
 typedef struct {
     Move move;
     int score;
+    int secondary_score;
 } ScoredMove;
 
 typedef struct {
@@ -756,29 +758,20 @@ static void score_moves(SearchContext* ctx, CBoard* board, MoveList* move_list,
     for (int i = 0; i < move_list->count; i++) {
         Move curr_move       = move_list->moves[i];
         int score            = 0;
+        int secondary_score  = 0;
 
         scored_moves[i].move = curr_move;
         if (tt_move != MOVE_NONE && curr_move == tt_move) {
             score = TT_MOVE_SCORE;
         } else if (move_is_capture(board, curr_move) || move_is_promotion(curr_move)) {
-            PieceType attacker_piecetype
-                = cboard_get_piece_at_square(board, move_get_from_square(curr_move));
             PieceType captured_piecetype = captured_piece_for_move(board, curr_move);
-            int mvv_lva                  = 0;
-            if (captured_piecetype != NO_PIECE && attacker_piecetype != NO_PIECE) {
-                mvv_lva = piece_value(captured_piecetype) - piece_value(attacker_piecetype);
-            }
-
-            int promo_bonus = 0;
-            if (move_is_promotion(curr_move)) {
-                promo_bonus = piece_value(move_get_promotion_piecetype(curr_move));
-            }
-
-            if (mvv_lva >= 0 || move_is_promotion(curr_move)) {
-                score = GOOD_CAPTURE_BASE_SCORE + mvv_lva + promo_bonus;
+            int see                      = see_capture(board, curr_move);
+            if (see >= 0) {
+                score = GOOD_CAPTURE_BASE_SCORE + see;
             } else {
-                score = BAD_CAPTURE_BASE_SCORE + mvv_lva + promo_bonus;
+                score = BAD_CAPTURE_BASE_SCORE + see;
             }
+            secondary_score = piece_value(captured_piecetype);
         } else if (ply < MAX_PLY && curr_move == ctx->killer_moves[ply][0]) {
             score = KILLER_1_SCORE;
         } else if (ply < MAX_PLY && curr_move == ctx->killer_moves[ply][1]) {
@@ -791,14 +784,19 @@ static void score_moves(SearchContext* ctx, CBoard* board, MoveList* move_list,
                 score = *entry;
             }
         }
-        scored_moves[i].score = score;
+        scored_moves[i].score           = score;
+        scored_moves[i].secondary_score = secondary_score;
     }
 }
 
 static void pick_next_best_move(ScoredMove* scored_moves, int start, int count)
 {
     for (int i = start; i < count; i++) {
-        if (scored_moves[i].score > scored_moves[start].score) {
+        bool better_score = scored_moves[i].score > scored_moves[start].score;
+        bool equal_score  = scored_moves[i].score == scored_moves[start].score;
+        bool better_secondary
+            = scored_moves[i].secondary_score > scored_moves[start].secondary_score;
+        if (better_score || (equal_score && better_secondary)) {
             // Swap
             ScoredMove temp     = scored_moves[start];
             scored_moves[start] = scored_moves[i];
@@ -869,8 +867,16 @@ static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int
         pick_next_best_move(scored_moves, i, move_list.count);
         Move move          = scored_moves[i].move;
 
+        bool capture       = move_is_capture(node, move);
+        bool prune_capture = !king_in_check && capture && !move_is_promotion(move)
+            && see_capture(node, move) < -HC_PAWN_VALUE;
         UndoInfo undo_info = make_move(node, move);
-        int eval           = -quiescence(ctx, node, -beta, -alpha, ply + 1);
+        bool gives_check   = is_king_in_check(node, node->side_to_move);
+        if (prune_capture && !gives_check) {
+            unmake_move(node, move, undo_info);
+            continue;
+        }
+        int eval = -quiescence(ctx, node, -beta, -alpha, ply + 1);
         unmake_move(node, move, undo_info);
 
         if (eval >= beta) {
