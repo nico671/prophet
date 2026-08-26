@@ -40,22 +40,33 @@ def main() -> int:
         "-openings", f"file={opening}", "format=epd", "order=random",
         "-sprt", f"elo0={settings['elo0']}", f"elo1={settings['elo1']}",
         f"alpha={settings['alpha']}", f"beta={settings['beta']}",
+        "-config", f"outname={args.output_dir / 'fastchess-config.json'}",
         "-pgnout", f"file={pgn}", "append=false",
     ]
-    completed = subprocess.run(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    log.write_text(completed.stdout)
-    lower = completed.stdout.lower()
+    print(f"[sprt] starting Fastchess: {settings['rounds']} rounds, concurrency {settings['concurrency']}", flush=True)
+    with log.open("w") as output:
+        process = subprocess.Popen(command, text=True, stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT, bufsize=1)
+        assert process.stdout is not None
+        for line in process.stdout:
+            sys.stdout.write(line)
+            sys.stdout.flush()
+            output.write(line)
+            output.flush()
+        process.wait()
+    completed_output = log.read_text()
+    lower = completed_output.lower()
     if re.search(r"\bh1\b.*\baccepted\b|\baccepted\b.*\bh1\b", lower):
         verdict = "accepted"
     elif re.search(r"\bh0\b.*\baccepted\b|\baccepted\b.*\bh0\b|\brejected\b", lower):
         verdict = "rejected"
     else:
         verdict = "inconclusive"
-    evidence = {"command": command, "fastchess_exit_code": completed.returncode,
+    evidence = {"command": command, "fastchess_exit_code": process.returncode,
                 "log": str(log), "pgn": str(pgn), "verdict": verdict}
     (args.output_dir / "sprt.json").write_text(json.dumps(evidence, indent=2) + "\n")
-    print(f"SPRT {verdict}; evidence: {args.output_dir}")
-    return 0 if completed.returncode == 0 and verdict == "accepted" else 1
+    print(f"SPRT {verdict}; evidence: {args.output_dir}", flush=True)
+    return 0 if process.returncode == 0 and verdict == "accepted" else 1
 
 
 if __name__ == "__main__":

@@ -36,15 +36,20 @@ def main() -> int:
     args = parser.parse_args()
     engine = UciEngine(args.engine, args.timeout)
     try:
+        print("UCI smoke: initialize", flush=True)
         engine.initialize()
+        print("UCI smoke: fixed-depth search", flush=True)
         engine.send("position startpos moves e2e4 e7e5")
         search(engine, "go depth 2", 2)
+        print("UCI smoke: stop infinite search", flush=True)
         engine.send("position startpos")
         engine.send("go infinite")
         engine.send("stop")
         engine.expect(lambda line: line.startswith("bestmove "), "bestmove after stop")
+        print("UCI smoke: searchmoves restriction", flush=True)
         engine.send("position startpos")
         search(engine, "go depth 2 searchmoves e2e4 d2d4", 2, {"e2e4", "d2d4"})
+        print("UCI smoke: MultiPV", flush=True)
         engine.send("setoption name MultiPV value 2")
         engine.send("position startpos")
         search(engine, "go depth 2", 2, multipv=2)
@@ -53,7 +58,7 @@ def main() -> int:
         engine.terminate()
         print(f"UCI smoke failed: {error}", file=sys.stderr)
         return 1
-    print("UCI smoke passed")
+    print("UCI smoke passed", flush=True)
     return 0
 
 

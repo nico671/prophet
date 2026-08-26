@@ -32,7 +32,7 @@ def main() -> int:
     except (KeyError, ValueError, json.JSONDecodeError) as error:
         print(f"validation configuration failed: {error}", file=sys.stderr)
         return 1
-    print("validation configuration passed")
+    print("validation configuration passed", flush=True)
     return 0
 
 
