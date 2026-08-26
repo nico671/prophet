@@ -52,7 +52,7 @@ typedef struct {
 static int piece_value(PieceType piece);
 static TimeLimits compute_time_limits(SearchLimits search_limits, Color side_to_move);
 static bool should_stop_search(SearchContext* ctx);
-static int search_root_best_move(SearchContext* ctx, CBoard* board, int depth,
+static int search_root_best_move(SearchContext* ctx, CBoard* board, int depth, int alpha, int beta,
                                  Move* prev_best_move);
 static int search_root_moves(SearchContext* ctx, CBoard* board, int depth, Move* prev_best_move,
                              RootMove* root_moves);
@@ -401,7 +401,8 @@ static void unmake_null_move(CBoard* board, NullMoveUndo undo)
  * Applies move ordering, iterates legal root moves, and updates the
  * TT with the best score found at this depth.
  */
-static int search_root_best_move(SearchContext* ctx, CBoard* board, int depth, Move* prev_best_move)
+static int search_root_best_move(SearchContext* ctx, CBoard* board, int depth, int alpha, int beta,
+                                 Move* prev_best_move)
 {
     MoveList move_list;
     init_move_list(&move_list);
@@ -433,8 +434,7 @@ static int search_root_best_move(SearchContext* ctx, CBoard* board, int depth, M
     ScoredMove scored_moves[MAX_LEGAL_MOVES];
     score_moves(ctx, board, &move_list, scored_moves, tt_move, 0);
 
-    int alpha                           = -MATE_SCORE;
-    int beta                            = MATE_SCORE;
+    int original_alpha                  = alpha;
     int best_score                      = -MATE_SCORE;
     Move best_move                      = create_move(NO_SQUARE, NO_SQUARE, 0, 0);
     bool has_searched_at_least_one_move = false;
@@ -453,7 +453,15 @@ static int search_root_best_move(SearchContext* ctx, CBoard* board, int depth, M
         }
 
         UndoInfo undo_info = make_move(board, move);
-        int eval           = -negamax(ctx, board, depth - 1, -beta, -alpha, board->side_to_move, 1);
+        int eval;
+        if (!has_searched_at_least_one_move) {
+            eval = -negamax(ctx, board, depth - 1, -beta, -alpha, board->side_to_move, 1);
+        } else {
+            eval = -negamax(ctx, board, depth - 1, -alpha - 1, -alpha, board->side_to_move, 1);
+            if (eval > alpha && eval < beta) {
+                eval = -negamax(ctx, board, depth - 1, -beta, -alpha, board->side_to_move, 1);
+            }
+        }
         unmake_move(board, move, undo_info);
         has_searched_at_least_one_move = true;
 
@@ -469,14 +477,25 @@ static int search_root_best_move(SearchContext* ctx, CBoard* board, int depth, M
         if (eval > alpha) {
             alpha = eval;
         }
+        if (alpha >= beta) {
+            break;
+        }
     }
 
     if (!has_searched_at_least_one_move) {
         *prev_best_move = create_move(NO_SQUARE, NO_SQUARE, 0, 0);
         return -MATE_SCORE;
     }
-    store_tt(board->zobrist_key, depth, to_tt_score(best_score, 0), TT_PV, best_move);
-    *prev_best_move = best_move;
+    if (!should_stop_search(ctx)) {
+        TTBound bound = TT_PV;
+        if (best_score <= original_alpha) {
+            bound = TT_ALL;
+        } else if (best_score >= beta) {
+            bound = TT_CUT;
+        }
+        store_tt(board->zobrist_key, depth, to_tt_score(best_score, 0), bound, best_move);
+        *prev_best_move = best_move;
+    }
     return best_score;
 }
 
@@ -652,21 +671,55 @@ SearchResult search_run(const SearchInput* input, SearchControl* control)
         }
 
         RootMove root_moves[MAX_LEGAL_MOVES];
-        int root_move_count = 0;
+        int root_move_count      = 0;
+        bool completed_iteration = false;
         if (ctx.limits.multipv > 1) {
             Move depth_best_move = best_move;
             root_move_count
                 = search_root_moves(&ctx, &ctx.board, current_depth, &depth_best_move, root_moves);
+            completed_iteration = !should_stop_search(&ctx) && root_move_count > 0;
         } else {
-            Move depth_best_move = best_move;
-            int score = search_root_best_move(&ctx, &ctx.board, current_depth, &depth_best_move);
-            if (move_get_from_square(depth_best_move) != NO_SQUARE) {
-                root_moves[0]   = (RootMove) { .move = depth_best_move, .score = score };
-                root_move_count = 1;
+            bool use_aspiration
+                = current_depth >= ROOT_ASPIRATION_START_DEPTH && !is_mate_score(best_score);
+            int aspiration_window = ROOT_ASPIRATION_INITIAL_WINDOW;
+
+            while (!should_stop_search(&ctx)) {
+                bool full_window = !use_aspiration || aspiration_window >= MATE_SCORE;
+                int alpha        = -MATE_SCORE;
+                int beta         = MATE_SCORE;
+                if (!full_window) {
+                    int64_t lower = (int64_t)best_score - aspiration_window;
+                    int64_t upper = (int64_t)best_score + aspiration_window;
+                    alpha         = lower < -MATE_SCORE ? -MATE_SCORE : (int)lower;
+                    beta          = upper > MATE_SCORE ? MATE_SCORE : (int)upper;
+                }
+
+                Move depth_best_move = best_move;
+                int score = search_root_best_move(&ctx, &ctx.board, current_depth, alpha, beta,
+                                                  &depth_best_move);
+                if (should_stop_search(&ctx)) {
+                    break;
+                }
+
+                bool score_inside_window = score > alpha && score < beta;
+                if (full_window || score_inside_window) {
+                    if (move_get_from_square(depth_best_move) != NO_SQUARE) {
+                        root_moves[0]   = (RootMove) { .move = depth_best_move, .score = score };
+                        root_move_count = 1;
+                        completed_iteration = true;
+                    }
+                    break;
+                }
+
+                if (aspiration_window >= MATE_SCORE / 2) {
+                    aspiration_window = MATE_SCORE;
+                } else {
+                    aspiration_window *= 2;
+                }
             }
         }
 
-        if (should_stop_search(&ctx)) {
+        if (!completed_iteration || should_stop_search(&ctx)) {
             break;
         }
         if (root_move_count > 0) {
