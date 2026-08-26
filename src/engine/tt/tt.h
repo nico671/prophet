@@ -6,6 +6,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define TT_QSEARCH_DEPTH 0
+
 /**
  * @brief Bound type stored in a transposition-table entry.
  *

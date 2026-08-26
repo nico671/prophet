@@ -823,10 +823,31 @@ static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int
         return hc_evaluate_cboard(node);
     }
 
+    int original_alpha = alpha;
+    TTEntry* tt_entry  = probe_tt(node->zobrist_key);
+    Move tt_best_move  = MOVE_NONE;
+    if (tt_entry && tt_entry->depth >= TT_QSEARCH_DEPTH) {
+        tt_best_move = tt_entry->best_move;
+        int tt_score = from_tt_score(tt_entry->score, ply);
+        if (tt_entry->bound == TT_PV) {
+            return tt_score;
+        }
+        if (tt_entry->bound == TT_CUT && tt_score >= beta) {
+            return tt_score;
+        }
+        if (tt_entry->bound == TT_ALL && tt_score <= alpha) {
+            return tt_score;
+        }
+    }
+
     bool king_in_check = is_king_in_check(node, node->side_to_move);
     int stand_pat      = hc_evaluate_cboard(node);
     if (!king_in_check) {
         if (stand_pat >= beta) {
+            if (!should_stop_search(ctx)) {
+                store_tt(node->zobrist_key, TT_QSEARCH_DEPTH, to_tt_score(stand_pat, ply), TT_CUT,
+                         MOVE_NONE);
+            }
             return stand_pat;
         }
         if (stand_pat > alpha) {
@@ -844,24 +865,29 @@ static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int
 
     if (move_list.count == 0) {
         if (king_in_check) {
-            return -MATE_SCORE + ply;
+            int mate_score = -MATE_SCORE + ply;
+            if (!should_stop_search(ctx)) {
+                store_tt(node->zobrist_key, TT_QSEARCH_DEPTH, to_tt_score(mate_score, ply), TT_PV,
+                         MOVE_NONE);
+            }
+            return mate_score;
+        }
+        if (!should_stop_search(ctx)) {
+            store_tt(node->zobrist_key, TT_QSEARCH_DEPTH, to_tt_score(stand_pat, ply), TT_PV,
+                     MOVE_NONE);
         }
         return stand_pat;
-    }
-
-    TTEntry* tt_entry = probe_tt(node->zobrist_key);
-    Move tt_best_move = MOVE_NONE;
-    if (tt_entry && tt_entry->zobrist_key == node->zobrist_key) {
-        tt_best_move = tt_entry->best_move;
     }
 
     assert(move_list.count <= MAX_LEGAL_MOVES);
     ScoredMove scored_moves[MAX_LEGAL_MOVES];
     score_moves(ctx, node, &move_list, scored_moves, tt_best_move, ply);
 
+    Move best_move = MOVE_NONE;
+    int best_eval  = -MATE_SCORE;
     for (int i = 0; i < move_list.count; i++) {
         if (should_stop_search(ctx)) {
-            break;
+            return alpha;
         }
 
         pick_next_best_move(scored_moves, i, move_list.count);
@@ -898,7 +924,17 @@ static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int
         int eval = -quiescence(ctx, node, -beta, -alpha, ply + 1);
         unmake_move(node, move, undo_info);
 
+        if (should_stop_search(ctx)) {
+            return eval;
+        }
+        if (eval > best_eval) {
+            best_eval = eval;
+            best_move = move;
+        }
         if (eval >= beta) {
+            if (!should_stop_search(ctx)) {
+                store_tt(node->zobrist_key, TT_QSEARCH_DEPTH, to_tt_score(eval, ply), TT_CUT, move);
+            }
             return eval;
         }
         if (eval > alpha) {
@@ -906,6 +942,10 @@ static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int
         }
     }
 
+    if (!should_stop_search(ctx)) {
+        TTBound bound = alpha <= original_alpha ? TT_ALL : TT_PV;
+        store_tt(node->zobrist_key, TT_QSEARCH_DEPTH, to_tt_score(alpha, ply), bound, best_move);
+    }
     return alpha;
 }
 
