@@ -75,18 +75,51 @@ def new_run(label: str) -> Path:
     return path
 
 
+def stream_command(args: list[str], cwd: Path = ROOT) -> None:
+    result = subprocess.run(args, cwd=cwd)
+    if result.returncode:
+        raise RuntimeError(f"command failed ({result.returncode}): {' '.join(args)}")
+
+
 def add_worktree(path: Path, ref: str) -> None:
     command(["git", "worktree", "add", "--detach", str(path), ref])
 
 
 def build(worktree: Path, mode: str, output: Path) -> None:
-    command(["just", "build", mode, str(output), "1"], cwd=worktree)
+    print(f"[validation] building {mode} binary: {output}", flush=True)
+    stream_command(["just", "build", mode, str(output), "1"], cwd=worktree)
 
 
-def result_entry(args: list[str], cwd: Path, log: Path) -> dict[str, Any]:
-    completed = subprocess.run(args, cwd=cwd, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    log.write_text(completed.stdout)
-    return {"passed": completed.returncode == 0, "exit_code": completed.returncode, "log": str(log)}
+def result_entry(args: list[str], cwd: Path, log: Path, label: str) -> dict[str, Any]:
+    print(f"[validation] starting {label}", flush=True)
+    log.parent.mkdir(parents=True, exist_ok=True)
+    with log.open("w") as output:
+        process = subprocess.Popen(args, cwd=cwd, text=True, stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT, bufsize=1)
+        assert process.stdout is not None
+        for line in process.stdout:
+            sys.stdout.write(line)
+            sys.stdout.flush()
+            output.write(line)
+            output.flush()
+        process.wait()
+    passed = process.returncode == 0
+    print(f"[validation] {label} {'passed' if passed else 'failed'}; log: {log}", flush=True)
+    return {"passed": passed, "exit_code": process.returncode, "log": str(log)}
+
+
+def identical_sprt(output_dir: Path, log: Path, baseline_sha: str) -> dict[str, Any]:
+    """Record the vacuous strength result when candidate and baseline are identical."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    message = ("SPRT skipped: candidate and baseline resolve to the same commit "
+               f"({baseline_sha}); there is no strength delta to test.\n")
+    log.write_text(message)
+    evidence = {"verdict": "identical", "passed": True, "skipped": True,
+                "reason": message.strip(), "baseline_sha": baseline_sha,
+                "candidate_sha": baseline_sha, "log": str(log)}
+    (output_dir / "sprt.json").write_text(json.dumps(evidence, indent=2) + "\n")
+    print(message.strip(), flush=True)
+    return {"passed": True, "exit_code": 0, "log": str(log)}
 
 
 def write_manifest(path: Path, data: dict[str, Any]) -> Path:
@@ -111,21 +144,26 @@ def local_match(kind: str, baseline_arg: str | None) -> int:
     settings = config()
     baseline_ref, baseline_sha = (baseline_arg, ref_sha(baseline_arg)) if baseline_arg else select_baseline(settings)
     run = new_run(kind)
+    print(f"[validation] {kind}: baseline {baseline_ref} ({baseline_sha})", flush=True)
     baseline_tree = WORKTREES / run.name / "baseline"
     add_worktree(baseline_tree, baseline_ref)
     baseline_bin, candidate_bin = run / "baseline", run / "candidate"
     build(baseline_tree, "release", baseline_bin)
     build(ROOT, "release", candidate_bin)
     if kind == "benchmark":
-        args = [sys.executable, str(ROOT / "scripts/bench.py"), "--baseline", str(baseline_bin), "--candidate", str(candidate_bin),
+        args = [sys.executable, "-u", str(ROOT / "scripts/bench.py"), "--baseline", str(baseline_bin), "--candidate", str(candidate_bin),
                 "--config", str(CONFIG_PATH), "--output", str(run / "benchmark.json")]
-        entry = result_entry(args, ROOT, run / "benchmark.log")
+        entry = result_entry(args, ROOT, run / "benchmark.log", "comparative benchmark")
     else:
-        args = [sys.executable, str(ROOT / "scripts/sprt.py"), "--baseline", str(baseline_bin), "--candidate", str(candidate_bin),
-                "--config", str(CONFIG_PATH), "--output-dir", str(run / "sprt")]
-        entry = result_entry(args, ROOT, run / "sprt.log")
-    print(f"baseline: {baseline_ref} ({baseline_sha})")
-    print(f"{kind} {'passed' if entry['passed'] else 'failed'}; evidence: {run}")
+        candidate_sha = git("rev-parse", "HEAD")
+        if candidate_sha == baseline_sha:
+            entry = identical_sprt(run / "sprt", run / "sprt.log", baseline_sha)
+        else:
+            args = [sys.executable, "-u", str(ROOT / "scripts/sprt.py"), "--baseline", str(baseline_bin), "--candidate", str(candidate_bin),
+                    "--config", str(CONFIG_PATH), "--output-dir", str(run / "sprt")]
+            entry = result_entry(args, ROOT, run / "sprt.log", "SPRT")
+    print(f"baseline: {baseline_ref} ({baseline_sha})", flush=True)
+    print(f"{kind} {'passed' if entry['passed'] else 'failed'}; evidence: {run}", flush=True)
     return 0 if entry["passed"] else 1
 
 
@@ -134,17 +172,22 @@ def validate(version: str, speed_override: bool) -> int:
     baseline_ref, baseline_sha = select_baseline(settings)
     candidate_sha = git("rev-parse", "HEAD")
     run = new_run(version)
+    print(f"[validation] validating {version} at {candidate_sha}", flush=True)
+    print(f"[validation] selected baseline {baseline_ref} ({baseline_sha})", flush=True)
     baseline_tree, candidate_tree = WORKTREES / run.name / "baseline", WORKTREES / run.name / "candidate"
     add_worktree(baseline_tree, baseline_ref)
     add_worktree(candidate_tree, candidate_sha)
     baseline_bin, candidate_bin = run / "bin" / "baseline", run / "bin" / "candidate"
     build(baseline_tree, "release", baseline_bin)
     build(candidate_tree, "release", candidate_bin)
-    checks = result_entry(["just", "check"], candidate_tree, run / "check.log")
-    benchmark = result_entry([sys.executable, str(ROOT / "scripts/bench.py"), "--baseline", str(baseline_bin), "--candidate", str(candidate_bin),
-                              "--config", str(CONFIG_PATH), "--output", str(run / "benchmark.json")], ROOT, run / "benchmark.log")
-    sprt = result_entry([sys.executable, str(ROOT / "scripts/sprt.py"), "--baseline", str(baseline_bin), "--candidate", str(candidate_bin),
-                         "--config", str(CONFIG_PATH), "--output-dir", str(run / "sprt")], ROOT, run / "sprt.log")
+    checks = result_entry(["just", "check"], candidate_tree, run / "check.log", "strict checks")
+    benchmark = result_entry([sys.executable, "-u", str(ROOT / "scripts/bench.py"), "--baseline", str(baseline_bin), "--candidate", str(candidate_bin),
+                              "--config", str(CONFIG_PATH), "--output", str(run / "benchmark.json")], ROOT, run / "benchmark.log", "comparative benchmark")
+    if candidate_sha == baseline_sha:
+        sprt = identical_sprt(run / "sprt", run / "sprt.log", baseline_sha)
+    else:
+        sprt = result_entry([sys.executable, "-u", str(ROOT / "scripts/sprt.py"), "--baseline", str(baseline_bin), "--candidate", str(candidate_bin),
+                             "--config", str(CONFIG_PATH), "--output-dir", str(run / "sprt")], ROOT, run / "sprt.log", "SPRT")
     benchmark["result"] = read_json(run / "benchmark.json")
     sprt["result"] = read_json(run / "sprt" / "sprt.json")
     manifest = {
@@ -159,8 +202,8 @@ def validate(version: str, speed_override: bool) -> int:
     manifest_path = write_manifest(run, manifest)
     speed_ok = benchmark["passed"] or speed_override
     passed = checks["passed"] and speed_ok and sprt["passed"]
-    print(f"baseline: {baseline_ref} ({baseline_sha})")
-    print(f"validation {'passed' if passed else 'failed'}; manifest: {manifest_path}")
+    print(f"baseline: {baseline_ref} ({baseline_sha})", flush=True)
+    print(f"validation {'passed' if passed else 'failed'}; manifest: {manifest_path}", flush=True)
     return 0 if passed else 1
 
 
@@ -233,7 +276,7 @@ def main() -> int:
     args = parser.parse_args()
     try:
         if args.action == "baseline":
-            ref, sha = select_baseline(config()); print(f"{ref} {sha}"); return 0
+            ref, sha = select_baseline(config()); print(f"{ref} {sha}", flush=True); return 0
         if args.action == "bootstrap": return bootstrap()
         if args.action in ("benchmark", "sprt"): return local_match(args.action, args.baseline)
         if args.action == "validate": return validate(args.version, args.speed_override)

@@ -28,9 +28,11 @@ def main() -> int:
         return 1
     engine = UciEngine(args.engine, args.timeout)
     try:
+        print("strict perft: starting full suite", flush=True)
         engine.initialize()
         engine.send("perft suite")
-        _, lines = engine.expect(lambda line: bool(RESULT.match(line)), "perft result", args.timeout)
+        _, lines = engine.expect(lambda line: bool(RESULT.match(line)), "perft result", args.timeout,
+                                 on_line=lambda line: print(f"strict perft: {line}", flush=True))
         engine.quit()
     except UciError as error:
         engine.terminate()
@@ -56,7 +58,7 @@ def main() -> int:
     if not match or (int(match.group(1)), int(match.group(2))) != (32, 0):
         print("strict perft failed: expected `Results: 32 passed, 0 failed`", file=sys.stderr)
         return 1
-    print("strict perft passed: 32 expected depths, 0 failures")
+    print("strict perft passed: 32 expected depths, 0 failures", flush=True)
     return 0
 
 

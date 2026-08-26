@@ -59,36 +59,36 @@ bench-local depth="7" build_mode="dev":
     printf 'uci\nisready\nbench {{depth}}\nquit\n' | "$target"
 
 baseline:
-    @python3 scripts/validation.py baseline
+    @python3 -u scripts/validation.py baseline
 
 check:
     #!/usr/bin/env bash
     set -euo pipefail
-    python3 scripts/check_config.py
+    python3 -u scripts/check_config.py
     mkdir -p validation-runs
     run_dir="$(mktemp -d validation-runs/check.XXXXXX)"
     target="$run_dir/prophet-dev"
     just build dev "$target" 1
-    python3 scripts/strict_perft.py --engine "$target"
-    python3 scripts/uci_smoke.py --engine "$target"
+    python3 -u scripts/strict_perft.py --engine "$target"
+    python3 -u scripts/uci_smoke.py --engine "$target"
     target="$run_dir/prophet-sanitize"
     just build sanitize "$target" 1
-    ASAN_OPTIONS=halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 python3 scripts/uci_smoke.py --engine "$target"
+    ASAN_OPTIONS=halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 python3 -u scripts/uci_smoke.py --engine "$target"
 
 bench baseline="":
-    @python3 scripts/validation.py benchmark {{ if baseline == "" { "" } else { "--baseline " + baseline } }}
+    @python3 -u scripts/validation.py benchmark {{ if baseline == "" { "" } else { "--baseline " + baseline } }}
 
 sprt baseline="":
-    @python3 scripts/validation.py sprt {{ if baseline == "" { "" } else { "--baseline " + baseline } }}
+    @python3 -u scripts/validation.py sprt {{ if baseline == "" { "" } else { "--baseline " + baseline } }}
 
 validate version speed_override="0":
-    @python3 scripts/validation.py validate "{{version}}" {{ if speed_override == "1" { "--speed-override" } else { "" } }}
+    @python3 -u scripts/validation.py validate "{{version}}" {{ if speed_override == "1" { "--speed-override" } else { "" } }}
 
 release version manifest="" speed_override="0":
-    @python3 scripts/validation.py release "{{version}}" {{ if manifest == "" { "" } else { "--manifest " + manifest } }} {{ if speed_override == "1" { "--speed-override" } else { "" } }}
+    @python3 -u scripts/validation.py release "{{version}}" {{ if manifest == "" { "" } else { "--manifest " + manifest } }} {{ if speed_override == "1" { "--speed-override" } else { "" } }}
 
 bootstrap-validation:
-    @python3 scripts/validation.py bootstrap
+    @python3 -u scripts/validation.py bootstrap
 
 format:
     @find src/ \( -name "*.c" -o -name "*.h" \) -exec clang-format -i {} +

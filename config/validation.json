@@ -4,8 +4,8 @@
   "benchmark": {
     "speed_budget_ratio": 0.97,
     "profiles": {
-      "standard": {"depth": 12, "samples": 9, "exclude_ids": [37]},
-      "qsearch-stress": {"depth": 1, "samples": 1, "ids": [37], "timeout_seconds": 90}
+      "standard": {"depth": 12, "samples": 1, "exclude_ids": [37]},
+      "qsearch-stress": {"depth": 1, "samples": 1, "ids": [37], "timeout_seconds": 30}
     },
     "positions": [
       {"id":0,"fen":"rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"},

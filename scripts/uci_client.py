@@ -40,7 +40,8 @@ class UciEngine:
         self.process.stdin.flush()
 
     def expect(self, predicate: Callable[[str], bool], description: str,
-               timeout: float | None = None) -> tuple[str, list[str]]:
+               timeout: float | None = None,
+               on_line: Callable[[str], None] | None = None) -> tuple[str, list[str]]:
         deadline = time.monotonic() + (self.timeout if timeout is None else timeout)
         seen: list[str] = []
         while time.monotonic() < deadline:
@@ -51,6 +52,8 @@ class UciEngine:
             if line is None:
                 raise UciError(f"engine exited while waiting for {description}; output: {seen!r}")
             seen.append(line)
+            if on_line:
+                on_line(line)
             if predicate(line):
                 return line, seen
         raise UciError(f"timed out waiting for {description}; output: {seen!r}")
