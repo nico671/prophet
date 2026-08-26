@@ -824,8 +824,8 @@ static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int
     }
 
     bool king_in_check = is_king_in_check(node, node->side_to_move);
+    int stand_pat      = hc_evaluate_cboard(node);
     if (!king_in_check) {
-        int stand_pat = hc_evaluate_cboard(node);
         if (stand_pat >= beta) {
             return stand_pat;
         }
@@ -846,7 +846,7 @@ static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int
         if (king_in_check) {
             return -MATE_SCORE + ply;
         }
-        return hc_evaluate_cboard(node);
+        return stand_pat;
     }
 
     TTEntry* tt_entry = probe_tt(node->zobrist_key);
@@ -865,9 +865,18 @@ static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int
         }
 
         pick_next_best_move(scored_moves, i, move_list.count);
-        Move move          = scored_moves[i].move;
+        Move move           = scored_moves[i].move;
 
-        bool capture       = move_is_capture(node, move);
+        bool capture        = move_is_capture(node, move);
+        int optimistic_gain = 0;
+        if (capture) {
+            optimistic_gain = piece_value(captured_piece_for_move(node, move));
+            if (move_is_promotion(move)) {
+                optimistic_gain
+                    += piece_value(move_get_promotion_piecetype(move)) - piece_value(PAWN);
+            }
+        }
+
         bool prune_capture = !king_in_check && capture && !move_is_promotion(move)
             && see_capture(node, move) < -HC_PAWN_VALUE;
         UndoInfo undo_info = make_move(node, move);
@@ -876,6 +885,16 @@ static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int
             unmake_move(node, move, undo_info);
             continue;
         }
+
+        bool prune_delta = capture && !king_in_check && !move_is_promotion(move)
+            && !is_mate_score(alpha) && !is_mate_score(beta) && !gives_check
+            && !should_stop_search(ctx)
+            && stand_pat + optimistic_gain + QSEARCH_DELTA_MARGIN <= alpha;
+        if (prune_delta) {
+            unmake_move(node, move, undo_info);
+            continue;
+        }
+
         int eval = -quiescence(ctx, node, -beta, -alpha, ply + 1);
         unmake_move(node, move, undo_info);
 
