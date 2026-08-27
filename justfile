@@ -71,9 +71,11 @@ check:
     just build dev "$target" 1
     python3 -u scripts/strict_perft.py --engine "$target"
     python3 -u scripts/uci_smoke.py --engine "$target"
+    python3 -u scripts/draw_rules_smoke.py --engine "$target"
     target="$run_dir/prophet-sanitize"
     just build sanitize "$target" 1
     ASAN_OPTIONS=halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 python3 -u scripts/uci_smoke.py --engine "$target"
+    ASAN_OPTIONS=halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 python3 -u scripts/draw_rules_smoke.py --engine "$target"
 
 bench baseline="":
     @python3 -u scripts/validation.py benchmark {{ if baseline == "" { "" } else { "--baseline " + baseline } }}

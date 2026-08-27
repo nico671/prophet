@@ -19,7 +19,20 @@
 #define HISTORY_MAX 200000
 #define MATE_SCORE 200000000
 #define MATE_THRESHOLD 199999000
+#define QSEARCH_DELTA_MARGIN 200
+#define ROOT_ASPIRATION_START_DEPTH 4
+#define ROOT_ASPIRATION_INITIAL_WINDOW 50
 #define MOVE_OVERHEAD_DEFAULT_MS 50
+#define MAX_POSITION_HISTORY 151
+
+/**
+ * Positions in the current game since the last pawn move or capture.
+ * The final key is the current position.
+ */
+typedef struct {
+    uint64_t keys[MAX_POSITION_HISTORY];
+    uint16_t count;
+} PositionHistory;
 
 typedef struct SearchLimits {
     bool ponder;
@@ -39,6 +52,7 @@ typedef struct SearchLimits {
 
 typedef struct {
     CBoard board;
+    PositionHistory position_history;
     SearchLimits limits;
     bool suppress_uci_output;
 } SearchInput;

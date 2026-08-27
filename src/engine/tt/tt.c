@@ -40,6 +40,11 @@ static size_t floor_pow2(size_t x)
     return p;
 }
 
+static bool has_stored_move(Move move)
+{
+    return move_get_from_square(move) != NO_SQUARE;
+}
+
 void init_tt(size_t megabytes)
 {
     if (tt_table != NULL) {
@@ -81,19 +86,31 @@ void store_tt(uint64_t key, int depth, int score, TTBound bound, Move best_move)
 
     size_t index = key & (tt_size - 1); // Equivalent to key % tt_size when
     // tt_size is a power of 2
-    TTEntry* entry   = &tt_table[index];
+    TTEntry* entry        = &tt_table[index];
 
-    bool key_matches = (entry->zobrist_key == key);
-    bool empty_slot  = (entry->zobrist_key == 0);
+    bool key_matches      = entry->zobrist_key == key;
+    bool empty_slot       = entry->zobrist_key == 0;
+    bool old_has_move     = has_stored_move(entry->best_move);
+    bool new_has_move     = has_stored_move(best_move);
+    bool same_depth       = depth == entry->depth;
+    bool exact_tie        = same_depth && bound == TT_PV && entry->bound != TT_PV;
+    bool replace_same_key = key_matches && depth > entry->depth;
+    replace_same_key      = replace_same_key
+        || (key_matches && same_depth && (bound == TT_PV || entry->bound != TT_PV));
+    bool replace_collision = !key_matches && (depth > entry->depth || exact_tie);
 
-    // Replace if slot is empty, if we're refreshing same position, or
-    // if this entry is more valuable
-    if (empty_slot || key_matches || depth > entry->depth || bound == TT_PV) {
-        entry->zobrist_key = key;
-        entry->score       = score;
-        entry->depth       = depth;
-        entry->bound       = bound;
-        entry->best_move   = best_move;
+    if (empty_slot || replace_same_key || replace_collision) {
+        Move stored_move = new_has_move ? best_move : entry->best_move;
+        *entry           = (TTEntry) {
+            .zobrist_key = key,
+            .score       = score,
+            .depth       = depth,
+            .bound       = bound,
+            .best_move   = stored_move,
+        };
+    } else if (key_matches && !old_has_move && new_has_move) {
+        // Preserve a deeper score and bound while filling its missing move.
+        entry->best_move = best_move;
     }
 }
 

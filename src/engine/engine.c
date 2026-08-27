@@ -38,9 +38,33 @@ typedef struct {
     bool is_searching;
     bool is_debug_mode;
     int multipv;
+    PositionHistory position_history;
 } EngineState;
 
 static EngineState engine_state = { 0 };
+
+static void reset_position_history(void)
+{
+    engine_state.position_history.count   = 1;
+    engine_state.position_history.keys[0] = engine_state.board.zobrist_key;
+}
+
+static void update_position_history(void)
+{
+    PositionHistory* history = &engine_state.position_history;
+
+    if (engine_state.board.half_move_clock == 0) {
+        reset_position_history();
+        return;
+    }
+
+    if (history->count == MAX_POSITION_HISTORY) {
+        memmove(history->keys, history->keys + 1,
+                (MAX_POSITION_HISTORY - 1) * sizeof(history->keys[0]));
+        history->count--;
+    }
+    history->keys[history->count++] = engine_state.board.zobrist_key;
+}
 
 static void* search_thread_main(void* arg)
 {
@@ -102,7 +126,11 @@ bool engine_set_position_fen(const char* fen)
     if (!fen) {
         return false;
     }
-    return fen_string_to_cboard(fen, &engine_state.board);
+    if (!fen_string_to_cboard(fen, &engine_state.board)) {
+        return false;
+    }
+    reset_position_history();
+    return true;
 }
 
 bool engine_apply_uci_move(const char* move_str, char* error_buf, size_t error_buf_size)
@@ -117,6 +145,7 @@ bool engine_apply_uci_move(const char* move_str, char* error_buf, size_t error_b
     }
 
     make_move(&engine_state.board, parsed_move);
+    update_position_history();
     return true;
 }
 
@@ -149,6 +178,7 @@ bool engine_start_search(const SearchLimits* limits, char* error_buf, size_t err
     engine_state.is_searching                     = true;
 
     engine_state.search_input.board               = engine_state.board;
+    engine_state.search_input.position_history    = engine_state.position_history;
     engine_state.search_input.limits              = *limits;
     engine_state.search_input.suppress_uci_output = false;
 
@@ -171,7 +201,8 @@ bool engine_run_benchmark(int depth, EngineBenchmarkResult* result, char* error_
 
     engine_stop_search();
 
-    CBoard saved_board = engine_state.board;
+    CBoard saved_board            = engine_state.board;
+    PositionHistory saved_history = engine_state.position_history;
     size_t position_count;
     const BenchmarkPosition* positions     = benchmark_positions(&position_count);
     EngineBenchmarkResult benchmark_result = { 0 };
@@ -233,6 +264,7 @@ bool engine_run_benchmark(int depth, EngineBenchmarkResult* result, char* error_
         search_control_reset(&control, false);
         SearchInput input = {
             .board               = engine_state.board,
+            .position_history    = engine_state.position_history,
             .limits              = limits,
             .suppress_uci_output = true,
         };
@@ -252,12 +284,12 @@ bool engine_run_benchmark(int depth, EngineBenchmarkResult* result, char* error_
             : 0;
         fprintf(stderr,
                 "Bench position %zu/%zu nodes %" PRIu64 " time %" PRId64 " nps %" PRIu64 "\n",
-                i + 1, position_count, search_result.nodes, search_result.elapsed_ms,
-                position_nps);
+                i + 1, position_count, search_result.nodes, search_result.elapsed_ms, position_nps);
         fflush(stderr);
     }
 
-    engine_state.board = saved_board;
+    engine_state.board            = saved_board;
+    engine_state.position_history = saved_history;
     clear_tt();
 
     if (!success) {
