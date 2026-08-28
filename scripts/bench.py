@@ -12,7 +12,10 @@ import time
 from pathlib import Path
 from typing import Any
 
-from uci_client import UciEngine, UciError
+try:
+    from .uci_client import UciEngine, UciError
+except ImportError:
+    from uci_client import UciEngine, UciError
 
 INFO = re.compile(r"^info depth (\d+) .*\bnodes (\d+) time (\d+)\b")
 
@@ -98,6 +101,70 @@ def aggregate(entries: list[dict[str, Any]]) -> dict[str, Any]:
             "positions": entries}
 
 
+def run_sample(name: str, binary: Path, positions: list[dict[str, Any]], depth: int,
+               timeout: float, profile: str, sample: int) -> dict[str, Any]:
+    entries = []
+    failures = []
+    for index, item in enumerate(positions, 1):
+        label = (f"{profile} sample {sample} {name} position {index}/{len(positions)} "
+                 f"(id {item['id']})")
+        try:
+            entries.append(run_position(binary, item, depth, timeout, label))
+        except UciError as error:
+            failures.append({"id": item["id"], "error": str(error)})
+    result: dict[str, Any] = {"positions": entries, "failed_positions": failures,
+                              "complete": not failures}
+    if entries:
+        result.update(aggregate(entries))
+    return result
+
+
+def paired_comparison(baseline: dict[str, Any], candidate: dict[str, Any],
+                      budget: float) -> dict[str, Any] | None:
+    candidate_positions = {item["id"]: item for item in candidate["positions"]}
+    baseline_positions = [item for item in baseline["positions"]
+                          if item["id"] in candidate_positions]
+    if not baseline_positions:
+        return None
+    candidate_positions = [candidate_positions[item["id"]] for item in baseline_positions]
+    baseline_summary = aggregate(baseline_positions)
+    candidate_summary = aggregate(candidate_positions)
+    return {"position_ids": [item["id"] for item in baseline_positions],
+            "baseline_nps": baseline_summary["nps"],
+            "candidate_nps": candidate_summary["nps"],
+            "speed_budget_ratio": budget,
+            "passed": candidate_summary["nps"] >= baseline_summary["nps"] * budget}
+
+
+def partial_standard_result(baselines: list[dict[str, Any]], candidates: list[dict[str, Any]],
+                            budget: float) -> dict[str, Any]:
+    comparisons = [paired_comparison(baseline, candidate, budget)
+                   for baseline, candidate in zip(baselines, candidates)]
+    candidate_failures = []
+    for baseline, candidate in zip(baselines, candidates):
+        baseline_ids = {item["id"] for item in baseline["positions"]}
+        candidate_failures.extend(
+            failure for failure in candidate["failed_positions"]
+            if failure["id"] in baseline_ids
+        )
+    result: dict[str, Any] = {
+        "comparison_scope": "completed shared positions",
+        "partial_comparisons": [item for item in comparisons if item is not None],
+        "candidate_failures_against_completed_baseline": candidate_failures,
+    }
+    if candidate_failures:
+        result.update({"passed": False,
+                       "error": "candidate failed positions completed by the baseline"})
+    elif not result["partial_comparisons"]:
+        result.update({"passed": False, "error": "no shared completed positions"})
+    elif not all(item["passed"] for item in result["partial_comparisons"]):
+        result.update({"passed": False,
+                       "error": "candidate did not meet the speed budget on shared positions"})
+    else:
+        result["passed"] = True
+    return result
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--baseline", required=True, type=Path)
@@ -123,30 +190,40 @@ def main() -> int:
         profile_result: dict[str, Any] = {"depth": depth, "samples": samples,
                                            "position_ids": [item["id"] for item in positions],
                                            "baseline": [], "candidate": []}
-        try:
-            for sample in range(1, samples + 1):
-                # Paired order makes each aggregate sample subject to comparable local load.
-                for name, binary in (("baseline", args.baseline), ("candidate", args.candidate)):
-                    entries = []
-                    for index, item in enumerate(positions, 1):
-                        label = f"{profile} sample {sample}/{samples} {name} position {index}/{len(positions)} (id {item['id']})"
-                        entries.append(run_position(binary, item, depth, timeout, label))
-                    profile_result[name].append(aggregate(entries))
-            if profile == "standard":
+        for sample in range(1, samples + 1):
+            # Run both engines even if one fails. This retains useful candidate
+            # evidence and makes the failed engine explicit in the artifact.
+            for name, binary in (("baseline", args.baseline), ("candidate", args.candidate)):
+                profile_result[name].append(
+                    run_sample(name, binary, positions, depth, timeout, profile, sample)
+                )
+        if profile == "standard":
+            budget = float(config["benchmark"]["speed_budget_ratio"])
+            complete_pairs = [
+                (baseline, candidate)
+                for baseline, candidate in zip(profile_result["baseline"],
+                                               profile_result["candidate"])
+                if baseline["complete"] and candidate["complete"]
+            ]
+            if len(complete_pairs) == samples:
                 baseline_median = statistics.median(item["nps"] for item in profile_result["baseline"])
                 candidate_median = statistics.median(item["nps"] for item in profile_result["candidate"])
-                budget = float(config["benchmark"]["speed_budget_ratio"])
                 profile_result.update({"baseline_median_nps": baseline_median,
                                        "candidate_median_nps": candidate_median,
                                        "speed_budget_ratio": budget,
                                        "passed": candidate_median >= baseline_median * budget})
             else:
-                # Stress data stays separate and is never part of standard NPS.
-                profile_result["passed"] = True
-        except (UciError, ValueError) as error:
-            profile_result["error"] = str(error)
-            profile_result["passed"] = False
-            progress(f"profile {profile} failed: {error}", error=True)
+                profile_result.update(
+                    partial_standard_result(profile_result["baseline"],
+                                            profile_result["candidate"], budget)
+                )
+                if profile_result["passed"]:
+                    progress(f"profile {profile} passed on completed shared positions")
+                else:
+                    progress(f"profile {profile} failed: {profile_result['error']}", error=True)
+        else:
+            # Stress data stays separate and is never part of standard NPS.
+            profile_result["passed"] = True
         output["profiles"][profile] = profile_result
 
     # The stress profile is diagnostic. A timeout is retained in the evidence but
@@ -163,8 +240,12 @@ def main() -> int:
         return 1
     standard = output["profiles"].get("standard")
     if standard:
-        print("comparative benchmark passed: candidate median NPS "
-              f"{standard['candidate_median_nps']:.0f}, baseline {standard['baseline_median_nps']:.0f}", flush=True)
+        if "candidate_median_nps" in standard:
+            print("comparative benchmark passed: candidate median NPS "
+                  f"{standard['candidate_median_nps']:.0f}, "
+                  f"baseline {standard['baseline_median_nps']:.0f}", flush=True)
+        else:
+            print("comparative benchmark passed on completed shared positions", flush=True)
     stress = output["profiles"].get("qsearch-stress")
     if stress and stress.get("error"):
         progress(f"qsearch-stress recorded a diagnostic failure: {stress['error']}", error=True)
