@@ -65,6 +65,7 @@ check:
     #!/usr/bin/env bash
     set -euo pipefail
     python3 -u scripts/check_config.py
+    python3 -m unittest discover -s tests
     mkdir -p validation-runs
     run_dir="$(mktemp -d validation-runs/check.XXXXXX)"
     target="$run_dir/prophet-dev"
@@ -82,6 +83,9 @@ bench baseline="":
 
 sprt baseline="":
     @python3 -u scripts/validation.py sprt {{ if baseline == "" { "" } else { "--baseline " + baseline } }}
+
+repair-sprt manifest:
+    @python3 -u scripts/validation.py repair-sprt "{{manifest}}"
 
 validate version speed_override="0":
     @python3 -u scripts/validation.py validate "{{version}}" {{ if speed_override == "1" { "--speed-override" } else { "" } }}

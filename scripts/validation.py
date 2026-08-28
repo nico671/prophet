@@ -135,6 +135,59 @@ def read_json(path: Path) -> dict[str, Any]:
         return {"available": False}
 
 
+def repair_sprt_manifest(manifest_path: Path) -> Path:
+    """Correct a legacy run that tested the baseline as Fastchess engine one.
+
+    Old runs put the baseline first.  Fastchess then tested the baseline against
+    the candidate, so its accepted H0 proves the reverse of the intended claim.
+    This function writes a separate manifest and leaves the original evidence
+    unchanged.
+    """
+    try:
+        manifest = json.loads(manifest_path.read_text())
+    except (OSError, json.JSONDecodeError) as error:
+        raise RuntimeError(f"cannot read manifest: {manifest_path}") from error
+    sprt = manifest.get("sprt", {})
+    result = sprt.get("result", {})
+    command_line = result.get("command", [])
+    engine_order = [item.removeprefix("name=") for item in command_line
+                    if isinstance(item, str) and item.startswith("name=")]
+    if engine_order != ["baseline", "candidate"]:
+        raise RuntimeError("manifest does not contain the legacy baseline-first SPRT command")
+    log_path = Path(result.get("log", ""))
+    try:
+        log = log_path.read_text()
+    except OSError as error:
+        raise RuntimeError(f"cannot read SPRT log: {log_path}") from error
+    if not re.search(r"SPRT \([^)]*\) completed - H0 was accepted", log):
+        raise RuntimeError("SPRT log does not show H0 accepted for the baseline-first run")
+
+    repaired = json.loads(json.dumps(manifest))
+    repaired_sprt = repaired["sprt"]
+    repaired_result = repaired_sprt["result"]
+    repaired_result["original_engine_order"] = engine_order
+    repaired_result["original_verdict"] = repaired_result.get("verdict")
+    repaired_result["tested_engine"] = "candidate"
+    repaired_result["reference_engine"] = "baseline"
+    repaired_result["engine_order"] = ["candidate", "baseline"]
+    repaired_result["verdict"] = "accepted"
+    repaired_result["repair_reason"] = (
+        "Fastchess accepted H0 while the baseline was engine one; this is the "
+        "same result as accepting H1 when the candidate is engine one."
+    )
+    repaired_sprt["passed"] = True
+    repaired_sprt["exit_code"] = 0
+    repaired_sprt["repaired_from"] = str(manifest_path)
+    repaired["sprt_repair"] = {
+        "method": "reverse baseline-first Fastchess H0 result",
+        "source_manifest": str(manifest_path),
+        "source_log": str(log_path),
+    }
+    repaired_path = manifest_path.with_name("manifest.sprt-repaired.json")
+    repaired_path.write_text(json.dumps(repaired, indent=2, sort_keys=True) + "\n")
+    return repaired_path
+
+
 def machine_data() -> dict[str, str]:
     return {"macos_version": platform.mac_ver()[0], "architecture": platform.machine(),
             "compiler": command(["cc", "--version"]).splitlines()[0]}
@@ -273,11 +326,16 @@ def main() -> int:
     item.add_argument("version")
     item.add_argument("--manifest")
     item.add_argument("--speed-override", action="store_true")
+    item = actions.add_parser("repair-sprt")
+    item.add_argument("manifest", type=Path)
     args = parser.parse_args()
     try:
         if args.action == "baseline":
             ref, sha = select_baseline(config()); print(f"{ref} {sha}", flush=True); return 0
         if args.action == "bootstrap": return bootstrap()
+        if args.action == "repair-sprt":
+            print(f"wrote repaired manifest: {repair_sprt_manifest(args.manifest)}", flush=True)
+            return 0
         if args.action in ("benchmark", "sprt"): return local_match(args.action, args.baseline)
         if args.action == "validate": return validate(args.version, args.speed_override)
         return release(args.version, args.manifest, args.speed_override)
