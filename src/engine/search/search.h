@@ -60,6 +60,13 @@ typedef struct {
 typedef struct {
     uint64_t nodes;
     int64_t elapsed_ms;
+    /** Best move from the last fully completed iteration, or MOVE_NONE. */
+    Move best_move;
+    /** Root score from the original side-to-move perspective. */
+    int score;
+    /** Deepest fully completed iterative-deepening iteration, or zero. */
+    int completed_depth;
+    /** True when the search was not interrupted; requested depth may not be reached. */
     bool completed;
 } SearchResult;
 

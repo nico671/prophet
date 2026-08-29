@@ -705,7 +705,7 @@ static void print_pv_info(int depth, int multipv, int score, long long nodes, lo
 
 SearchResult search_run(const SearchInput* input, SearchControl* control)
 {
-    SearchResult result = { 0 };
+    SearchResult result = { .best_move = MOVE_NONE };
     if (!input || !control) {
         return result;
     }
@@ -748,9 +748,10 @@ SearchResult search_run(const SearchInput* input, SearchControl* control)
         atomic_store(&control->soft_limit_ms, soft_limit_ms);
     }
 
-    int current_depth = 1;
-    int best_score    = 0;
-    Move best_move    = create_move(NO_SQUARE, NO_SQUARE, 0, 0);
+    int current_depth   = 1;
+    int best_score      = 0;
+    Move best_move      = MOVE_NONE;
+    int completed_depth = 0;
     // for the instability check
     Move previous_best_move = MOVE_NONE;
 
@@ -772,6 +773,7 @@ SearchResult search_run(const SearchInput* input, SearchControl* control)
         RootMove root_moves[MAX_LEGAL_MOVES];
         int root_move_count      = 0;
         bool completed_iteration = false;
+        int depth_score          = best_score;
         if (ctx.limits.multipv > 1) {
             Move depth_best_move = best_move;
             root_move_count
@@ -794,8 +796,9 @@ SearchResult search_run(const SearchInput* input, SearchControl* control)
                 }
 
                 Move depth_best_move = best_move;
-                int score = search_root_best_move(&ctx, &ctx.board, current_depth, alpha, beta,
-                                                  &depth_best_move);
+                int score   = search_root_best_move(&ctx, &ctx.board, current_depth, alpha, beta,
+                                                    &depth_best_move);
+                depth_score = score;
                 if (should_stop_search(&ctx)) {
                     break;
                 }
@@ -805,8 +808,10 @@ SearchResult search_run(const SearchInput* input, SearchControl* control)
                     if (move_get_from_square(depth_best_move) != NO_SQUARE) {
                         root_moves[0]   = (RootMove) { .move = depth_best_move, .score = score };
                         root_move_count = 1;
-                        completed_iteration = true;
                     }
+                    // A terminal root has no move to report, but its score is
+                    // still a complete result for this depth.
+                    completed_iteration = true;
                     break;
                 }
 
@@ -824,7 +829,12 @@ SearchResult search_run(const SearchInput* input, SearchControl* control)
         if (root_move_count > 0) {
             best_move  = root_moves[0].move;
             best_score = root_moves[0].score;
+        } else if (ctx.limits.multipv == 1) {
+            // Preserve a complete terminal-root score even though there is no
+            // move to store or print.
+            best_score = depth_score;
         }
+        completed_depth   = current_depth;
 
         long long elapsed = now_ms() - ctx.start_time_ms;
         long long nodes   = ctx.node_count;
@@ -896,9 +906,12 @@ SearchResult search_run(const SearchInput* input, SearchControl* control)
         fflush(stdout);
     }
 
-    result.nodes      = (uint64_t)ctx.node_count;
-    result.elapsed_ms = (int64_t)(now_ms() - ctx.start_time_ms);
-    result.completed  = !atomic_load(&control->stop_requested);
+    result.nodes           = (uint64_t)ctx.node_count;
+    result.elapsed_ms      = (int64_t)(now_ms() - ctx.start_time_ms);
+    result.best_move       = best_move;
+    result.score           = best_score;
+    result.completed_depth = completed_depth;
+    result.completed       = !atomic_load(&control->stop_requested);
     return result;
 }
 

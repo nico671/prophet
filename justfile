@@ -10,6 +10,7 @@ cppflags := "-I src"
 
 # Recursively find all C files and replace newlines with spaces
 sources := `find src -name "*.c" ! -name "magic_gen.c" ! -name "perft_test.c" | tr '\n' ' '`
+search_sources := `find src/chess src/engine/eval src/engine/search src/engine/tt -name "*.c" | tr '\n' ' '`
 
 debug_cflags   := "-O0 -g3 -fno-omit-frame-pointer"
 dev_cflags     := "-O3 -g1 -DNDEBUG"
@@ -61,6 +62,25 @@ nnue-contract mode="debug":
         "$target"
     fi
 
+search-result mode="debug":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    tmpdir="$(mktemp -d)"
+    target="$tmpdir/search-result"
+    trap 'rm -rf "$tmpdir"' EXIT
+    flags="{{debug_cflags}}"
+    if [[ "{{mode}}" == "sanitize" ]]; then flags="$flags -fsanitize=address,undefined"; fi
+    echo "Building search result API test [{{mode}}]..."
+    {{cc}} {{cstd}} {{warnflags}} -Werror -I src $flags \
+        {{search_sources}} \
+        tests/search_result_test.c \
+        -o "$target"
+    if [[ "{{mode}}" == "sanitize" ]]; then
+        ASAN_OPTIONS=halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 "$target"
+    else
+        "$target"
+    fi
+
 # Run perft testing using the engine's standard output
 perft build_mode="dev":
     #!/usr/bin/env bash
@@ -89,6 +109,7 @@ check:
     python3 -u scripts/check_config.py
     python3 -m unittest discover -s tests
     just nnue-contract
+    just search-result
     mkdir -p validation-runs
     run_dir="$(mktemp -d validation-runs/check.XXXXXX)"
     target="$run_dir/prophet-dev"
