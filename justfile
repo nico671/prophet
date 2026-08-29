@@ -39,6 +39,28 @@ run build_mode="dev":
 clean:
     rm -rf {{builddir}} artifacts/{{branch}}/prophet-*
 
+nnue-contract mode="debug":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    tmpdir="$(mktemp -d)"
+    target="$tmpdir/nnue-contract"
+    trap 'rm -rf "$tmpdir"' EXIT
+    flags="{{debug_cflags}}"
+    if [[ "{{mode}}" == "sanitize" ]]; then flags="$flags -fsanitize=address,undefined"; fi
+    echo "Building NNUE feature contract test [{{mode}}]..."
+    {{cc}} {{cstd}} {{warnflags}} -Werror -I src -I tests $flags \
+        src/chess/board/cboard.c \
+        src/chess/board/zobrist.c \
+        src/chess/utils/prng.c \
+        src/engine/eval/nnue_features.c \
+        tests/halfkav2_hm_test.c \
+        -o "$target"
+    if [[ "{{mode}}" == "sanitize" ]]; then
+        ASAN_OPTIONS=halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 "$target"
+    else
+        "$target"
+    fi
+
 # Run perft testing using the engine's standard output
 perft build_mode="dev":
     #!/usr/bin/env bash
@@ -66,6 +88,7 @@ check:
     set -euo pipefail
     python3 -u scripts/check_config.py
     python3 -m unittest discover -s tests
+    just nnue-contract
     mkdir -p validation-runs
     run_dir="$(mktemp -d validation-runs/check.XXXXXX)"
     target="$run_dir/prophet-dev"
