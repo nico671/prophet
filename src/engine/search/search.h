@@ -58,6 +58,11 @@ typedef struct {
 } SearchInput;
 
 typedef struct {
+    Move move;
+    int score;
+} SearchRootLine;
+
+typedef struct {
     uint64_t nodes;
     int64_t elapsed_ms;
     /** Best move from the last fully completed iteration, or MOVE_NONE. */
@@ -68,6 +73,10 @@ typedef struct {
     int completed_depth;
     /** True when the search was not interrupted; requested depth may not be reached. */
     bool completed;
+    /** Ranked root lines from the last fully completed iteration. */
+    SearchRootLine root_lines[MAX_LEGAL_MOVES];
+    /** Number of valid entries in root_lines. */
+    int root_line_count;
 } SearchResult;
 
 typedef struct {

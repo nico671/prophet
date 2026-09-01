@@ -752,6 +752,8 @@ SearchResult search_run(const SearchInput* input, SearchControl* control)
     int best_score      = 0;
     Move best_move      = MOVE_NONE;
     int completed_depth = 0;
+    SearchRootLine completed_root_lines[MAX_LEGAL_MOVES] = { 0 };
+    int completed_root_line_count = 0;
     // for the instability check
     Move previous_best_move = MOVE_NONE;
 
@@ -835,6 +837,11 @@ SearchResult search_run(const SearchInput* input, SearchControl* control)
             best_score = depth_score;
         }
         completed_depth   = current_depth;
+        completed_root_line_count = root_move_count;
+        for (int i = 0; i < completed_root_line_count; i++) {
+            completed_root_lines[i].move  = root_moves[i].move;
+            completed_root_lines[i].score = root_moves[i].score;
+        }
 
         long long elapsed = now_ms() - ctx.start_time_ms;
         long long nodes   = ctx.node_count;
@@ -912,6 +919,10 @@ SearchResult search_run(const SearchInput* input, SearchControl* control)
     result.score           = best_score;
     result.completed_depth = completed_depth;
     result.completed       = !atomic_load(&control->stop_requested);
+    result.root_line_count = completed_root_line_count;
+    for (int i = 0; i < completed_root_line_count; i++) {
+        result.root_lines[i] = completed_root_lines[i];
+    }
     return result;
 }
 

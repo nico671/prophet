@@ -81,6 +81,21 @@ search-result mode="debug":
         "$target"
     fi
 
+datagen-audit build_mode="debug" output="" strict="0":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    target="{{output}}"
+    if [[ -z "$target" ]]; then target="artifacts/{{branch}}/datagen-trace-audit-{{build_mode}}"; fi
+    mkdir -p "$(dirname "$target")"
+    flags="{{dev_cflags}}"
+    if [[ "{{build_mode}}" == "debug" ]]; then flags="{{debug_cflags}}"; fi
+    if [[ "{{build_mode}}" == "sanitize" ]]; then flags="{{debug_cflags}} -fsanitize=address,undefined"; fi
+    echo "Building datagen trace audit [{{build_mode}}] at $target..."
+    {{cc}} {{cstd}} {{warnflags}} -Werror -I src $flags \
+        {{search_sources}} \
+        tests/datagen_trace_test.c \
+        -o "$target"
+
 # Run perft testing using the engine's standard output
 perft build_mode="dev":
     #!/usr/bin/env bash
@@ -114,11 +129,18 @@ check:
     run_dir="$(mktemp -d validation-runs/check.XXXXXX)"
     target="$run_dir/prophet-dev"
     just build dev "$target" 1
+    validator="$run_dir/datagen-audit-dev"
+    just datagen-audit dev "$validator" 1
+    python3 -u scripts/datagen_smoke.py --engine "$target" --validator "$validator"
     python3 -u scripts/strict_perft.py --engine "$target"
     python3 -u scripts/uci_smoke.py --engine "$target"
     python3 -u scripts/draw_rules_smoke.py --engine "$target"
     target="$run_dir/prophet-sanitize"
     just build sanitize "$target" 1
+    validator="$run_dir/datagen-audit-sanitize"
+    just datagen-audit sanitize "$validator" 1
+    ASAN_OPTIONS=halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 \
+        python3 -u scripts/datagen_smoke.py --engine "$target" --validator "$validator"
     ASAN_OPTIONS=halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 python3 -u scripts/uci_smoke.py --engine "$target"
     ASAN_OPTIONS=halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 python3 -u scripts/draw_rules_smoke.py --engine "$target"
 

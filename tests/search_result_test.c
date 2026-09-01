@@ -40,7 +40,8 @@ static SearchResult run_search(const char* fen, int depth_limit, int node_limit,
 static int test_fixed_depth_result(void)
 {
     SearchResult result = run_search(START_FEN, 2, 0, false);
-    if (!result.completed || result.completed_depth != 2 || result.best_move == MOVE_NONE) {
+    if (!result.completed || result.completed_depth != 2 || result.best_move == MOVE_NONE
+        || result.root_line_count != 1 || result.root_lines[0].move != result.best_move) {
         fprintf(stderr, "fixed-depth result is incomplete\n");
         return 1;
     }
@@ -58,7 +59,10 @@ static int test_partial_iteration_preserves_result(void)
 
     SearchResult partial = run_search(START_FEN, 3, (int)completed.nodes + 1, false);
     if (partial.completed || partial.completed_depth != 1
-        || partial.best_move != completed.best_move || partial.score != completed.score) {
+        || partial.best_move != completed.best_move || partial.score != completed.score
+        || partial.root_line_count != completed.root_line_count
+        || partial.root_lines[0].move != completed.root_lines[0].move
+        || partial.root_lines[0].score != completed.root_lines[0].score) {
         fprintf(stderr, "partial iteration replaced the last completed result\n");
         return 1;
     }

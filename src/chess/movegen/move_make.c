@@ -169,9 +169,8 @@ static inline UndoInfo make_double_pawn_push_move(CBoard* board, Move move)
 
     // Calculate en passant square BEFORE switching sides
     // EP square is the square the pawn skipped over
-    Square ep_square
-        = to + (board->side_to_move ? 8 : -8); // to + 8 for white, to - 8 for black TODO:
-    // find a way to do this without ternary
+    // TODO: find a way to do this without ternary
+    Square ep_square = to + (board->side_to_move ? 8 : -8); // to + 8 for white, to - 8 for black
     // operator, branching is the devil
 
     // Update zobrist: remove pawn from 'from' square
