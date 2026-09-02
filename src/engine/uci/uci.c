@@ -149,8 +149,8 @@ static void handle_set_option_command(const char* command)
             return;
         }
 
-        char* end_ptr = NULL;
-        errno         = 0;
+        char* end_ptr  = NULL;
+        errno          = 0;
         long requested = strtol(value, &end_ptr, 10);
         if (errno != 0 || end_ptr == value || *end_ptr != '\0') {
             printf("info string Invalid MultiPV value: %s\n", value);
@@ -159,8 +159,9 @@ static void handle_set_option_command(const char* command)
         }
 
         int requested_multipv = requested < 1 ? 1
-            : requested > MAX_LEGAL_MOVES ? MAX_LEGAL_MOVES : (int)requested;
-        int applied_multipv = 1;
+            : requested > MAX_LEGAL_MOVES     ? MAX_LEGAL_MOVES
+                                              : (int)requested;
+        int applied_multipv   = 1;
         if (!engine_set_multipv(requested_multipv, &applied_multipv)) {
             printf("info string Failed to set MultiPV value\n");
             fflush(stdout);
@@ -247,7 +248,7 @@ static bool safe_line_read(char** line_input, size_t* capacity)
 void handle_go_command(const char* command)
 {
     SearchLimits go_cmd         = { 0 };
-    go_cmd.multipv               = engine_get_multipv();
+    go_cmd.multipv              = engine_get_multipv();
     bool search_moves_specified = false;
     CBoard current_board;
     bool have_current_board = engine_copy_board(&current_board);

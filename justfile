@@ -31,7 +31,7 @@ build build_mode="dev" output="" strict="0":
     if [[ "{{build_mode}}" == "sanitize" ]]; then flags="{{debug_cflags}} -fsanitize=address,undefined"; fi
     if [[ "{{strict}}" == "1" ]]; then flags="$flags -Werror"; fi
     echo "Building [{{build_mode}}] at $target..."
-    {{cc}} {{cstd}} {{warnflags}} {{cppflags}} $flags {{sources}} -o "$target"
+    {{cc}} {{cstd}} {{warnflags}} {{cppflags}} -DPROPHET_GIT_COMMIT=\"$(git rev-parse HEAD)\" $flags {{sources}} -o "$target"
 
 run build_mode="dev":
     @echo "Running chess engine in [{{build_mode}}] mode for branch [{{branch}}]..."

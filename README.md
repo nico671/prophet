@@ -17,10 +17,6 @@ The engine currently has:
 - UCI options to resize (1-1024 MB) and clear the hash table; and
 - a tapered PeSTO-style hand-crafted evaluator.
 
-The hand-crafted evaluator is the active evaluation path. The project does not
-currently include an NNUE implementation or network weights. Planned work,
-including a future NNUE design, is tracked in [todo.md](todo.md).
-
 ## Build
 
 Prophet targets a POSIX environment and uses GCC, pthreads, and

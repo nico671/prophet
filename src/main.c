@@ -1,7 +1,7 @@
 
 #include "chess/board/cboard.h"
-#include "engine/engine.h"
 #include "engine/datagen/datagen.h"
+#include "engine/engine.h"
 #include "engine/uci/uci.h"
 
 #include <stdio.h>

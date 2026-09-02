@@ -509,8 +509,8 @@ static int search_root_best_move(SearchContext* ctx, CBoard* board, int depth, i
     ScoredMove scored_moves[MAX_LEGAL_MOVES];
     score_moves(ctx, board, &move_list, scored_moves, tt_move, 0);
 
-    int original_alpha                  = alpha;
-    bool claimable_draw                 = draw_status(ctx, board, 0) == DRAW_CLAIMABLE;
+    int original_alpha  = alpha;
+    bool claimable_draw = draw_status(ctx, board, 0) == DRAW_CLAIMABLE;
     if (claimable_draw && beta <= 0) {
         *prev_best_move = first_allowed_move(ctx, &move_list);
         return 0;
@@ -536,7 +536,7 @@ static int search_root_best_move(SearchContext* ctx, CBoard* board, int depth, i
         }
 
         UndoInfo undo_info = make_move(board, move);
-        ctx->path_keys[0] = board->zobrist_key;
+        ctx->path_keys[0]  = board->zobrist_key;
         int eval;
         if (!has_searched_at_least_one_move) {
             eval = -negamax(ctx, board, depth - 1, -beta, -alpha, board->side_to_move, 1);
@@ -748,12 +748,12 @@ SearchResult search_run(const SearchInput* input, SearchControl* control)
         atomic_store(&control->soft_limit_ms, soft_limit_ms);
     }
 
-    int current_depth   = 1;
-    int best_score      = 0;
-    Move best_move      = MOVE_NONE;
-    int completed_depth = 0;
+    int current_depth                                    = 1;
+    int best_score                                       = 0;
+    Move best_move                                       = MOVE_NONE;
+    int completed_depth                                  = 0;
     SearchRootLine completed_root_lines[MAX_LEGAL_MOVES] = { 0 };
-    int completed_root_line_count = 0;
+    int completed_root_line_count                        = 0;
     // for the instability check
     Move previous_best_move = MOVE_NONE;
 
@@ -836,7 +836,7 @@ SearchResult search_run(const SearchInput* input, SearchControl* control)
             // move to store or print.
             best_score = depth_score;
         }
-        completed_depth   = current_depth;
+        completed_depth           = current_depth;
         completed_root_line_count = root_move_count;
         for (int i = 0; i < completed_root_line_count; i++) {
             completed_root_lines[i].move  = root_moves[i].move;
@@ -1103,7 +1103,7 @@ static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int
         }
 
         ctx->path_keys[ply] = node->zobrist_key;
-        int eval = -quiescence(ctx, node, -beta, -alpha, ply + 1);
+        int eval            = -quiescence(ctx, node, -beta, -alpha, ply + 1);
         unmake_move(node, move, undo_info);
 
         if (should_stop_search(ctx)) {

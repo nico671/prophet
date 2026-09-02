@@ -2,6 +2,7 @@ build/
 .env
 *.md
 !README.md
+!THIRD_PARTY_NOTICES.md
 */__pycache__/
 # Fastchess writes this autosave file in its working directory.
 config.json

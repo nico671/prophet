@@ -9,6 +9,7 @@
 #include "chess/movegen/sliding_attacks.h"
 #include "chess/utils/prng.h"
 #include "chess/utils/sha256.h"
+#include "engine/datagen/binpack_writer.h"
 #include "engine/eval/hceval.h"
 #include "engine/search/search.h"
 #include "engine/tt/tt.h"
@@ -23,6 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -33,6 +35,10 @@
 #define DATAGEN_MAX_WORKERS 256
 #define DATAGEN_MAX_HASH_MB 1024
 #define DATAGEN_MAX_GAME_PLY 100000
+
+#ifndef PROPHET_GIT_COMMIT
+#define PROPHET_GIT_COMMIT "unknown"
+#endif
 
 typedef enum {
     GAME_DRAW,
@@ -96,6 +102,7 @@ typedef struct {
     int score;
     int completed_depth;
     int root_line_count;
+    Move best_move;
     Color side_to_move;
     double result;
 } DatagenSample;
@@ -120,13 +127,24 @@ typedef struct {
 
 typedef struct {
     FILE* file;
+    BinpackWriter binpack;
     char output_base[DATAGEN_PATH_MAX];
+    char binpack_partial[DATAGEN_PATH_MAX];
+    char binpack_final[DATAGEN_PATH_MAX];
     char openings_sha256[65];
     int worker_id;
     uint64_t worker_seed;
     size_t shard_game_limit;
     size_t shard_index;
     size_t games_in_shard;
+    size_t records_in_shard;
+    uint64_t rejections[REJECT_COUNT];
+    size_t results[3];
+    int score_min;
+    int score_max;
+    int ply_min;
+    int ply_max;
+    const DatagenConfig* config;
 } TraceWriter;
 
 static void print_usage(FILE* stream)
@@ -369,7 +387,8 @@ static bool parse_config(const char* path, DatagenConfig* config, char* error, s
         } else if (!strcmp(key, "max_game_ply")) {
             bit   = HAVE_MAX_PLY;
             valid = parse_positive_int(value, &config->max_game_ply);
-            if (valid && config->max_game_ply > DATAGEN_MAX_GAME_PLY) {
+            if (valid
+                && (config->max_game_ply > DATAGEN_MAX_GAME_PLY || config->max_game_ply > 0x3fff)) {
                 valid = false;
             }
         } else if (!strcmp(key, "shard_game_limit")) {
@@ -615,6 +634,114 @@ static double sample_result(GameResult result, Color side_to_move)
     return winner == side_to_move ? 1.0 : 0.0;
 }
 
+static bool trace_finish_shard(TraceWriter* writer)
+{
+    if (writer->file && fclose(writer->file) != 0) {
+        writer->file = NULL;
+        return false;
+    }
+    writer->file = NULL;
+    if (!binpack_close(&writer->binpack)) {
+        return false;
+    }
+    struct stat payload_stat;
+    char payload_hash[65];
+    if (stat(writer->binpack_partial, &payload_stat) != 0
+        || !sha256_file(writer->binpack_partial, payload_hash)) {
+        return false;
+    }
+    char normalized[2048];
+    const DatagenConfig* config = writer->config;
+    int normalized_length       = snprintf(
+        normalized, sizeof(normalized),
+        "version=%d\nopenings_sha256=%s\nopening_first=%zu\nopening_count=%zu\ngames=%zu\nworkers=%"
+        "d\nroot_seed=%" PRIu64 "\nworker_seed_base=%" PRIu64
+        "\nnodes_per_move=%d\nhash_mb=%d\nclear_hash_per_game=%s\nearly_ply_limit=%d\nearly_"
+        "multipv=%d\nsample_start_ply=%d\nsample_interval=%d\nsample_offset_seed=%" PRIu64
+        "\nmax_game_ply=%d\nshard_game_limit=%zu\ncolor_assignment=%d\n",
+        DATAGEN_CONFIG_VERSION, config->openings_sha256, config->opening_first,
+        config->opening_count, config->games, config->workers, config->root_seed,
+        config->worker_seed_base, config->nodes_per_move, config->hash_mb,
+        config->clear_hash_per_game ? "true" : "false", config->early_ply_limit,
+        config->early_multipv, config->sample_start_ply, config->sample_interval,
+        config->sample_offset_seed, config->max_game_ply, config->shard_game_limit,
+        config->color_assignment);
+    if (normalized_length < 0 || (size_t)normalized_length >= sizeof(normalized)) {
+        return false;
+    }
+    char config_hash[65];
+    if (!sha256_bytes(normalized, (size_t)normalized_length, config_hash)) {
+        return false;
+    }
+    char normalized_json[4096];
+    size_t json_length = 0;
+    for (int i = 0; i < normalized_length; i++) {
+        if (normalized[i] == '\n') {
+            if (json_length + 2 >= sizeof(normalized_json))
+                return false;
+            normalized_json[json_length++] = '\\';
+            normalized_json[json_length++] = 'n';
+        } else {
+            if (json_length + 1 >= sizeof(normalized_json))
+                return false;
+            normalized_json[json_length++] = normalized[i];
+        }
+    }
+    normalized_json[json_length] = '\0';
+    char manifest_partial[DATAGEN_PATH_MAX];
+    char manifest_final[DATAGEN_PATH_MAX];
+    if (snprintf(manifest_partial, sizeof(manifest_partial), "%s.manifest.json.partial",
+                 writer->binpack_final)
+            >= (int)sizeof(manifest_partial)
+        || snprintf(manifest_final, sizeof(manifest_final), "%s.manifest.json",
+                    writer->binpack_final)
+            >= (int)sizeof(manifest_final)) {
+        return false;
+    }
+    FILE* manifest = fopen(manifest_partial, "w");
+    if (!manifest) {
+        return false;
+    }
+    const char* color = config->color_assignment == COLOR_PRESERVE ? "preserve"
+        : config->color_assignment == COLOR_SWAP                   ? "swap"
+                                                                   : "alternate";
+    int wrote         = fprintf(
+        manifest,
+        "{\n  \"schema_version\": 1,\n  \"data_file\": \"%s\",\n  \"byte_size\": %lld,\n  "
+        "\"sha256\": \"%s\",\n  \"record_count\": %zu,\n  \"game_count\": %zu,\n  "
+        "\"generator_commit\": \"%s\",\n  \"engine_commit\": \"%s\",\n  \"teacher\": \"HCE\",\n  "
+        "\"openings_sha256\": \"%s\",\n  \"root_seed\": %" PRIu64 ",\n  \"worker_seed\": %" PRIu64
+        ",\n  \"normalized_config\": \"%s\",\n  \"normalized_config_sha256\": \"%s\",\n  "
+        "\"settings\": {\"nodes_per_move\": %d, \"early_ply_limit\": %d, \"early_multipv\": %d, "
+        "\"sample_start_ply\": %d, \"sample_interval\": %d, \"max_game_ply\": %d, "
+        "\"color_assignment\": \"%s\"},\n  \"results\": {\"white_wins\": %zu, \"draws\": %zu, "
+        "\"black_wins\": %zu},\n  \"rejections\": {\"terminal\": %" PRIu64
+        ", \"in_check\": %" PRIu64 ", \"mate_score\": %" PRIu64 ", \"partial_search\": %" PRIu64
+        "},\n  \"score_summary\": {\"min\": %d, \"max\": %d},\n  \"ply_summary\": {\"min\": %d, "
+        "\"max\": %d},\n  \"licenses\": {\"source\": \"GPL-3.0-only\", \"artifact\": "
+        "\"project-controlled self-play\"}\n}\n",
+        strrchr(writer->binpack_final, '/') ? strrchr(writer->binpack_final, '/') + 1
+                                            : writer->binpack_final,
+        (long long)payload_stat.st_size, payload_hash, writer->records_in_shard,
+        writer->games_in_shard, PROPHET_GIT_COMMIT, PROPHET_GIT_COMMIT, writer->openings_sha256,
+        config->root_seed, writer->worker_seed, normalized_json, config_hash,
+        config->nodes_per_move, config->early_ply_limit, config->early_multipv,
+        config->sample_start_ply, config->sample_interval, config->max_game_ply, color,
+        writer->results[GAME_WHITE_WIN], writer->results[GAME_DRAW],
+        writer->results[GAME_BLACK_WIN], writer->rejections[REJECT_TERMINAL],
+        writer->rejections[REJECT_IN_CHECK], writer->rejections[REJECT_MATE_SCORE],
+        writer->rejections[REJECT_PARTIAL_SEARCH], writer->records_in_shard ? writer->score_min : 0,
+        writer->records_in_shard ? writer->score_max : 0,
+        writer->records_in_shard ? writer->ply_min : 0,
+        writer->records_in_shard ? writer->ply_max : 0);
+    bool success = wrote >= 0 && fclose(manifest) == 0;
+    if (!success || rename(writer->binpack_partial, writer->binpack_final) != 0
+        || rename(manifest_partial, manifest_final) != 0) {
+        return false;
+    }
+    return true;
+}
+
 static bool trace_open(TraceWriter* writer)
 {
     char path[DATAGEN_PATH_MAX];
@@ -637,6 +764,22 @@ static bool trace_open(TraceWriter* writer)
         writer->file = NULL;
         return false;
     }
+    int binpack_written = snprintf(writer->binpack_final, sizeof(writer->binpack_final),
+                                   "%s.worker-%04d.part-%04zu.binpack", writer->output_base,
+                                   writer->worker_id, writer->shard_index);
+    if (binpack_written < 0 || (size_t)binpack_written >= sizeof(writer->binpack_final)
+        || snprintf(writer->binpack_partial, sizeof(writer->binpack_partial), "%s.partial",
+                    writer->binpack_final)
+            >= (int)sizeof(writer->binpack_partial)
+        || !binpack_open(&writer->binpack, writer->binpack_partial)) {
+        fclose(writer->file);
+        writer->file = NULL;
+        return false;
+    }
+    writer->records_in_shard = 0;
+    writer->rejections[0] = writer->rejections[1] = writer->rejections[2] = writer->rejections[3]
+        = 0;
+    writer->results[0] = writer->results[1] = writer->results[2] = 0;
     return true;
 }
 
@@ -644,8 +787,9 @@ static bool trace_emit(void* context, const DatagenGame* game)
 {
     TraceWriter* writer = context;
     if (writer->games_in_shard == writer->shard_game_limit) {
-        fclose(writer->file);
-        writer->file = NULL;
+        if (!trace_finish_shard(writer)) {
+            return false;
+        }
         writer->shard_index++;
         writer->games_in_shard = 0;
         if (!trace_open(writer)) {
@@ -680,27 +824,39 @@ static bool trace_emit(void* context, const DatagenGame* game)
                 sample->side_to_move == WHITE ? 'w' : 'b', sample->score, sample->result,
                 sample->completed_depth, sample->root_line_count, fen);
         free(fen);
+        if (!binpack_append(&writer->binpack, &sample->board, sample->best_move, sample->score,
+                            sample->ply, sample->result)) {
+            return false;
+        }
+        writer->records_in_shard++;
+        if (writer->records_in_shard == 1 || sample->score < writer->score_min)
+            writer->score_min = sample->score;
+        if (writer->records_in_shard == 1 || sample->score > writer->score_max)
+            writer->score_max = sample->score;
+        if (writer->records_in_shard == 1 || sample->ply < writer->ply_min)
+            writer->ply_min = sample->ply;
+        if (writer->records_in_shard == 1 || sample->ply > writer->ply_max)
+            writer->ply_max = sample->ply;
     }
     for (RejectionReason reason = REJECT_TERMINAL; reason < REJECT_COUNT; reason++) {
         if (game->rejections[reason] > 0) {
             fprintf(file, "reject %s %" PRIu64 "\n", rejection_name(reason),
                     game->rejections[reason]);
         }
+        writer->rejections[reason] += game->rejections[reason];
     }
     fputs("endgame\n\n", file);
     if (ferror(file)) {
         return false;
     }
     writer->games_in_shard++;
+    writer->results[game->result]++;
     return true;
 }
 
-static void trace_close(TraceWriter* writer)
+static bool trace_close(TraceWriter* writer)
 {
-    if (writer->file) {
-        fclose(writer->file);
-        writer->file = NULL;
-    }
+    return !writer->file || trace_finish_shard(writer);
 }
 
 static void free_game(DatagenGame* game)
@@ -824,13 +980,14 @@ static bool run_game(const DatagenConfig* config, const OpeningSet* openings, si
                        || search_result.score <= -MATE_THRESHOLD) {
                 game.rejections[REJECT_MATE_SCORE]++;
             } else {
-                DatagenSample* sample = &game.samples[game.sample_count++];
-                sample->board         = board;
-                sample->ply           = (int)ply;
-                sample->score         = search_result.score;
+                DatagenSample* sample   = &game.samples[game.sample_count++];
+                sample->board           = board;
+                sample->ply             = (int)ply;
+                sample->score           = search_result.score;
                 sample->completed_depth = search_result.completed_depth;
                 sample->root_line_count = search_result.root_line_count;
-                sample->side_to_move  = board.side_to_move;
+                sample->best_move       = search_result.best_move;
+                sample->side_to_move    = board.side_to_move;
             }
         }
 
@@ -904,6 +1061,7 @@ static int run_worker(const DatagenConfig* config, const OpeningSet* openings, c
     writer.worker_id        = worker_id;
     writer.worker_seed      = derived_seed(config->worker_seed_base, (uint64_t)worker_id);
     writer.shard_game_limit = config->shard_game_limit;
+    writer.config           = config;
     if (!trace_open(&writer)) {
         free_tt();
         return 1;
@@ -922,7 +1080,9 @@ static int run_worker(const DatagenConfig* config, const OpeningSet* openings, c
                 config->games, rejected_games);
         fflush(stderr);
     }
-    trace_close(&writer);
+    if (!trace_close(&writer)) {
+        status = 1;
+    }
     free_tt();
     return status;
 }

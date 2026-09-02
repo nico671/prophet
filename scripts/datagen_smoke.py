@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import re
 import subprocess
 import tempfile
@@ -79,6 +80,37 @@ def audit_traces(validator: Path, files: list[Path]) -> None:
             f"trace audit failed with {completed.returncode}\n"
             f"stdout: {completed.stdout}\nstderr: {completed.stderr}"
         )
+
+
+def validate_binpacks(files: list[Path]) -> bytes:
+    combined = b""
+    for trace in files:
+        payload = trace.with_suffix(".binpack")
+        manifest_path = Path(str(payload) + ".manifest.json")
+        if not payload.is_file() or not manifest_path.is_file():
+            raise AssertionError(f"missing finished binpack artifact for {trace}")
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        data = payload.read_bytes()
+        if manifest["byte_size"] != len(data) or manifest["sha256"] != hashlib.sha256(data).hexdigest():
+            raise AssertionError(f"invalid payload identity in {manifest_path}")
+        if hashlib.sha256(manifest["normalized_config"].encode()).hexdigest() != manifest["normalized_config_sha256"]:
+            raise AssertionError(f"invalid configuration identity in {manifest_path}")
+        offset = records = 0
+        while offset < len(data):
+            if data[offset : offset + 4] != b"BINP" or offset + 8 > len(data):
+                raise AssertionError(f"invalid binpack chunk in {payload}")
+            size = int.from_bytes(data[offset + 4 : offset + 8], "little")
+            offset += 8 + size
+            if size % 34 or offset > len(data):
+                raise AssertionError(f"invalid binpack record stream in {payload}")
+            records += size // 34
+        if records != manifest["record_count"]:
+            raise AssertionError(f"record count mismatch in {manifest_path}")
+        trace_samples = sum(1 for line in trace.read_text(encoding="utf-8").splitlines() if line.startswith("sample "))
+        if records != trace_samples:
+            raise AssertionError(f"trace/binpack sample mismatch in {payload}")
+        combined += data
+    return combined
 
 
 def read_games(files: list[Path]) -> list[tuple[int, str, str, str]]:
@@ -186,10 +218,12 @@ def main() -> int:
         first = run_datagen(args.engine, config, root / "first", repo)
         first_bytes = b"".join(path.read_bytes() for path in first)
         first_hash = hashlib.sha256(first_bytes).hexdigest()
+        first_binpack = validate_binpacks(first)
         second = run_datagen(args.engine, config, root / "second", repo)
         second_bytes = b"".join(path.read_bytes() for path in second)
         assert first_bytes == second_bytes, "same seed did not reproduce the trace"
         assert first_hash == hashlib.sha256(second_bytes).hexdigest()
+        assert first_binpack == validate_binpacks(second), "same seed did not reproduce binpack output"
 
         games = read_games(first)
         audit_traces(args.validator, first)
@@ -198,7 +232,9 @@ def main() -> int:
         config.write_text(config_text(openings, 3, 1, 9876), encoding="utf-8")
         different = run_datagen(args.engine, config, root / "different", repo)
         different_bytes = b"".join(path.read_bytes() for path in different)
+        different_binpack = validate_binpacks(different)
         assert different_bytes != first_bytes, "different seed did not change the trace"
+        assert different_binpack != first_binpack, "different seed did not change binpack output"
         different_games = read_games(different)
         audit_traces(args.validator, different)
         assert len(different_games) == len(games), "different seed changed the emitted game count"
@@ -211,6 +247,7 @@ def main() -> int:
         workers = run_datagen(args.engine, config, root / "workers", repo)
         assert len(workers) == 2, f"expected two worker files, got {workers}"
         worker_games = read_games(workers)
+        validate_binpacks(workers)
         audit_traces(args.validator, workers)
         assert len(worker_games) == len(games), "worker sharding changed the emitted game count"
         assert {game[0]: game[1:] for game in worker_games} == {
