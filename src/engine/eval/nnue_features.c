@@ -31,7 +31,7 @@ static bool board_has_valid_piece_placement(const CBoard* board)
         return false;
     }
 
-    return true;
+    return bitboard_popcount(occupied) <= NNUE_MAX_ACTIVE_FEATURES;
 }
 
 static Square transform_square(Square square, Color perspective, bool mirror)

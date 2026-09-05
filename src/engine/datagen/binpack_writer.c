@@ -123,7 +123,7 @@ static bool pack_move(unsigned char out[2], Move move)
 bool binpack_open(BinpackWriter* writer, const char* path)
 {
     *writer        = (BinpackWriter) { 0 };
-    writer->file   = fopen(path, "wb");
+    writer->file   = fopen(path, "wbx");
     writer->buffer = malloc(CHUNK_SIZE);
     if (!writer->file || !writer->buffer) {
         if (writer->file)

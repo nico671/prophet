@@ -97,3 +97,12 @@ Prophet is influenced by the [Chess Programming
 Wiki](https://www.chessprogramming.org/Main_Page), including its material on
 PeSTO-style evaluation, magic bitboards, and Zobrist hashing, and by
 [Stockfish](https://github.com/official-stockfish/Stockfish).
+
+### NNUE work-package checks
+
+Run `just check` for the feature contract, direct SearchResult/UCI comparison,
+and deterministic data generation checks, including sanitizer builds.
+For a separate API/UCI check, run `just search-result debug /absolute/path/to/prophet`.
+Data generation requires a new output prefix. It rejects existing shard files.
+A shard is complete only when its final `.binpack.manifest.json` exists and passes
+validation in `prophet-nnue`.

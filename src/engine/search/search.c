@@ -693,7 +693,7 @@ static void print_pv_info(int depth, int multipv, int score, long long nodes, lo
     }
 
     if (is_mate_score(score)) {
-        int mate_moves = (MATE_SCORE - abs(score)) / 2;
+        int mate_moves = (MATE_SCORE - abs(score) + 1) / 2;
         mate_moves     = score >= 0 ? mate_moves : -mate_moves;
         printf("info depth %d multipv %d score mate %d nodes %lld time %lld nps %lld pv %s\n",
                depth, multipv, mate_moves, nodes, elapsed, nps, pv_string);
@@ -850,6 +850,9 @@ SearchResult search_run(const SearchInput* input, SearchControl* control)
         int report_count
             = root_move_count < ctx.limits.multipv ? root_move_count : ctx.limits.multipv;
         if (!input->suppress_uci_output) {
+            if (root_move_count == 0) {
+                print_pv_info(current_depth, 1, best_score, nodes, elapsed, nps, NULL, 0);
+            }
             for (int rank = 0; rank < report_count; rank++) {
                 Move pv_line[MAX_LEGAL_MOVES];
                 int pv_limit    = current_depth < MAX_LEGAL_MOVES ? current_depth : MAX_LEGAL_MOVES;
@@ -899,7 +902,7 @@ SearchResult search_run(const SearchInput* input, SearchControl* control)
 
         if (!atomic_load(&control->pondering) && ctx.limits.search_for_mate_in_n_moves > 0
             && is_mate_score(best_score)) {
-            int mate_moves = (MATE_SCORE - abs(best_score)) / 2;
+            int mate_moves = (MATE_SCORE - abs(best_score) + 1) / 2;
             if (mate_moves <= ctx.limits.search_for_mate_in_n_moves) {
                 break;
             }

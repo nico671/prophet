@@ -216,6 +216,19 @@ def main() -> int:
         config = root / "datagen.conf"
         config.write_text(config_text(openings, 3, 1, 1234), encoding="utf-8")
         first = run_datagen(args.engine, config, root / "first", repo)
+        # Unsigned settings must reject negative text before any worker starts.
+        for key, value in (("root_seed", "1234"), ("games", "8"),
+                           ("worker_seed_base", "5678"), ("sample_offset_seed", "99")):
+            config.write_text(config_text(openings, 3, 1, 1234).replace(
+                f"{key} = {value}\n", f"{key} = -1\n"
+            ), encoding="utf-8")
+            rejected = subprocess.run(
+                [str(args.engine), "datagen", "--config", str(config),
+                 "--output", str(root / "invalid")],
+                cwd=repo, capture_output=True, text=True, timeout=30,
+            )
+            assert rejected.returncode != 0 and f"invalid value for {key}" in rejected.stderr
+        config.write_text(config_text(openings, 3, 1, 1234), encoding="utf-8")
         first_bytes = b"".join(path.read_bytes() for path in first)
         first_hash = hashlib.sha256(first_bytes).hexdigest()
         first_binpack = validate_binpacks(first)
@@ -224,6 +237,30 @@ def main() -> int:
         assert first_bytes == second_bytes, "same seed did not reproduce the trace"
         assert first_hash == hashlib.sha256(second_bytes).hexdigest()
         assert first_binpack == validate_binpacks(second), "same seed did not reproduce binpack output"
+
+        existing = {path: path.read_bytes() for path in root.glob("first.*")}
+        repeated = subprocess.run(
+            [str(args.engine), "datagen", "--config", str(config), "--output", str(root / "first")],
+            cwd=repo, capture_output=True, text=True, timeout=30,
+        )
+        assert repeated.returncode != 0, "existing output was overwritten"
+        assert existing == {path: path.read_bytes() for path in root.glob("first.*")}
+        orphan = root / "orphan.worker-0000.part-0000.binpack"
+        orphan.write_bytes(b"existing payload")
+        rejected = subprocess.run(
+            [str(args.engine), "datagen", "--config", str(config), "--output", str(root / "orphan")],
+            cwd=repo, capture_output=True, text=True, timeout=30,
+        )
+        assert rejected.returncode != 0 and orphan.read_bytes() == b"existing payload"
+        quoted = run_datagen(args.engine, config, root / 'quoted"\\name', repo)
+        assert validate_binpacks(quoted) == first_binpack
+
+        digest = hashlib.sha256(openings.read_bytes()).hexdigest()
+        config.write_text(config_text(openings, 3, 1, 1234).replace(digest, digest.upper()),
+                          encoding="utf-8")
+        uppercase = run_datagen(args.engine, config, root / "uppercase", repo)
+        assert validate_binpacks(uppercase) == first_binpack
+        assert b"".join(path.read_bytes() for path in uppercase) == first_bytes
 
         games = read_games(first)
         audit_traces(args.validator, first)
@@ -253,6 +290,14 @@ def main() -> int:
         assert {game[0]: game[1:] for game in worker_games} == {
             game[0]: game[1:] for game in games
         }, "worker sharding changed emitted game contents"
+
+        # Large valid intervals must not overflow when the start ply is added.
+        config.write_text(config_text(openings, 3, 1, 1234).replace(
+            "sample_interval = 1\n", "sample_interval = 2147483647\n"
+        ).replace("sample_start_ply = 0\n", "sample_start_ply = 80\n"), encoding="utf-8")
+        sparse = run_datagen(args.engine, config, root / "sparse", repo)
+        validate_binpacks(sparse)
+        audit_traces(args.validator, sparse)
 
     print("Datagen smoke test passed")
     return 0

@@ -1,3 +1,5 @@
+#define _POSIX_C_SOURCE 200809L
+
 #include "engine/datagen/datagen.h"
 
 #include "chess/board/cboard.h"
@@ -121,11 +123,6 @@ typedef struct {
 } DatagenGame;
 
 typedef struct {
-    void* context;
-    bool (*emit_game)(void* context, const DatagenGame* game);
-} DatagenSink;
-
-typedef struct {
     FILE* file;
     BinpackWriter binpack;
     char output_base[DATAGEN_PATH_MAX];
@@ -190,6 +187,9 @@ static bool copy_value_string(const char* value, char* output, size_t output_siz
 
 static bool parse_unsigned(const char* value, uint64_t* output)
 {
+    if (*value == '-') {
+        return false;
+    }
     char* end                 = NULL;
     errno                     = 0;
     unsigned long long parsed = strtoull(value, &end, 0);
@@ -440,6 +440,7 @@ static bool parse_config(const char* path, DatagenConfig* config, char* error, s
             snprintf(error, error_size, "openings_sha256 must contain hexadecimal digits");
             return false;
         }
+        config->openings_sha256[i] = (char)tolower((unsigned char)config->openings_sha256[i]);
     }
     return true;
 }
@@ -634,6 +635,28 @@ static double sample_result(GameResult result, Color side_to_move)
     return winner == side_to_move ? 1.0 : 0.0;
 }
 
+static bool escape_json(const char* text, char* output, size_t capacity)
+{
+    size_t used = 0;
+    for (const unsigned char* cursor = (const unsigned char*)text; *cursor; cursor++) {
+        size_t needed = *cursor < 0x20 ? 6 : (*cursor == '"' || *cursor == '\\') ? 2 : 1;
+        if (used + needed >= capacity) {
+            return false;
+        }
+        if (*cursor < 0x20) {
+            snprintf(output + used, capacity - used, "\\u%04x", *cursor);
+        } else {
+            if (needed == 2) {
+                output[used] = '\\';
+            }
+            output[used + needed - 1] = (char)*cursor;
+        }
+        used += needed;
+    }
+    output[used] = '\0';
+    return true;
+}
+
 static bool trace_finish_shard(TraceWriter* writer)
 {
     if (writer->file && fclose(writer->file) != 0) {
@@ -674,20 +697,13 @@ static bool trace_finish_shard(TraceWriter* writer)
         return false;
     }
     char normalized_json[4096];
-    size_t json_length = 0;
-    for (int i = 0; i < normalized_length; i++) {
-        if (normalized[i] == '\n') {
-            if (json_length + 2 >= sizeof(normalized_json))
-                return false;
-            normalized_json[json_length++] = '\\';
-            normalized_json[json_length++] = 'n';
-        } else {
-            if (json_length + 1 >= sizeof(normalized_json))
-                return false;
-            normalized_json[json_length++] = normalized[i];
-        }
+    const char* basename = strrchr(writer->binpack_final, '/');
+    basename             = basename ? basename + 1 : writer->binpack_final;
+    char filename_json[6 * DATAGEN_PATH_MAX];
+    if (!escape_json(normalized, normalized_json, sizeof(normalized_json))
+        || !escape_json(basename, filename_json, sizeof(filename_json))) {
+        return false;
     }
-    normalized_json[json_length] = '\0';
     char manifest_partial[DATAGEN_PATH_MAX];
     char manifest_final[DATAGEN_PATH_MAX];
     if (snprintf(manifest_partial, sizeof(manifest_partial), "%s.manifest.json.partial",
@@ -698,7 +714,7 @@ static bool trace_finish_shard(TraceWriter* writer)
             >= (int)sizeof(manifest_final)) {
         return false;
     }
-    FILE* manifest = fopen(manifest_partial, "w");
+    FILE* manifest = fopen(manifest_partial, "wx");
     if (!manifest) {
         return false;
     }
@@ -720,9 +736,7 @@ static bool trace_finish_shard(TraceWriter* writer)
         "},\n  \"score_summary\": {\"min\": %d, \"max\": %d},\n  \"ply_summary\": {\"min\": %d, "
         "\"max\": %d},\n  \"licenses\": {\"source\": \"GPL-3.0-only\", \"artifact\": "
         "\"project-controlled self-play\"}\n}\n",
-        strrchr(writer->binpack_final, '/') ? strrchr(writer->binpack_final, '/') + 1
-                                            : writer->binpack_final,
-        (long long)payload_stat.st_size, payload_hash, writer->records_in_shard,
+        filename_json, (long long)payload_stat.st_size, payload_hash, writer->records_in_shard,
         writer->games_in_shard, PROPHET_GIT_COMMIT, PROPHET_GIT_COMMIT, writer->openings_sha256,
         config->root_seed, writer->worker_seed, normalized_json, config_hash,
         config->nodes_per_move, config->early_ply_limit, config->early_multipv,
@@ -734,7 +748,8 @@ static bool trace_finish_shard(TraceWriter* writer)
         writer->records_in_shard ? writer->score_max : 0,
         writer->records_in_shard ? writer->ply_min : 0,
         writer->records_in_shard ? writer->ply_max : 0);
-    bool success = wrote >= 0 && fclose(manifest) == 0;
+    int close_status = fclose(manifest);
+    bool success     = wrote >= 0 && close_status == 0;
     if (!success || rename(writer->binpack_partial, writer->binpack_final) != 0
         || rename(manifest_partial, manifest_final) != 0) {
         return false;
@@ -751,7 +766,30 @@ static bool trace_open(TraceWriter* writer)
         fprintf(stderr, "datagen output path is too long\n");
         return false;
     }
-    writer->file = fopen(path, "w");
+    int binpack_written = snprintf(writer->binpack_final, sizeof(writer->binpack_final),
+                                   "%s.worker-%04d.part-%04zu.binpack", writer->output_base,
+                                   writer->worker_id, writer->shard_index);
+    if (binpack_written < 0 || (size_t)binpack_written >= sizeof(writer->binpack_final)
+        || snprintf(writer->binpack_partial, sizeof(writer->binpack_partial), "%s.partial",
+                    writer->binpack_final)
+            >= (int)sizeof(writer->binpack_partial)) {
+        return false;
+    }
+    // Reject orphaned artifacts as well as complete earlier runs.
+    const char* suffixes[] = { "", ".partial", ".manifest.json", ".manifest.json.partial" };
+    for (size_t i = 0; i < sizeof(suffixes) / sizeof(suffixes[0]); i++) {
+        char artifact[DATAGEN_PATH_MAX];
+        if (snprintf(artifact, sizeof(artifact), "%s%s", writer->binpack_final, suffixes[i])
+            >= (int)sizeof(artifact)) {
+            return false;
+        }
+        struct stat existing;
+        if (lstat(artifact, &existing) == 0 || errno != ENOENT) {
+            fprintf(stderr, "datagen output already exists or cannot be checked: %s\n", artifact);
+            return false;
+        }
+    }
+    writer->file = fopen(path, "wx");
     if (!writer->file) {
         fprintf(stderr, "cannot open datagen output %s: %s\n", path, strerror(errno));
         return false;
@@ -764,14 +802,7 @@ static bool trace_open(TraceWriter* writer)
         writer->file = NULL;
         return false;
     }
-    int binpack_written = snprintf(writer->binpack_final, sizeof(writer->binpack_final),
-                                   "%s.worker-%04d.part-%04zu.binpack", writer->output_base,
-                                   writer->worker_id, writer->shard_index);
-    if (binpack_written < 0 || (size_t)binpack_written >= sizeof(writer->binpack_final)
-        || snprintf(writer->binpack_partial, sizeof(writer->binpack_partial), "%s.partial",
-                    writer->binpack_final)
-            >= (int)sizeof(writer->binpack_partial)
-        || !binpack_open(&writer->binpack, writer->binpack_partial)) {
+    if (!binpack_open(&writer->binpack, writer->binpack_partial)) {
         fclose(writer->file);
         writer->file = NULL;
         return false;
@@ -783,9 +814,8 @@ static bool trace_open(TraceWriter* writer)
     return true;
 }
 
-static bool trace_emit(void* context, const DatagenGame* game)
+static bool trace_emit(TraceWriter* writer, const DatagenGame* game)
 {
-    TraceWriter* writer = context;
     if (writer->games_in_shard == writer->shard_game_limit) {
         if (!trace_finish_shard(writer)) {
             return false;
@@ -867,7 +897,7 @@ static void free_game(DatagenGame* game)
 }
 
 static bool run_game(const DatagenConfig* config, const OpeningSet* openings, size_t game_index,
-                     DatagenSink* sink, size_t* rejected_games)
+                     TraceWriter* writer, size_t* rejected_games)
 {
     uint64_t game_seed = derived_seed(config->root_seed, game_index);
     ranctx opening_random;
@@ -907,7 +937,7 @@ static bool run_game(const DatagenConfig* config, const OpeningSet* openings, si
     int sample_offset       = config->sample_interval == 1
         ? 0
         : (int)(ranval(&sample_random) % (uint64_t)config->sample_interval);
-    int first_sample_ply    = config->sample_start_ply + sample_offset;
+    int64_t first_sample_ply = (int64_t)config->sample_start_ply + sample_offset;
 
     PositionHistory history = { .keys = { board.zobrist_key }, .count = 1 };
     keys[0]                 = board.zobrist_key;
@@ -1036,7 +1066,7 @@ static bool run_game(const DatagenConfig* config, const OpeningSet* openings, si
     for (size_t i = 0; i < game.sample_count; i++) {
         game.samples[i].result = sample_result(game.result, game.samples[i].side_to_move);
     }
-    bool emitted = sink->emit_game(sink->context, &game);
+    bool emitted = trace_emit(writer, &game);
     free(keys);
     free_game(&game);
     return emitted;
@@ -1067,12 +1097,11 @@ static int run_worker(const DatagenConfig* config, const OpeningSet* openings, c
         return 1;
     }
 
-    DatagenSink sink      = { .context = &writer, .emit_game = trace_emit };
     size_t rejected_games = 0;
     int status            = 0;
     for (size_t game_index = (size_t)worker_id; game_index < config->games;
          game_index += (size_t)config->workers) {
-        if (!run_game(config, openings, game_index, &sink, &rejected_games)) {
+        if (!run_game(config, openings, game_index, &writer, &rejected_games)) {
             status = 1;
             break;
         }
@@ -1080,8 +1109,18 @@ static int run_worker(const DatagenConfig* config, const OpeningSet* openings, c
                 config->games, rejected_games);
         fflush(stderr);
     }
-    if (!trace_close(&writer)) {
-        status = 1;
+    if (status == 0) {
+        if (!trace_close(&writer)) {
+            status = 1;
+        }
+    } else {
+        // A failed game write must never publish a complete shard manifest.
+        if (writer.file) {
+            fclose(writer.file);
+        }
+        if (writer.binpack.file) {
+            binpack_close(&writer.binpack);
+        }
     }
     free_tt();
     return status;

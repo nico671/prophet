@@ -81,6 +81,17 @@ static int check_api_rejections(void)
         return 1;
     }
 
+    // A larger caller buffer must not bypass the feature-set limit.
+    memset(&board, 0, sizeof(board));
+    board.piece_bbs[WHITE][KING]  = 1ULL;
+    board.piece_bbs[BLACK][KING]  = 1ULL << 63;
+    board.piece_bbs[WHITE][QUEEN] = 0xfffffffeULL;
+    uint16_t oversized_output[64];
+    if (nnue_generate_features(&board, NNUE_FEATURE_HALFKAV2_HM_V1, WHITE, oversized_output, 64,
+                               &count)) {
+        fprintf(stderr, "more than 32 features were accepted\n");
+        return 1;
+    }
     return 0;
 }
 

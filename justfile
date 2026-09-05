@@ -62,7 +62,7 @@ nnue-contract mode="debug":
         "$target"
     fi
 
-search-result mode="debug":
+search-result mode="debug" engine="":
     #!/usr/bin/env bash
     set -euo pipefail
     tmpdir="$(mktemp -d)"
@@ -79,6 +79,9 @@ search-result mode="debug":
         ASAN_OPTIONS=halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 "$target"
     else
         "$target"
+    fi
+    if [[ -n "{{engine}}" ]]; then
+        python3 scripts/search_result_uci.py --engine "{{engine}}" --probe "$target"
     fi
 
 datagen-audit build_mode="debug" output="" strict="0":
@@ -124,11 +127,11 @@ check:
     python3 -u scripts/check_config.py
     python3 -m unittest discover -s tests
     just nnue-contract
-    just search-result
     mkdir -p validation-runs
     run_dir="$(mktemp -d validation-runs/check.XXXXXX)"
     target="$run_dir/prophet-dev"
     just build dev "$target" 1
+    just search-result debug "$target"
     validator="$run_dir/datagen-audit-dev"
     just datagen-audit dev "$validator" 1
     python3 -u scripts/datagen_smoke.py --engine "$target" --validator "$validator"
@@ -137,6 +140,8 @@ check:
     python3 -u scripts/draw_rules_smoke.py --engine "$target"
     target="$run_dir/prophet-sanitize"
     just build sanitize "$target" 1
+    just nnue-contract sanitize
+    ASAN_OPTIONS=halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 just search-result sanitize "$target"
     validator="$run_dir/datagen-audit-sanitize"
     just datagen-audit sanitize "$validator" 1
     ASAN_OPTIONS=halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 \

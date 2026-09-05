@@ -6,6 +6,8 @@
 #include "engine/tt/tt.h"
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 static SearchResult run_search(const char* fen, int depth_limit, int node_limit,
                                bool stop_before_search)
@@ -117,12 +119,26 @@ static int test_black_root_score_orientation(void)
     return 0;
 }
 
-int main(void)
+int main(int argc, char* argv[])
 {
     init_sliding_attacks();
     init_zobrist_keys();
     hc_eval_init();
     init_tt(1);
+
+    if (argc == 4 && strcmp(argv[1], "--probe") == 0) {
+        SearchResult result = run_search(argv[2], atoi(argv[3]), 0, false);
+        char move[6];
+        move_to_uci_string(result.best_move, move);
+        printf("%s %d %d %d %d %d\n", move, result.score, result.completed_depth, result.completed,
+               MATE_SCORE, MATE_THRESHOLD);
+        free_tt();
+        return 0;
+    }
+    if (argc != 1) {
+        free_tt();
+        return 2;
+    }
 
     int failed = test_fixed_depth_result() || test_partial_iteration_preserves_result()
         || test_stop_before_search() || test_terminal_and_draw_results()
