@@ -2,7 +2,7 @@
 
 ## nnue-pytorch binpack writer
 
-- Upstream project: https://github.com/official-stockfish/nnue-pytorch
+- Upstream project: <https://github.com/official-stockfish/nnue-pytorch>
 - Pinned commit: `86adb4b075456144d58a69398303ab9ce9ec6590`
 - License: GNU General Public License version 3
 - Adapted file: `src/engine/datagen/binpack_writer.c`

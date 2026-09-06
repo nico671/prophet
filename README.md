@@ -3,6 +3,10 @@
 Prophet is an experimental UCI chess engine written in C17. It is a personal,
 in-development project, not a stable release.
 
+Prophet is licensed under the GNU General Public License version 3. See
+[LICENSE](LICENSE). Third-party material and provenance are listed in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
 ## Current state
 
 The engine currently has:
