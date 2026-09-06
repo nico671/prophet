@@ -15,7 +15,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define TRACE_LINE_MAX 2048
+/* Datagen caps max_game_ply at 0x3fff. Each UCI move needs at most
+ * six bytes (space + promotion move), plus "moves", CRLF and NUL. */
+#define TRACE_LINE_MAX (5 + 6 * 0x3fff + 3)
 
 typedef struct {
     int ply;
@@ -371,7 +373,9 @@ static bool validate_file(const char* path, size_t* games, size_t* samples)
     int line_status = read_line(file, line);
     while (line_status == 1) {
         if (!line[0]) {
-            continue;
+            fprintf(stderr, "%s: unexpected blank trace line\n", path);
+            valid = false;
+            break;
         }
         GameTrace game = { 0 };
         if (!parse_game_header(line, &game)) {

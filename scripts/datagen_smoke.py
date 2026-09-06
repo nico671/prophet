@@ -74,12 +74,46 @@ def audit_traces(validator: Path, files: list[Path]) -> None:
         text=True,
         capture_output=True,
         check=False,
+        timeout=30,
     )
     if completed.returncode != 0:
         raise AssertionError(
             f"trace audit failed with {completed.returncode}\n"
             f"stdout: {completed.stdout}\nstderr: {completed.stderr}"
         )
+
+
+def check_auditor_boundaries(validator: Path, trace: Path, root: Path) -> None:
+    text = trace.read_text(encoding="utf-8")
+    malformed = root / "malformed.games"
+    for label, content in (
+        ("after header", text.replace("\n\n", "\n\n\n", 1)),
+        ("after game", text.replace("endgame\n\n", "endgame\n\n\n", 1)),
+        ("at EOF", text + "\n"),
+    ):
+        assert content != text
+        malformed.write_text(content, encoding="utf-8")
+        rejected = subprocess.run(
+            [str(validator), str(malformed)], capture_output=True, text=True, timeout=5,
+        )
+        assert rejected.returncode == 1, f"auditor did not reject blank line {label}"
+        assert "unexpected blank trace line" in rejected.stderr
+
+    # Pad a legal moves line to the worst-case size (promotion moves).
+    # Replay remains valid, so success checks parsing rather than an early error.
+    moves_line = next(line for line in text.splitlines() if line.startswith("moves"))
+    long_trace = root / "long-line.games"
+    for plies in (1024, 0x3FFF):
+        padded = moves_line.ljust(5 + 6 * plies)
+        long_trace.write_bytes(text.replace(moves_line + "\n", padded + "\r\n", 1).encode())
+        audit_traces(validator, [long_trace])
+
+    overlong = moves_line.ljust(5 + 6 * 0x3FFF + 3)
+    malformed.write_text(text.replace(moves_line + "\n", overlong + "\n", 1), encoding="utf-8")
+    rejected = subprocess.run(
+        [str(validator), str(malformed)], capture_output=True, text=True, timeout=5,
+    )
+    assert rejected.returncode == 1, "auditor did not reject an overlong line"
 
 
 def validate_binpacks(files: list[Path]) -> bytes:
@@ -264,6 +298,7 @@ def main() -> int:
 
         games = read_games(first)
         audit_traces(args.validator, first)
+        check_auditor_boundaries(args.validator, first[0], root)
         replay_games(args.engine, games)
 
         config.write_text(config_text(openings, 3, 1, 9876), encoding="utf-8")
