@@ -252,14 +252,11 @@ static inline void cboard_update_castling_rights(CBoard* board, Square from, Squ
     // If rook moved from corner, lose that side's castling
     if (from == H1) {
         U8_CLEAR_BIT(board->castling_rights, 3);
-    }
-    if (from == A1) {
+    } else if (from == A1) {
         U8_CLEAR_BIT(board->castling_rights, 2);
-    }
-    if (from == H8) {
+    } else if (from == H8) {
         U8_CLEAR_BIT(board->castling_rights, 1);
-    }
-    if (from == A8) {
+    } else if (from == A8) {
         U8_CLEAR_BIT(board->castling_rights, 0);
     }
 
@@ -267,14 +264,11 @@ static inline void cboard_update_castling_rights(CBoard* board, Square from, Squ
     // castling
     if (to == H1) {
         U8_CLEAR_BIT(board->castling_rights, 3);
-    }
-    if (to == A1) {
+    } else if (to == A1) {
         U8_CLEAR_BIT(board->castling_rights, 2);
-    }
-    if (to == H8) {
+    } else if (to == H8) {
         U8_CLEAR_BIT(board->castling_rights, 1);
-    }
-    if (to == A8) {
+    } else if (to == A8) {
         U8_CLEAR_BIT(board->castling_rights, 0);
     }
 }

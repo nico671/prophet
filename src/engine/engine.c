@@ -31,6 +31,7 @@ static void set_error(char* error_buf, size_t error_buf_size, const char* messag
 }
 
 typedef struct {
+    // current board
     CBoard board;
     pthread_t search_thread;
     SearchInput search_input;

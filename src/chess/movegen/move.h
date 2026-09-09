@@ -11,23 +11,32 @@
 // NOTE: move representation adopted from stockfish
 
 /**
- * @brief Move representation using a compact 16-bit encoding. The
- * move is represented as a uint16_t where:
- * - Bits 0-5 (6 bits): To square index (0-63 corresponding to A1-H8)
- * - Bits 6-11 (6 bits): From square index (0-63 corresponding to
- * A1-H8)
+ * @brief Move representation using a compact 16-bit encoding.
+ *
+ * - Bits 0-5 (6 bits): To square
+ *
+ * - Bits 6-11 (6 bits): From square
+ *
  * - Bits 12-13 (2 bits): Promotion piece type for promotion moves
  * (00=Knight, 01=Bishop, 10=Rook, 11=Queen)
+ *
  * - Bits 14-15 (2 bits): Move type flags (00=NORMAL, 01=Promotion,
- * 10=En Passant, 11=Castling) note that en passant is only present
- * when a pawn can be captured en passant
+ * 10=En Passant, 11=Castling)
+ * @note en passant is only present when a pawn can be captured en passant
  */
 typedef uint16_t Move;
 
 // Special move value representing no move (used as a sentinel)
 #define MOVE_NONE ((Move)0xFFFF)
 
-// Move list structure
+/**
+ * @struct MoveList
+ * @brief Holds a list of moves along with the number of moves in a list.
+ * @var MoveList::moves
+ * Contains list of moves. Max 256 moves stored
+ * @var MoveList::count
+ * Number of moves in movelist
+ */
 typedef struct {
     Move moves[256]; // Maximum possible moves in a position
     int count;
@@ -46,31 +55,22 @@ typedef enum { NORMAL = 0, PROMO = 1u << 14, EN_PASSANT = 2u << 14, CASTLE = 3u 
  */
 Move create_move(Square from, Square to, MoveType type, PieceType promo_piece);
 
-/** @brief Returns the encoded source square. */
 Square move_get_from_square(Move move);
 
-/** @brief Returns the encoded destination square. */
 Square move_get_to_square(Move move);
 
-/** @brief Returns the encoded move type. */
 MoveType move_get_move_type(Move move);
 
-/** @brief Returns the promotion piece encoded in @p move. */
 PieceType move_get_promotion_piecetype(Move move);
 
-/** @brief Reports whether @p move is an en-passant capture. */
 bool move_is_enpassant(Move move);
 
-/** @brief Reports whether @p move promotes a pawn. */
 bool move_is_promotion(Move move);
 
-/** @brief Reports whether @p move is castling. */
 bool move_is_castling(Move move);
 
-/** @brief Reports whether @p move captures, including en passant. */
 bool move_is_capture(const CBoard* board, Move move);
 
-/** @brief Reports whether @p move is neither a capture nor a promotion. */
 bool move_is_quiet(const CBoard* board, Move move);
 
 /** @brief Writes a UCI move string to the caller-provided six-byte buffer. */

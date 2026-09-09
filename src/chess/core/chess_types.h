@@ -1,6 +1,21 @@
 #ifndef PROPHET_CHESS_TYPES_H
 #define PROPHET_CHESS_TYPES_H
 
+/*
++---+----+----+----+----+----+----+----+----+
+|   | a  | b  | c  | d  | e  | f  | g  | h  |
++---+----+----+----+----+----+----+----+----+
+| 8 | 56 | 57 | 58 | 59 | 60 | 61 | 62 | 63 |
+| 7 | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 |
+| 6 | 40 | 41 | 42 | 43 | 44 | 45 | 46 | 47 |
+| 5 | 32 | 33 | 34 | 35 | 36 | 37 | 38 | 39 |
+| 4 | 24 | 25 | 26 | 27 | 28 | 29 | 30 | 31 |
+| 3 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 |
+| 2 |  8 |  9 | 10 | 11 | 12 | 13 | 14 | 15 |
+| 1 |  0 |  1 |  2 |  3 |  4 |  5 |  6 |  7 |
++---+----+----+----+----+----+----+----+----+
+*/
+
 /**
  * @brief Enum for chess squares, representing each square on the
  * board with a unique integer value. Consistent with little-endian
@@ -75,18 +90,12 @@ typedef enum {
 } Square;
 
 /**
- * @brief Constant representing an invalid square, used as a sentinel
- * value in various contexts such as move generation and board
- * representation. It is set to 64, which is outside the valid range
- * of 0-63 for squares on an 8x8 chessboard.
- *
+ * @brief Constant representing an invalid square
  */
 #define NO_SQUARE 64
 
 /**
- * @brief Enum for player colors in chess. WHITE is represented by 0
- * and BLACK by 1.
- *
+ * @brief Enum for player colors in chess. 0=WHITE, BLACK=1
  */
 typedef enum { WHITE = 0, BLACK = 1 } Color;
 
