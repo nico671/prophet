@@ -1,7 +1,7 @@
 cc := "gcc"
 builddir := "build"
 
-# 1. Grab the branch globally using backticks so `just` knows it immediately
+# Grab the branch globally using backticks so `just` knows it immediately
 branch := `git branch --show-current || echo detached`
 
 cstd := "-std=c17"
@@ -84,7 +84,7 @@ search-result mode="debug" engine="":
         python3 scripts/search_result_uci.py --engine "{{engine}}" --probe "$target"
     fi
 
-datagen-audit build_mode="debug" output="" strict="0":
+datagen-audit build_mode="debug" output="":
     #!/usr/bin/env bash
     set -euo pipefail
     target="{{output}}"

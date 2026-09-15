@@ -75,6 +75,16 @@ bool engine_set_hash_mb(long requested_mb, long* applied_mb);
  */
 bool engine_set_multipv(int requested_multipv, int* applied_multipv);
 
+/** Load a V1 PNUE file. The old valid file remains active on failure. */
+bool engine_set_eval_file(const char* path, char* error_buf, size_t error_buf_size);
+
+/** Enable or disable NNUE evaluation. Enabling requires a loaded V1 network. */
+bool engine_set_use_nnue(bool enabled, char* error_buf, size_t error_buf_size);
+
+bool engine_get_use_nnue(void);
+const char* engine_nnue_architecture_id(void);
+const char* engine_nnue_model_identifier(void);
+
 /**
  * @brief Get the configured number of principal variations to report.
  */

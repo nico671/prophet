@@ -934,15 +934,15 @@ static bool run_game(const DatagenConfig* config, const OpeningSet* openings, si
     raninit(&move_random, derived_seed(game_seed, 0x4d4f5645ULL));
     ranctx sample_random;
     raninit(&sample_random, derived_seed(game_seed, config->sample_offset_seed));
-    int sample_offset       = config->sample_interval == 1
+    int sample_offset        = config->sample_interval == 1
         ? 0
         : (int)(ranval(&sample_random) % (uint64_t)config->sample_interval);
     int64_t first_sample_ply = (int64_t)config->sample_start_ply + sample_offset;
 
-    PositionHistory history = { .keys = { board.zobrist_key }, .count = 1 };
-    keys[0]                 = board.zobrist_key;
-    bool complete           = false;
-    size_t ply              = 0;
+    PositionHistory history  = { .keys = { board.zobrist_key }, .count = 1 };
+    keys[0]                  = board.zobrist_key;
+    bool complete            = false;
+    size_t ply               = 0;
     for (; ply <= (size_t)config->max_game_ply; ply++) {
         MoveList legal_moves;
         init_move_list(&legal_moves);

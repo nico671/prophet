@@ -4,6 +4,7 @@
 #include "chess/board/zobrist.h"
 #include "chess/movegen/move_make.h"
 #include "chess/movegen/movegen.h"
+#include "engine/eval/evaluate.h"
 #include "engine/eval/hceval.h"
 #include "engine/search/see.h"
 #include "engine/tt/tt.h"
@@ -49,6 +50,8 @@ typedef struct {
     Move killer_moves[MAX_PLY][MAX_KILLER_MOVES];
     int history[2][64][64];
     uint64_t path_keys[MAX_PLY];
+    NnueAccumulator* accumulators;
+    bool nnue_enabled;
     int null_move_depth;
 } SearchContext;
 
@@ -82,6 +85,25 @@ static DrawStatus draw_status(const SearchContext* ctx, const CBoard* board, int
 static bool automatic_draw_ends_search(const SearchContext* ctx, const CBoard* board, int ply);
 static bool is_checkmate(const CBoard* board);
 static Move first_allowed_move(const SearchContext* ctx, const MoveList* move_list);
+static bool update_child_accumulator(SearchContext* ctx, const CBoard* parent, const CBoard* child,
+                                     int child_ply);
+static int evaluate_node(const SearchContext* ctx, const CBoard* board, int ply);
+
+static int evaluate_node(const SearchContext* ctx, const CBoard* board, int ply)
+{
+    return evaluate_cboard(board, ctx->nnue_enabled ? &ctx->accumulators[ply] : NULL);
+}
+
+static bool update_child_accumulator(SearchContext* ctx, const CBoard* parent, const CBoard* child,
+                                     int child_ply)
+{
+    if (!ctx->nnue_enabled) {
+        return true;
+    }
+    return child_ply < MAX_PLY
+        && nnue_update_accumulator(parent, child, &ctx->accumulators[child_ply - 1],
+                                   &ctx->accumulators[child_ply]);
+}
 
 static int repetition_count(const SearchContext* ctx, uint64_t key, int ply)
 {
@@ -535,8 +557,16 @@ static int search_root_best_move(SearchContext* ctx, CBoard* board, int depth, i
             continue;
         }
 
+        CBoard parent_board;
+        if (ctx->nnue_enabled) {
+            parent_board = *board;
+        }
         UndoInfo undo_info = make_move(board, move);
-        ctx->path_keys[0]  = board->zobrist_key;
+        if (!update_child_accumulator(ctx, &parent_board, board, 1)) {
+            unmake_move(board, move, undo_info);
+            return -MATE_SCORE;
+        }
+        ctx->path_keys[0] = board->zobrist_key;
         int eval;
         if (!has_searched_at_least_one_move) {
             eval = -negamax(ctx, board, depth - 1, -beta, -alpha, board->side_to_move, 1);
@@ -650,8 +680,16 @@ static int search_root_moves(SearchContext* ctx, CBoard* board, int depth, Move*
             continue;
         }
 
+        CBoard parent_board;
+        if (ctx->nnue_enabled) {
+            parent_board = *board;
+        }
         UndoInfo undo_info = make_move(board, move);
-        ctx->path_keys[0]  = board->zobrist_key;
+        if (!update_child_accumulator(ctx, &parent_board, board, 1)) {
+            unmake_move(board, move, undo_info);
+            return 0;
+        }
+        ctx->path_keys[0] = board->zobrist_key;
         int score
             = -negamax(ctx, board, depth - 1, -MATE_SCORE, MATE_SCORE, board->side_to_move, 1);
         unmake_move(board, move, undo_info);
@@ -719,6 +757,15 @@ SearchResult search_run(const SearchInput* input, SearchControl* control)
     ctx.root_side_to_move = ctx.board.side_to_move;
     ctx.start_time_ms     = now_ms();
     ctx.node_count        = 0;
+    ctx.nnue_enabled      = evaluate_uses_nnue();
+    if (ctx.nnue_enabled) {
+        ctx.accumulators = calloc(MAX_PLY, sizeof(*ctx.accumulators));
+        if (!ctx.accumulators || !nnue_refresh_accumulator(&ctx.board, &ctx.accumulators[0])) {
+            free(ctx.accumulators);
+            result.completed = false;
+            return result;
+        }
+    }
 
     if (ctx.limits.multipv < 1) {
         ctx.limits.multipv = 1;
@@ -926,6 +973,7 @@ SearchResult search_run(const SearchInput* input, SearchControl* control)
     for (int i = 0; i < completed_root_line_count; i++) {
         result.root_lines[i] = completed_root_lines[i];
     }
+    free(ctx.accumulators);
     return result;
 }
 
@@ -995,7 +1043,7 @@ static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int
     ctx->node_count++;
 
     if (should_stop_search(ctx)) {
-        return hc_evaluate_cboard(node);
+        return evaluate_node(ctx, node, ply);
     }
 
     DrawStatus status = draw_status(ctx, node, ply);
@@ -1004,7 +1052,7 @@ static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int
     }
 
     if (ply >= MAX_PLY - 1) {
-        return hc_evaluate_cboard(node);
+        return evaluate_node(ctx, node, ply);
     }
 
     int original_alpha = alpha;
@@ -1025,7 +1073,7 @@ static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int
     }
 
     bool king_in_check = is_king_in_check(node, node->side_to_move);
-    int stand_pat      = hc_evaluate_cboard(node);
+    int stand_pat      = evaluate_node(ctx, node, ply);
     if (!king_in_check) {
         if (stand_pat >= beta) {
             if (!should_stop_search(ctx)) {
@@ -1089,8 +1137,16 @@ static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int
 
         bool prune_capture = !king_in_check && capture && !move_is_promotion(move)
             && see_capture(node, move) < -HC_PAWN_VALUE;
+        CBoard parent_board;
+        if (ctx->nnue_enabled) {
+            parent_board = *node;
+        }
         UndoInfo undo_info = make_move(node, move);
-        bool gives_check   = is_king_in_check(node, node->side_to_move);
+        if (!update_child_accumulator(ctx, &parent_board, node, ply + 1)) {
+            unmake_move(node, move, undo_info);
+            return evaluate_node(ctx, &parent_board, ply);
+        }
+        bool gives_check = is_king_in_check(node, node->side_to_move);
         if (prune_capture && !gives_check) {
             unmake_move(node, move, undo_info);
             continue;
@@ -1143,7 +1199,7 @@ static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int b
     ctx->node_count++;
 
     if (should_stop_search(ctx)) {
-        return hc_evaluate_cboard(node);
+        return evaluate_node(ctx, node, ply);
     }
 
     DrawStatus status = draw_status(ctx, node, ply);
@@ -1186,7 +1242,10 @@ static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int b
     if (!king_in_check && depth >= 3 && !is_mate_score(alpha) && !is_mate_score(beta)) {
         int reduction               = 2 + (depth >= 6 ? 1 : 0);
         NullMoveUndo null_undo_info = make_null_move(node);
-        Color next_side             = color_opposite(side);
+        if (ctx->nnue_enabled) {
+            ctx->accumulators[ply + 1] = ctx->accumulators[ply];
+        }
+        Color next_side = color_opposite(side);
         ctx->null_move_depth++;
         int null_score
             = -negamax(ctx, node, depth - 1 - reduction, -beta, -beta + 1, next_side, ply + 1);
@@ -1219,7 +1278,15 @@ static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int b
         bool quiet = move_is_quiet(node, move);
 
         // Make the move
+        CBoard parent_board;
+        if (ctx->nnue_enabled) {
+            parent_board = *node;
+        }
         UndoInfo undo_info = make_move(node, move);
+        if (!update_child_accumulator(ctx, &parent_board, node, ply + 1)) {
+            unmake_move(node, move, undo_info);
+            return evaluate_node(ctx, &parent_board, ply);
+        }
 
         if (is_king_in_check(node, side)) {
             unmake_move(node, move, undo_info);
