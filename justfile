@@ -133,7 +133,7 @@ check:
     just build dev "$target" 1
     just search-result debug "$target"
     validator="$run_dir/datagen-audit-dev"
-    just datagen-audit dev "$validator" 1
+    just datagen-audit dev "$validator"
     python3 -u scripts/datagen_smoke.py --engine "$target" --validator "$validator"
     python3 -u scripts/strict_perft.py --engine "$target"
     python3 -u scripts/uci_smoke.py --engine "$target"
@@ -143,7 +143,7 @@ check:
     just nnue-contract sanitize
     ASAN_OPTIONS=halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 just search-result sanitize "$target"
     validator="$run_dir/datagen-audit-sanitize"
-    just datagen-audit sanitize "$validator" 1
+    just datagen-audit sanitize "$validator"
     ASAN_OPTIONS=halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 \
         python3 -u scripts/datagen_smoke.py --engine "$target" --validator "$validator"
     ASAN_OPTIONS=halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 python3 -u scripts/uci_smoke.py --engine "$target"

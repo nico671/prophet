@@ -362,7 +362,11 @@ bool engine_set_multipv(int requested_multipv, int* applied_multipv)
 bool engine_set_eval_file(const char* path, char* error_buf, size_t error_buf_size)
 {
     engine_stop_search();
-    return nnue_load_file(path, error_buf, error_buf_size);
+    if (!nnue_load_file(path, error_buf, error_buf_size)) {
+        return false;
+    }
+    clear_tt();
+    return true;
 }
 
 bool engine_set_use_nnue(bool enabled, char* error_buf, size_t error_buf_size)
@@ -372,13 +376,11 @@ bool engine_set_use_nnue(bool enabled, char* error_buf, size_t error_buf_size)
         set_error(error_buf, error_buf_size, "UseNNUE requires a valid EvalFile");
         return false;
     }
-    evaluate_set_use_nnue(enabled);
+    if (evaluate_uses_nnue() != enabled) {
+        evaluate_set_use_nnue(enabled);
+        clear_tt();
+    }
     return true;
-}
-
-bool engine_get_use_nnue(void)
-{
-    return evaluate_uses_nnue();
 }
 
 const char* engine_nnue_architecture_id(void)

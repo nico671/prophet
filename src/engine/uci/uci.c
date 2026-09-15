@@ -194,15 +194,19 @@ static void handle_set_option_command(const char* command)
     }
 
     if (!strcmp(option, "EvalFile")) {
-        char value[1024];
-        if (!next_token(&command, token, sizeof(token)) || strcmp(token, "value")
-            || !next_token(&command, value, sizeof(value))) {
+        if (!next_token(&command, token, sizeof(token)) || strcmp(token, "value")) {
+            printf("info string setoption EvalFile requires a path\n");
+            fflush(stdout);
+            return;
+        }
+        skip_whitespace(&command);
+        if (!*command) {
             printf("info string setoption EvalFile requires a path\n");
             fflush(stdout);
             return;
         }
         char error[128] = "";
-        if (!engine_set_eval_file(value, error, sizeof(error))) {
+        if (!engine_set_eval_file(command, error, sizeof(error))) {
             printf("info string EvalFile error: %s\n", error[0] ? error : "load failed");
             fflush(stdout);
             return;

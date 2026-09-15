@@ -55,7 +55,6 @@ typedef struct {
     int8_t dense_2_weight[PNUE_HIDDEN][PNUE_HIDDEN];
     int32_t output_bias;
     int8_t output_weight[PNUE_HIDDEN];
-    char architecture_id[33];
     char model_identifier[65];
 } NnueNetwork;
 
@@ -108,8 +107,8 @@ static size_t expected_payload_bytes(void)
         + sizeof(int32_t) + PNUE_HIDDEN * sizeof(int8_t);
 }
 
-/** Validates one NUL-padded ASCII identifier and optionally copies it out. */
-static bool fixed_identifier(const uint8_t* bytes, const char* expected, char* output)
+/** Validates one NUL-padded ASCII identifier. */
+static bool fixed_identifier(const uint8_t* bytes, const char* expected)
 {
     size_t expected_length = strlen(expected);
     if (expected_length == 0 || expected_length > 32 || memcmp(bytes, expected, expected_length)) {
@@ -119,9 +118,6 @@ static bool fixed_identifier(const uint8_t* bytes, const char* expected, char* o
         if (bytes[index] != 0) {
             return false;
         }
-    }
-    if (output) {
-        memcpy(output, expected, expected_length + 1);
     }
     return true;
 }
@@ -136,9 +132,9 @@ static const NnueProfile* profile_for_header(const uint8_t header[PNUE_HEADER_BY
         const NnueProfile* profile = SUPPORTED_PROFILES[profile_index];
         if (payload_bytes != profile->payload_bytes()
             || read_u32_le(header + 16) != profile->eval_scale_cp
-            || !fixed_identifier(header + 60, profile->architecture_id, NULL)
-            || !fixed_identifier(header + 92, profile->feature_id, NULL)
-            || !fixed_identifier(header + 124, profile->quantization_id, NULL)) {
+            || !fixed_identifier(header + 60, profile->architecture_id)
+            || !fixed_identifier(header + 92, profile->feature_id)
+            || !fixed_identifier(header + 124, profile->quantization_id)) {
             continue;
         }
         bool dimensions_match = true;
@@ -164,10 +160,10 @@ static void free_network(NnueNetwork* network)
 }
 
 /** Inserts one magnitude into a descending fixed-size top-32 list. */
-static bool insert_top_abs(int64_t values[32], int64_t value)
+static void insert_top_abs(int64_t values[32], int64_t value)
 {
     if (value <= values[31]) {
-        return true;
+        return;
     }
     int index = 31;
     while (index > 0 && value > values[index - 1]) {
@@ -175,7 +171,6 @@ static bool insert_top_abs(int64_t values[32], int64_t value)
         index--;
     }
     values[index] = value;
-    return true;
 }
 
 /** Checks that this profile cannot overflow its accumulator or scalar arithmetic. */
@@ -294,8 +289,7 @@ bool nnue_load_file(const char* path, char* error, size_t error_size)
             = malloc((size_t)payload_bytes - NNUE_ACCUMULATOR_SIZE * 2 - PNUE_HIDDEN * 4
                      - PNUE_HIDDEN * PNUE_DENSE_INPUTS - PNUE_HIDDEN * 4 - PNUE_HIDDEN * PNUE_HIDDEN
                      - 4 - PNUE_HIDDEN);
-        header_valid = candidate->feature_weight != NULL
-            && fixed_identifier(header + 60, profile->architecture_id, candidate->architecture_id);
+        header_valid = candidate->feature_weight != NULL;
         for (size_t index = 0; header_valid && index < 32; index++) {
             snprintf(candidate->model_identifier + index * 2,
                      sizeof(candidate->model_identifier) - index * 2, "%02x", header[156 + index]);
@@ -334,7 +328,7 @@ bool nnue_is_loaded(void)
 
 const char* nnue_architecture_id(void)
 {
-    return active_network ? active_network->architecture_id : "";
+    return active_network ? active_network->profile->architecture_id : "";
 }
 
 const char* nnue_model_identifier(void)
@@ -457,12 +451,6 @@ bool nnue_update_accumulator(const CBoard* parent, const CBoard* child,
     return child_accumulator->valid[WHITE] && child_accumulator->valid[BLACK];
 }
 
-/** Divides toward zero, matching the frozen C and Python integer contract. */
-static int64_t trunc_divide(int64_t numerator, int denominator)
-{
-    return numerator / denominator;
-}
-
 int nnue_evaluate_accumulator(const CBoard* board, const NnueAccumulator* accumulator)
 {
     if (!active_network || !board || !accumulator || !accumulator->valid[WHITE]
@@ -484,12 +472,13 @@ int nnue_evaluate_accumulator(const CBoard* board, const NnueAccumulator* accumu
     }
     int hidden_1[PNUE_HIDDEN];
     int hidden_2[PNUE_HIDDEN];
+    // C17 signed division truncates toward zero, as required by the integer contract.
     for (int output = 0; output < PNUE_HIDDEN; output++) {
         int64_t sum = active_network->dense_1_bias[output];
         for (int input = 0; input < PNUE_DENSE_INPUTS; input++) {
             sum += (int64_t)activation[input] * active_network->dense_1_weight[output][input];
         }
-        int value        = (int)trunc_divide(sum, PNUE_DENSE_SCALE);
+        int value        = (int)(sum / PNUE_DENSE_SCALE);
         hidden_1[output] = value < 0        ? 0
             : value > PNUE_ACTIVATION_SCALE ? PNUE_ACTIVATION_SCALE
                                             : value;
@@ -499,7 +488,7 @@ int nnue_evaluate_accumulator(const CBoard* board, const NnueAccumulator* accumu
         for (int input = 0; input < PNUE_HIDDEN; input++) {
             sum += (int64_t)hidden_1[input] * active_network->dense_2_weight[output][input];
         }
-        int value        = (int)trunc_divide(sum, PNUE_DENSE_SCALE);
+        int value        = (int)(sum / PNUE_DENSE_SCALE);
         hidden_2[output] = value < 0        ? 0
             : value > PNUE_ACTIVATION_SCALE ? PNUE_ACTIVATION_SCALE
                                             : value;
@@ -508,7 +497,7 @@ int nnue_evaluate_accumulator(const CBoard* board, const NnueAccumulator* accumu
     for (int input = 0; input < PNUE_HIDDEN; input++) {
         final_sum += (int64_t)hidden_2[input] * active_network->output_weight[input];
     }
-    return (int)trunc_divide(final_sum * PNUE_EVAL_SCALE, PNUE_ACTIVATION_SCALE * PNUE_DENSE_SCALE);
+    return (int)(final_sum * PNUE_EVAL_SCALE / (PNUE_ACTIVATION_SCALE * PNUE_DENSE_SCALE));
 }
 
 int nnue_evaluate_cboard(const CBoard* board)
