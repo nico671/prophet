@@ -29,7 +29,6 @@ typedef struct {
     const char* quantization_id;
     uint32_t eval_scale_cp;
     uint32_t dimensions[8];
-    NnueFeatureSet feature_set;
     size_t (*payload_bytes)(void);
 } NnueProfile;
 
@@ -40,7 +39,6 @@ static const NnueProfile V1_PROFILE = {
     .eval_scale_cp   = PNUE_EVAL_SCALE,
     .dimensions      = { PNUE_FEATURE_COUNT, NNUE_ACCUMULATOR_SIZE, PNUE_DENSE_INPUTS, PNUE_HIDDEN,
                          PNUE_HIDDEN, PNUE_HIDDEN, PNUE_HIDDEN, 1 },
-    .feature_set     = NNUE_FEATURE_HALFKAV2_HM_V1,
     .payload_bytes   = expected_payload_bytes,
 };
 
@@ -346,8 +344,8 @@ static bool refresh_perspective(const CBoard* board, Color perspective, int16_t 
     uint16_t features[NNUE_MAX_ACTIVE_FEATURES];
     size_t count = 0;
     if (!active_network
-        || !nnue_generate_features(board, active_network->profile->feature_set, perspective,
-                                   features, NNUE_MAX_ACTIVE_FEATURES, &count)) {
+        || !nnue_generate_features(board, perspective, features, NNUE_MAX_ACTIVE_FEATURES,
+                                   &count)) {
         return false;
     }
     int32_t totals[NNUE_ACCUMULATOR_SIZE];
@@ -410,9 +408,8 @@ static bool update_perspective(const CBoard* parent, const CBoard* child, Color 
         }
         uint16_t feature;
         if (had_parent
-            && !nnue_feature_index_for_piece(parent, active_network->profile->feature_set,
-                                             perspective, parent_color, parent_piece, square,
-                                             &feature)) {
+            && !nnue_feature_index_for_piece(parent, perspective, parent_color, parent_piece,
+                                             square, &feature)) {
             return false;
         }
         if (had_parent) {
@@ -420,8 +417,7 @@ static bool update_perspective(const CBoard* parent, const CBoard* child, Color 
                 totals, &active_network->feature_weight[(size_t)feature * NNUE_ACCUMULATOR_SIZE]);
         }
         if (has_child
-            && !nnue_feature_index_for_piece(child, active_network->profile->feature_set,
-                                             perspective, child_color, child_piece, square,
+            && !nnue_feature_index_for_piece(child, perspective, child_color, child_piece, square,
                                              &feature)) {
             return false;
         }

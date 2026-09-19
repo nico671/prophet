@@ -16,8 +16,8 @@ static int check_perspective(const NnueContractFixture* fixture, Color perspecti
 
     uint16_t actual[NNUE_MAX_ACTIVE_FEATURES];
     size_t actual_count = 0;
-    if (!nnue_generate_features(&board, NNUE_FEATURE_HALFKAV2_HM_V1, perspective, actual,
-                                NNUE_MAX_ACTIVE_FEATURES, &actual_count)) {
+    if (!nnue_generate_features(&board, perspective, actual, NNUE_MAX_ACTIVE_FEATURES,
+                                &actual_count)) {
         fprintf(stderr, "feature generation failed for '%s' perspective %d\n", fixture->name,
                 perspective);
         return 1;
@@ -70,13 +70,9 @@ static int check_api_rejections(void)
 
     uint16_t output[NNUE_MAX_ACTIVE_FEATURES];
     size_t count = 0;
-    if (nnue_generate_features(&board, (NnueFeatureSet)99, WHITE, output, NNUE_MAX_ACTIVE_FEATURES,
-                               &count)
-        || nnue_generate_features(&board, NNUE_FEATURE_HALFKAV2_HM_V1, WHITE, output, 1, &count)
-        || nnue_generate_features(&board, NNUE_FEATURE_HALFKAV2_HM_V1, WHITE, NULL,
-                                  NNUE_MAX_ACTIVE_FEATURES, &count)
-        || nnue_generate_features(&board, NNUE_FEATURE_HALFKAV2_HM_V1, WHITE, output,
-                                  NNUE_MAX_ACTIVE_FEATURES, NULL)) {
+    if (nnue_generate_features(&board, WHITE, output, 1, &count)
+        || nnue_generate_features(&board, WHITE, NULL, NNUE_MAX_ACTIVE_FEATURES, &count)
+        || nnue_generate_features(&board, WHITE, output, NNUE_MAX_ACTIVE_FEATURES, NULL)) {
         fprintf(stderr, "invalid NNUE feature API input was accepted\n");
         return 1;
     }
@@ -87,8 +83,7 @@ static int check_api_rejections(void)
     board.piece_bbs[BLACK][KING]  = 1ULL << 63;
     board.piece_bbs[WHITE][QUEEN] = 0xfffffffeULL;
     uint16_t oversized_output[64];
-    if (nnue_generate_features(&board, NNUE_FEATURE_HALFKAV2_HM_V1, WHITE, oversized_output, 64,
-                               &count)) {
+    if (nnue_generate_features(&board, WHITE, oversized_output, 64, &count)) {
         fprintf(stderr, "more than 32 features were accepted\n");
         return 1;
     }

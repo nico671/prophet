@@ -69,11 +69,10 @@ typedef struct {
 } NnuePerspective;
 
 /** Builds the shared king-bucket and mirror state for one feature perspective. */
-static bool perspective_for_board(const CBoard* board, NnueFeatureSet feature_set,
-                                  Color perspective, NnuePerspective* output)
+static bool perspective_for_board(const CBoard* board, Color perspective, NnuePerspective* output)
 {
-    if (feature_set != NNUE_FEATURE_HALFKAV2_HM_V1 || (perspective != WHITE && perspective != BLACK)
-        || !output || !board_has_valid_piece_placement(board)) {
+    if ((perspective != WHITE && perspective != BLACK) || !output
+        || !board_has_valid_piece_placement(board)) {
         return false;
     }
     const Square friendly_king
@@ -85,13 +84,12 @@ static bool perspective_for_board(const CBoard* board, NnueFeatureSet feature_se
     return output->king_bucket >= 0 && output->king_bucket < 32;
 }
 
-bool nnue_feature_index_for_piece(const CBoard* board, NnueFeatureSet feature_set,
-                                  Color perspective, Color color, PieceType piece, Square square,
-                                  uint16_t* output)
+bool nnue_feature_index_for_piece(const CBoard* board, Color perspective, Color color,
+                                  PieceType piece, Square square, uint16_t* output)
 {
     NnuePerspective state;
     if ((color != WHITE && color != BLACK) || piece < PAWN || piece > KING || square >= NO_SQUARE
-        || !output || !perspective_for_board(board, feature_set, perspective, &state)) {
+        || !output || !perspective_for_board(board, perspective, &state)) {
         return false;
     }
     const int feature = ((state.king_bucket * 11 + feature_plane(piece, color == perspective)) * 64)
@@ -133,11 +131,11 @@ static int compare_uint16(const void* lhs, const void* rhs)
     return (left > right) - (left < right);
 }
 
-bool nnue_generate_features(const CBoard* board, NnueFeatureSet feature_set, Color perspective,
-                            uint16_t* output, size_t capacity, size_t* count)
+bool nnue_generate_features(const CBoard* board, Color perspective, uint16_t* output,
+                            size_t capacity, size_t* count)
 {
     NnuePerspective state;
-    if (!output || !count || !perspective_for_board(board, feature_set, perspective, &state)) {
+    if (!output || !count || !perspective_for_board(board, perspective, &state)) {
         return false;
     }
 
