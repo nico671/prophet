@@ -2,6 +2,7 @@
 
 #include "chess/core/bitboard.h"
 #include "engine/eval/nnue_features.h"
+#include "engine/eval/nnue_kernels.h"
 
 #include <limits.h>
 #include <stdio.h>
@@ -59,6 +60,9 @@ typedef struct {
 } NnueNetwork;
 
 static NnueNetwork* active_network;
+
+_Static_assert(NNUE_KERNEL_VECTOR_SIZE == NNUE_ACCUMULATOR_SIZE,
+               "NNUE kernel and accumulator sizes must match");
 
 /** Writes one bounded loader error message when the caller supplied storage. */
 static void set_error(char* error, size_t error_size, const char* message)
@@ -346,17 +350,18 @@ static bool refresh_perspective(const CBoard* board, Color perspective, int16_t 
                                    features, NNUE_MAX_ACTIVE_FEATURES, &count)) {
         return false;
     }
+    int32_t totals[NNUE_ACCUMULATOR_SIZE];
+    nnue_kernel_copy_i16_to_i32(active_network->feature_bias, totals);
+    for (size_t feature = 0; feature < count; feature++) {
+        nnue_kernel_add_i16_to_i32(
+            totals,
+            &active_network->feature_weight[(size_t)features[feature] * NNUE_ACCUMULATOR_SIZE]);
+    }
     for (int output_index = 0; output_index < NNUE_ACCUMULATOR_SIZE; output_index++) {
-        int32_t value = active_network->feature_bias[output_index];
-        for (size_t feature = 0; feature < count; feature++) {
-            value
-                += active_network->feature_weight[(size_t)features[feature] * NNUE_ACCUMULATOR_SIZE
-                                                  + output_index];
-        }
-        if (value < INT16_MIN || value > INT16_MAX) {
+        if (totals[output_index] < INT16_MIN || totals[output_index] > INT16_MAX) {
             return false;
         }
-        output[output_index] = (int16_t)value;
+        output[output_index] = (int16_t)totals[output_index];
     }
     return true;
 }
@@ -393,9 +398,7 @@ static bool update_perspective(const CBoard* parent, const CBoard* child, Color 
         return refresh_perspective(child, perspective, destination);
     }
     int32_t totals[NNUE_ACCUMULATOR_SIZE];
-    for (int index = 0; index < NNUE_ACCUMULATOR_SIZE; index++) {
-        totals[index] = source[index];
-    }
+    nnue_kernel_copy_i16_to_i32(source, totals);
     for (Square square = A1; square < NO_SQUARE; square++) {
         Color parent_color = WHITE, child_color = WHITE;
         PieceType parent_piece = NO_PIECE, child_piece = NO_PIECE;
@@ -412,9 +415,9 @@ static bool update_perspective(const CBoard* parent, const CBoard* child, Color 
                                              &feature)) {
             return false;
         }
-        for (int index = 0; had_parent && index < NNUE_ACCUMULATOR_SIZE; index++) {
-            totals[index]
-                -= active_network->feature_weight[(size_t)feature * NNUE_ACCUMULATOR_SIZE + index];
+        if (had_parent) {
+            nnue_kernel_subtract_i16_from_i32(
+                totals, &active_network->feature_weight[(size_t)feature * NNUE_ACCUMULATOR_SIZE]);
         }
         if (has_child
             && !nnue_feature_index_for_piece(child, active_network->profile->feature_set,
@@ -422,9 +425,9 @@ static bool update_perspective(const CBoard* parent, const CBoard* child, Color 
                                              &feature)) {
             return false;
         }
-        for (int index = 0; has_child && index < NNUE_ACCUMULATOR_SIZE; index++) {
-            totals[index]
-                += active_network->feature_weight[(size_t)feature * NNUE_ACCUMULATOR_SIZE + index];
+        if (has_child) {
+            nnue_kernel_add_i16_to_i32(
+                totals, &active_network->feature_weight[(size_t)feature * NNUE_ACCUMULATOR_SIZE]);
         }
     }
     for (int index = 0; index < NNUE_ACCUMULATOR_SIZE; index++) {
@@ -457,46 +460,33 @@ int nnue_evaluate_accumulator(const CBoard* board, const NnueAccumulator* accumu
         || !accumulator->valid[BLACK]) {
         return 0;
     }
-    int activation[PNUE_DENSE_INPUTS];
+    uint8_t activation[PNUE_DENSE_INPUTS];
     Color first  = board->side_to_move;
     Color second = color_opposite(first);
-    for (int index = 0; index < NNUE_ACCUMULATOR_SIZE; index++) {
-        int first_value                           = accumulator->values[first][index];
-        int second_value                          = accumulator->values[second][index];
-        activation[index]                         = first_value < 0 ? 0
-            : first_value > PNUE_ACTIVATION_SCALE                   ? PNUE_ACTIVATION_SCALE
-                                                                    : first_value;
-        activation[index + NNUE_ACCUMULATOR_SIZE] = second_value < 0 ? 0
-            : second_value > PNUE_ACTIVATION_SCALE                   ? PNUE_ACTIVATION_SCALE
-                                                                     : second_value;
-    }
-    int hidden_1[PNUE_HIDDEN];
-    int hidden_2[PNUE_HIDDEN];
+    nnue_kernel_clamp_i16_to_u8(accumulator->values[first], activation);
+    nnue_kernel_clamp_i16_to_u8(accumulator->values[second], activation + NNUE_ACCUMULATOR_SIZE);
+    uint8_t hidden_1[PNUE_HIDDEN];
+    uint8_t hidden_2[PNUE_HIDDEN];
     // C17 signed division truncates toward zero, as required by the integer contract.
     for (int output = 0; output < PNUE_HIDDEN; output++) {
-        int64_t sum = active_network->dense_1_bias[output];
-        for (int input = 0; input < PNUE_DENSE_INPUTS; input++) {
-            sum += (int64_t)activation[input] * active_network->dense_1_weight[output][input];
-        }
+        int64_t sum = (int64_t)active_network->dense_1_bias[output]
+            + nnue_kernel_dot_u8_i8(activation, active_network->dense_1_weight[output],
+                                    PNUE_DENSE_INPUTS);
         int value        = (int)(sum / PNUE_DENSE_SCALE);
-        hidden_1[output] = value < 0        ? 0
-            : value > PNUE_ACTIVATION_SCALE ? PNUE_ACTIVATION_SCALE
-                                            : value;
+        hidden_1[output] = (uint8_t)(value < 0                           ? 0
+                                         : value > PNUE_ACTIVATION_SCALE ? PNUE_ACTIVATION_SCALE
+                                                                         : value);
     }
     for (int output = 0; output < PNUE_HIDDEN; output++) {
-        int64_t sum = active_network->dense_2_bias[output];
-        for (int input = 0; input < PNUE_HIDDEN; input++) {
-            sum += (int64_t)hidden_1[input] * active_network->dense_2_weight[output][input];
-        }
+        int64_t sum = (int64_t)active_network->dense_2_bias[output]
+            + nnue_kernel_dot_u8_i8(hidden_1, active_network->dense_2_weight[output], PNUE_HIDDEN);
         int value        = (int)(sum / PNUE_DENSE_SCALE);
-        hidden_2[output] = value < 0        ? 0
-            : value > PNUE_ACTIVATION_SCALE ? PNUE_ACTIVATION_SCALE
-                                            : value;
+        hidden_2[output] = (uint8_t)(value < 0                           ? 0
+                                         : value > PNUE_ACTIVATION_SCALE ? PNUE_ACTIVATION_SCALE
+                                                                         : value);
     }
-    int64_t final_sum = active_network->output_bias;
-    for (int input = 0; input < PNUE_HIDDEN; input++) {
-        final_sum += (int64_t)hidden_2[input] * active_network->output_weight[input];
-    }
+    int64_t final_sum = (int64_t)active_network->output_bias
+        + nnue_kernel_dot_u8_i8(hidden_2, active_network->output_weight, PNUE_HIDDEN);
     return (int)(final_sum * PNUE_EVAL_SCALE / (PNUE_ACTIVATION_SCALE * PNUE_DENSE_SCALE));
 }
 

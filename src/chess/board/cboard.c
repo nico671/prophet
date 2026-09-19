@@ -94,6 +94,7 @@ bool fen_string_to_cboard(const char* fen_string, CBoard* board)
         }
         Square square_idx       = rank * 8 + file;
         Bitboard square_mask_bb = bitboard_square_mask(square_idx);
+        // TODO: ensure that we check that we're placing on an empty square?
         switch (ch) {
         case 'P':
             board->piece_bbs[WHITE][PAWN] |= square_mask_bb;

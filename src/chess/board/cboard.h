@@ -59,7 +59,7 @@ typedef struct CBoard {
 #define U8_CHECK_BIT(var, pos) ((uint8_t)(((var) >> (uint8_t)(pos)) & 1u))
 
 /**
- * @brief Prints the board and its game state to standard output.
+ * @brief Pretty prints the board and its game state to standard output.
  */
 void print_cboard(CBoard* board);
 

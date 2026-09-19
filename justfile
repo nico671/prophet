@@ -37,6 +37,25 @@ run build_mode="dev":
     @echo "Running chess engine in [{{build_mode}}] mode for branch [{{branch}}]..."
     @artifacts/{{branch}}/prophet-{{build_mode}}
 
+nnue-kernels mode="debug":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    tmpdir="$(mktemp -d)"
+    target="$tmpdir/nnue-kernels"
+    trap 'rm -rf "$tmpdir"' EXIT
+    flags="{{debug_cflags}}"
+    if [[ "{{mode}}" == "sanitize" ]]; then flags="$flags -fsanitize=address,undefined"; fi
+    echo "Building NNUE scalar kernel test [{{mode}}]..."
+    {{cc}} {{cstd}} {{warnflags}} -Werror -I src -DPROPHET_NNUE_FORCE_SCALAR $flags \
+        src/engine/eval/nnue_kernels.c \
+        tests/nnue_kernels_test.c \
+        -o "$target"
+    if [[ "{{mode}}" == "sanitize" ]]; then
+        ASAN_OPTIONS=halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 "$target"
+    else
+        "$target"
+    fi
+
 clean:
     rm -rf {{builddir}} artifacts/{{branch}}/prophet-*
 
@@ -126,6 +145,7 @@ check:
     set -euo pipefail
     python3 -u scripts/check_config.py
     python3 -m unittest discover -s tests
+    just nnue-kernels
     just nnue-contract
     mkdir -p validation-runs
     run_dir="$(mktemp -d validation-runs/check.XXXXXX)"
