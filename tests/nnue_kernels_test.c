@@ -4,8 +4,19 @@
 #include <stdio.h>
 #include <string.h>
 
-#if !defined(PROPHET_NNUE_FORCE_SCALAR)
-#error "focused kernel validation must force the scalar backend"
+#if defined(PROPHET_NNUE_FORCE_SCALAR) \
+    && (defined(PROPHET_NNUE_FORCE_NEON) || defined(PROPHET_NNUE_FORCE_DOTPROD))
+#error "focused kernel validation cannot force two backends"
+#elif defined(PROPHET_NNUE_FORCE_NEON) && defined(PROPHET_NNUE_FORCE_DOTPROD)
+#error "focused kernel validation cannot force two backends"
+#elif defined(PROPHET_NNUE_FORCE_SCALAR)
+#define EXPECTED_BACKEND "scalar"
+#elif defined(PROPHET_NNUE_FORCE_NEON)
+#define EXPECTED_BACKEND "neon"
+#elif defined(PROPHET_NNUE_FORCE_DOTPROD)
+#define EXPECTED_BACKEND "dotprod"
+#else
+#error "focused kernel validation must force a backend"
 #endif
 
 static int check_copy(void)
@@ -67,30 +78,48 @@ static int check_clamp(void)
 
 static int check_dot_products(void)
 {
-    static const uint8_t inputs[] = { 0, 1, 2, 127, 64, 3, 127, 5 };
-    static const int8_t weights[] = { -128, -3, 4, -2, 1, 127, -1, 2 };
-    if (nnue_kernel_dot_u8_i8(inputs, weights, sizeof(inputs)) != 79) {
+    uint8_t inputs[512];
+    int8_t weights[512];
+    int64_t expected = 0;
+    for (size_t index = 0; index < sizeof(inputs); index++) {
+        inputs[index]  = (uint8_t)((index * 37U + 11U) % 128U);
+        weights[index] = (int8_t)((int)(index % 127U) - 63);
+    }
+    weights[0] = INT8_MIN;
+    weights[1] = INT8_MAX;
+    for (size_t index = 0; index < 32; index++) {
+        expected += (int64_t)inputs[index] * weights[index];
+    }
+    if (nnue_kernel_dot_u8_i8(inputs, weights, 32) != expected) {
         return 1;
     }
 
-    uint8_t dense_inputs[NNUE_KERNEL_VECTOR_SIZE];
-    int8_t dense_weights[NNUE_KERNEL_VECTOR_SIZE];
-    int64_t expected = 0;
-    for (size_t index = 0; index < NNUE_KERNEL_VECTOR_SIZE; index++) {
-        dense_inputs[index]  = (uint8_t)(index % 128);
-        dense_weights[index] = (int8_t)((int)(index % 7) - 3);
-        expected += (int64_t)dense_inputs[index] * dense_weights[index];
+    expected = 0;
+    for (size_t index = 0; index < sizeof(inputs); index++) {
+        expected += (int64_t)inputs[index] * weights[index];
     }
-    return nnue_kernel_dot_u8_i8(dense_inputs, dense_weights, NNUE_KERNEL_VECTOR_SIZE) != expected;
+    if (nnue_kernel_dot_u8_i8(inputs, weights, sizeof(inputs)) != expected) {
+        return 1;
+    }
+
+    expected = 0;
+    for (size_t index = 0; index < 37; index++) {
+        expected += (int64_t)inputs[index] * weights[index];
+    }
+    if (nnue_kernel_dot_u8_i8(inputs, weights, 37) != expected) {
+        return 1;
+    }
+    return 0;
 }
 
 int main(void)
 {
-    if (strcmp(nnue_kernel_backend(), "scalar") || check_copy() || check_add_subtract()
+    if (strcmp(nnue_kernel_backend(), EXPECTED_BACKEND) || check_copy() || check_add_subtract()
         || check_clamp() || check_dot_products()) {
-        fprintf(stderr, "scalar NNUE kernel vector failure\n");
+        fprintf(stderr, "%s NNUE kernel vector failure\n", EXPECTED_BACKEND);
         return 1;
     }
-    printf("NNUE scalar kernel test passed (backend: %s)\n", nnue_kernel_backend());
+    printf("NNUE %s kernel test passed (backend: %s)\n", EXPECTED_BACKEND,
+           nnue_kernel_backend());
     return 0;
 }

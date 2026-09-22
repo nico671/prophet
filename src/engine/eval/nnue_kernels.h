@@ -14,6 +14,7 @@ void nnue_kernel_subtract_i16_from_i32(int32_t accumulator[NNUE_KERNEL_VECTOR_SI
                                        const int16_t row[NNUE_KERNEL_VECTOR_SIZE]);
 void nnue_kernel_clamp_i16_to_u8(const int16_t values[NNUE_KERNEL_VECTOR_SIZE],
                                  uint8_t output[NNUE_KERNEL_VECTOR_SIZE]);
+/* input values must be in [0, 127]; dot-product backends reinterpret them as signed bytes. */
 int64_t nnue_kernel_dot_u8_i8(const uint8_t* input, const int8_t* weights, size_t count);
 const char* nnue_kernel_backend(void);
 

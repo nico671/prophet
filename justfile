@@ -37,7 +37,7 @@ run build_mode="dev":
     @echo "Running chess engine in [{{build_mode}}] mode for branch [{{branch}}]..."
     @artifacts/{{branch}}/prophet-{{build_mode}}
 
-nnue-kernels mode="debug":
+nnue-kernels mode="debug" backend="scalar":
     #!/usr/bin/env bash
     set -euo pipefail
     tmpdir="$(mktemp -d)"
@@ -45,8 +45,20 @@ nnue-kernels mode="debug":
     trap 'rm -rf "$tmpdir"' EXIT
     flags="{{debug_cflags}}"
     if [[ "{{mode}}" == "sanitize" ]]; then flags="$flags -fsanitize=address,undefined"; fi
-    echo "Building NNUE scalar kernel test [{{mode}}]..."
-    {{cc}} {{cstd}} {{warnflags}} -Werror -I src -DPROPHET_NNUE_FORCE_SCALAR $flags \
+    if [[ "{{backend}}" == "scalar" ]]; then
+        backend_define="-DPROPHET_NNUE_FORCE_SCALAR"
+    elif [[ "{{backend}}" == "neon" ]]; then
+        backend_define="-DPROPHET_NNUE_FORCE_NEON"
+        flags="$flags -march=armv8-a"
+    elif [[ "{{backend}}" == "dotprod" ]]; then
+        backend_define="-DPROPHET_NNUE_FORCE_DOTPROD"
+        flags="$flags -march=armv8.2-a+dotprod"
+    else
+        echo "unsupported NNUE kernel backend: {{backend}}" >&2
+        exit 2
+    fi
+    echo "Building NNUE {{backend}} kernel test [{{mode}}]..."
+    {{cc}} {{cstd}} {{warnflags}} -Werror -I src "$backend_define" $flags \
         src/engine/eval/nnue_kernels.c \
         tests/nnue_kernels_test.c \
         -o "$target"
@@ -55,6 +67,35 @@ nnue-kernels mode="debug":
     else
         "$target"
     fi
+
+nnue-kernel-negative:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    tmpdir="$(mktemp -d)"
+    trap 'rm -rf "$tmpdir"' EXIT
+    expect_failure() {
+        label="$1"
+        shift
+        if {{cc}} {{cstd}} {{warnflags}} -Werror -I src "$@" \
+            -c src/engine/eval/nnue_kernels.c -o "$tmpdir/$label.o" >/dev/null 2>&1; then
+            echo "NNUE negative compile check unexpectedly succeeded: $label" >&2
+            exit 1
+        fi
+    }
+    expect_failure scalar-neon -DPROPHET_NNUE_FORCE_SCALAR -DPROPHET_NNUE_FORCE_NEON
+    expect_failure scalar-dotprod -DPROPHET_NNUE_FORCE_SCALAR -DPROPHET_NNUE_FORCE_DOTPROD
+    expect_failure neon-dotprod -DPROPHET_NNUE_FORCE_NEON -DPROPHET_NNUE_FORCE_DOTPROD
+    unavailable_flags=""
+    if [[ "$(uname -m)" == "arm64" || "$(uname -m)" == "aarch64" ]]; then
+        unavailable_flags="-march=armv8-a"
+    fi
+    if {{cc}} {{cstd}} {{warnflags}} -Werror -I src $unavailable_flags \
+        -DPROPHET_NNUE_FORCE_DOTPROD -c src/engine/eval/nnue_kernels.c \
+        -o "$tmpdir/unavailable.o" >/dev/null 2>&1; then
+        echo "NNUE negative compile check unexpectedly succeeded: unavailable-dotprod" >&2
+        exit 1
+    fi
+    echo "NNUE negative backend compile checks passed"
 
 clean:
     rm -rf {{builddir}} artifacts/{{branch}}/prophet-*
@@ -145,7 +186,12 @@ check:
     set -euo pipefail
     python3 -u scripts/check_config.py
     python3 -m unittest discover -s tests
-    just nnue-kernels
+    just nnue-kernels debug scalar
+    just nnue-kernel-negative
+    if [[ "$(uname -m)" == "arm64" || "$(uname -m)" == "aarch64" ]]; then
+        just nnue-kernels debug neon
+        just nnue-kernels debug dotprod
+    fi
     just nnue-contract
     mkdir -p validation-runs
     run_dir="$(mktemp -d validation-runs/check.XXXXXX)"
@@ -160,6 +206,11 @@ check:
     python3 -u scripts/draw_rules_smoke.py --engine "$target"
     target="$run_dir/prophet-sanitize"
     just build sanitize "$target" 1
+    just nnue-kernels sanitize scalar
+    if [[ "$(uname -m)" == "arm64" || "$(uname -m)" == "aarch64" ]]; then
+        just nnue-kernels sanitize neon
+        just nnue-kernels sanitize dotprod
+    fi
     just nnue-contract sanitize
     ASAN_OPTIONS=halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 just search-result sanitize "$target"
     validator="$run_dir/datagen-audit-sanitize"
