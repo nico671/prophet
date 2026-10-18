@@ -22,6 +22,12 @@ void generate_capture_moves(CBoard* board, MoveList* out);
 /** @brief Reports whether @p side's king is attacked. */
 bool is_king_in_check(CBoard* board, Color side);
 
+/**
+ * @brief Checks starting and transit square safety for a pseudolegal castle.
+ * The caller must still check king safety after making the move.
+ */
+bool is_castling_path_safe(CBoard* board, Move move);
+
 /** @brief Appends moves that leave the side to move out of check. */
 void generate_legal_moves(CBoard* board, MoveList* out);
 

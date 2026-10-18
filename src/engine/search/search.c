@@ -17,18 +17,18 @@
 #include <string.h>
 #include <time.h>
 
-typedef struct {
+typedef struct ScoredMove {
     Move move;
     int score;
     int secondary_score;
 } ScoredMove;
 
-typedef struct {
+typedef struct RootMove {
     Move move;
     int score;
 } RootMove;
 
-typedef struct {
+typedef struct TimeLimits {
     long long soft_limit_ms;
     long long hard_limit_ms;
 } TimeLimits;
@@ -39,7 +39,7 @@ typedef struct {
  * All mutable search data (limits, timers, heuristics, counters) live
  * here so concurrent searches do not overwrite each other.
  */
-typedef struct {
+typedef struct SearchContext {
     CBoard board; // Working copy of the root board
     PositionHistory position_history;
     SearchLimits limits;
@@ -55,7 +55,7 @@ typedef struct {
     int null_move_depth;
 } SearchContext;
 
-typedef enum {
+typedef enum DrawStatus {
     DRAW_NONE,
     DRAW_CLAIMABLE,
     DRAW_AUTOMATIC,
@@ -1275,6 +1275,10 @@ static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int b
         pick_next_best_move(scored_moves, i, move_list.count);
         Move move  = scored_moves[i].move;
 
+        if (move_is_castling(move) && !is_castling_path_safe(node, move)) {
+            continue;
+        }
+
         bool quiet = move_is_quiet(node, move);
 
         // Make the move
@@ -1299,6 +1303,7 @@ static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int b
         int eval;
 
         if (num_legal_moves_searched == 1) {
+            // keep scoring in terms of player whose turn it is with -negamax
             eval = -negamax(ctx, node, depth - 1, -beta, -alpha, next_side, ply + 1);
         } else {
             int reduced_depth = depth - 1;
