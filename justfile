@@ -162,6 +162,24 @@ search-castling mode="debug":
         "$target"
     fi
 
+search-stalemate mode="debug":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    tmpdir="$(mktemp -d)"
+    target="$tmpdir/search-stalemate"
+    trap 'rm -rf "$tmpdir"' EXIT
+    flags="{{debug_cflags}}"
+    if [[ "{{mode}}" == "sanitize" ]]; then flags="$flags -fsanitize=address,undefined"; fi
+    # The test includes search.c to reach its private quiescence function.
+    test_sources=$(find src/chess src/engine/eval src/engine/search src/engine/tt -name "*.c" ! -path "src/engine/search/search.c")
+    {{cc}} {{cstd}} {{warnflags}} -Werror -I src $flags $test_sources \
+        tests/search_stalemate_test.c -o "$target"
+    if [[ "{{mode}}" == "sanitize" ]]; then
+        ASAN_OPTIONS=halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 "$target"
+    else
+        "$target"
+    fi
+
 datagen-audit build_mode="debug" output="":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -217,6 +235,7 @@ check:
     just build dev "$target" 1
     just search-result debug "$target"
     just search-castling debug
+    just search-stalemate debug
     validator="$run_dir/datagen-audit-dev"
     just datagen-audit dev "$validator"
     python3 -u scripts/datagen_smoke.py --engine "$target" --validator "$validator"
@@ -233,6 +252,7 @@ check:
     just nnue-contract sanitize
     ASAN_OPTIONS=halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 just search-result sanitize "$target"
     just search-castling sanitize
+    just search-stalemate sanitize
     validator="$run_dir/datagen-audit-sanitize"
     just datagen-audit sanitize "$validator"
     ASAN_OPTIONS=halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 \

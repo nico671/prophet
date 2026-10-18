@@ -43,7 +43,7 @@ early_multipv = 2
 sample_start_ply = 0
 sample_interval = 1
 sample_offset_seed = 99
-max_game_ply = 80
+max_game_ply = 160
 shard_game_limit = 100
 color_assignment = alternate
 """

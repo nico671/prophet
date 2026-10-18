@@ -1051,6 +1051,14 @@ static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int
         return 0;
     }
 
+    bool king_in_check = is_king_in_check(node, node->side_to_move);
+    if (!king_in_check && !has_legal_move(node)) {
+        if (!should_stop_search(ctx)) {
+            store_tt(node->zobrist_key, TT_QSEARCH_DEPTH, 0, TT_PV, MOVE_NONE);
+        }
+        return 0;
+    }
+
     if (ply >= MAX_PLY - 1) {
         return evaluate_node(ctx, node, ply);
     }
@@ -1072,8 +1080,7 @@ static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int
         }
     }
 
-    bool king_in_check = is_king_in_check(node, node->side_to_move);
-    int stand_pat      = evaluate_node(ctx, node, ply);
+    int stand_pat = evaluate_node(ctx, node, ply);
     if (!king_in_check) {
         if (stand_pat >= beta) {
             if (!should_stop_search(ctx)) {

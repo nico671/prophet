@@ -28,6 +28,9 @@ bool is_king_in_check(CBoard* board, Color side);
  */
 bool is_castling_path_safe(CBoard* board, Move move);
 
+/** @brief Reports whether any legal move exists; restores the board before returning. */
+bool has_legal_move(CBoard* board);
+
 /** @brief Appends moves that leave the side to move out of check. */
 void generate_legal_moves(CBoard* board, MoveList* out);
 

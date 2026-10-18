@@ -120,6 +120,33 @@ bool is_castling_path_safe(CBoard* board, Move move)
     return !is_square_attacked(board, through_square, color_opposite(side));
 }
 
+// The candidate must come from pseudolegal move generation.
+static bool pseudolegal_move_is_legal(CBoard* board, Move move)
+{
+    if (move_is_castling(move) && !is_castling_path_safe(board, move)) {
+        return false;
+    }
+
+    Color side    = board->side_to_move;
+    UndoInfo undo = make_move(board, move);
+    bool legal    = !is_king_in_check(board, side);
+    unmake_move(board, move, undo);
+    return legal;
+}
+
+bool has_legal_move(CBoard* board)
+{
+    MoveList moves;
+    init_move_list(&moves);
+    gen_all_pseudolegal_moves(board, &moves);
+    for (int i = 0; i < moves.count; i++) {
+        if (pseudolegal_move_is_legal(board, moves.moves[i])) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void generate_legal_moves(CBoard* board, MoveList* out)
 {
     MoveList pseudoLegalMoves;
@@ -128,17 +155,8 @@ void generate_legal_moves(CBoard* board, MoveList* out)
 
     for (int i = 0; i < pseudoLegalMoves.count; i++) {
         Move move = pseudoLegalMoves.moves[i];
-
-        if (move_is_castling(move) && !is_castling_path_safe(board, move)) {
-            continue;
-        }
-
-        // Normal legality check for all moves (including castling
-        // destination)
-        UndoInfo undoInfo = make_move(board, move);
-        if (!is_king_in_check(board, color_opposite(board->side_to_move))) {
+        if (pseudolegal_move_is_legal(board, move)) {
             out->moves[out->count++] = move;
         }
-        unmake_move(board, move, undoInfo);
     }
 }
