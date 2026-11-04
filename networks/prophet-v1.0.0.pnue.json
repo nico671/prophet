@@ -1,0 +1,50 @@
+{
+  "architecture_config_sha256": "7ad40b743c031d83a6537094f555ebc1c30af849a6be704c8df85fbc745f8544",
+  "architecture_id": "prophet-nnue-v1",
+  "calibration_report_sha256": "7925e3e6cf9d862ad7ae0545f7921ef6eec34d1e3645072c29426d083bbf790c",
+  "dataset_manifest_sha256": "b1051907c38433960cc134c8c90e06f62f84ab9b8be67d962170e11c1cb4889a",
+  "eval_scale_cp": 841,
+  "feature_id": "halfkav2_hm-v1",
+  "format_version": 1,
+  "payload_byte_size": 11552736,
+  "payload_sha256": "2326da23bff2debad7a9309bec7aedba1ca2fc6868efc8ba3c86b5a1a1fa68d4",
+  "pnue": "prophet-v1.0.0.pnue",
+  "pnue_byte_size": 11552736,
+  "pnue_sha256": "2326da23bff2debad7a9309bec7aedba1ca2fc6868efc8ba3c86b5a1a1fa68d4",
+  "profile_id": "prophet-nnue-v1",
+  "quantization_id": "QA127_QW64_V1",
+  "source_checkpoint": "epoch-0002.pt",
+  "source_checkpoint_manifest_sha256": "23ea5aea6c6abec775ab96e036acfc757d6c10d80660837a9baf8585f1904b19",
+  "source_checkpoint_sha256": "949161558535a8df1169369aaa83ce6c5a8670af171ea2f06124720c58d14cee",
+  "validation": {
+    "float_centipawn_range": [
+      -2209.758544921875,
+      2495.135498046875
+    ],
+    "maximum_absolute_centipawn_error": 132.0732421875,
+    "mean_absolute_centipawn_error": 7.3681420101228285,
+    "positions": 4633749,
+    "quantized_centipawn_range": [
+      -2210,
+      2498
+    ],
+    "saturation": {
+      "dense_1": {
+        "high": 17672646,
+        "low": 124297720,
+        "total": 148279968
+      },
+      "dense_2": {
+        "high": 4008668,
+        "low": 136033037,
+        "total": 148279968
+      },
+      "feature": {
+        "high": 120773819,
+        "low": 2149868524,
+        "total": 2372479488
+      }
+    },
+    "sign_changes": 12286
+  }
+}

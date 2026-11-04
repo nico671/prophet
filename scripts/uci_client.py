@@ -64,6 +64,26 @@ class UciEngine:
         self.send("isready")
         self.expect(lambda line: line == "readyok", "readyok")
 
+    def configure(self, network_file: Path | None = None,
+                  model_identifier: str | None = None) -> None:
+        if network_file is not None:
+            self.send(f"setoption name EvalFile value {network_file}")
+            loaded, _ = self.expect(
+                lambda line: line.startswith("info string EvalFile loaded architecture "),
+                "successful EvalFile load",
+            )
+            expected = "info string EvalFile loaded architecture prophet-nnue-v1 model "
+            if not loaded.startswith(expected) or (
+                model_identifier is not None and loaded != expected + model_identifier
+            ):
+                raise UciError(f"unexpected NNUE identity: {loaded}")
+            self.send("setoption name UseNNUE value true")
+            self.expect(lambda line: line == "info string UseNNUE true", "UseNNUE confirmation")
+        self.send("setoption name Hash value 64")
+        self.send("setoption name MultiPV value 1")
+        self.send("isready")
+        self.expect(lambda line: line == "readyok", "configured readyok")
+
     def quit(self) -> None:
         if self.process.poll() is None:
             try:
@@ -80,3 +100,14 @@ class UciEngine:
         if self.process.poll() is None:
             self.process.kill()
             self.process.wait()
+
+
+def probe_engine(binary: Path, network_file: Path | None = None,
+                 model_identifier: str | None = None) -> None:
+    engine = UciEngine(binary)
+    try:
+        engine.initialize()
+        engine.configure(network_file, model_identifier)
+        engine.quit()
+    finally:
+        engine.terminate()

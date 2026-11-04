@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import statistics
@@ -13,9 +14,13 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from .uci_client import UciEngine, UciError
+    from .uci_client import UciEngine, UciError, probe_engine
+    from .check_config import check_candidate_nnue
 except ImportError:
-    from uci_client import UciEngine, UciError
+    from uci_client import UciEngine, UciError, probe_engine
+    from check_config import check_candidate_nnue
+
+ROOT = Path(__file__).resolve().parents[1]
 
 INFO = re.compile(r"^info depth (\d+) .*\bnodes (\d+) time (\d+)\b")
 
@@ -30,9 +35,11 @@ def load_config(path: Path) -> dict[str, Any]:
 
 
 def run_position(engine_path: Path, position: dict[str, Any], depth: int, timeout: float,
-                 label: str) -> dict[str, Any]:
+                 label: str, network_file: Path | None = None,
+                 model_identifier: str | None = None) -> dict[str, Any]:
+    startup_started = time.monotonic()
     engine = UciEngine(engine_path, timeout)
-    started = time.monotonic()
+    started = startup_started
     last_report = started
 
     def report(line: str) -> None:
@@ -47,10 +54,13 @@ def run_position(engine_path: Path, position: dict[str, Any], depth: int, timeou
     progress(f"{label}: starting")
     try:
         engine.initialize()
+        engine.configure(network_file, model_identifier)
+        startup_elapsed_ms = round((time.monotonic() - startup_started) * 1000)
         command = f"position fen {position['fen']}"
         if position.get("moves"):
             command += f" moves {position['moves']}"
         engine.send(command)
+        started = last_report = time.monotonic()
         engine.send(f"go depth {depth}")
         bestmove, lines = engine.expect(lambda line: line.startswith("bestmove "), "bestmove", timeout,
                                         on_line=report)
@@ -70,7 +80,8 @@ def run_position(engine_path: Path, position: dict[str, Any], depth: int, timeou
         engine.quit()
         progress(f"{label}: complete, {nodes} nodes, {wall_elapsed_ms} ms")
         return {"id": position["id"], "nodes": nodes, "elapsed_ms": wall_elapsed_ms,
-                "engine_elapsed_ms": elapsed_ms, "nps": nodes * 1000 / wall_elapsed_ms,
+                "engine_elapsed_ms": elapsed_ms, "startup_elapsed_ms": startup_elapsed_ms,
+                "nps": nodes * 1000 / wall_elapsed_ms,
                 "bestmove": bestmove.split()[1]}
     except UciError as error:
         engine.terminate()
@@ -102,14 +113,16 @@ def aggregate(entries: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def run_sample(name: str, binary: Path, positions: list[dict[str, Any]], depth: int,
-               timeout: float, profile: str, sample: int) -> dict[str, Any]:
+               timeout: float, profile: str, sample: int,
+               network_file: Path | None = None, model_identifier: str | None = None) -> dict[str, Any]:
     entries = []
     failures = []
     for index, item in enumerate(positions, 1):
         label = (f"{profile} sample {sample} {name} position {index}/{len(positions)} "
                  f"(id {item['id']})")
         try:
-            entries.append(run_position(binary, item, depth, timeout, label))
+            entries.append(run_position(binary, item, depth, timeout, label,
+                                        network_file, model_identifier))
         except UciError as error:
             failures.append({"id": item["id"], "error": str(error)})
     result: dict[str, Any] = {"positions": entries, "failed_positions": failures,
@@ -175,12 +188,22 @@ def main() -> int:
     parser.add_argument("--depth", type=int)
     parser.add_argument("--limit-positions", type=int)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--candidate-root", type=Path, default=ROOT)
     args = parser.parse_args()
     if not args.baseline.is_file() or not args.candidate.is_file():
         parser.error("baseline and candidate must be executable files")
     config = load_config(args.config)
+    identity = check_candidate_nnue(config, args.candidate_root)
+    network_file = (args.candidate_root / identity["file"]).resolve() if identity else None
+    binaries = {"baseline": hashlib.sha256(args.baseline.read_bytes()).hexdigest(),
+                "candidate": hashlib.sha256(args.candidate.read_bytes()).hexdigest()}
+    probe_engine(args.baseline)
+    probe_engine(args.candidate, network_file, identity.get("model_identifier") if identity else None)
     output: dict[str, Any] = {"baseline": str(args.baseline), "candidate": str(args.candidate),
-                              "profiles": {}, "passed": False}
+                              "profiles": {}, "passed": False,
+                              "candidate_nnue": identity, "binaries": binaries,
+                              "options": {"Hash": 64, "MultiPV": 1},
+                              "timing": "search wall time; startup recorded separately"}
     for profile in args.profiles.split(","):
         details, positions = select_positions(config, profile, args.limit_positions)
         depth = args.depth or int(details["depth"])
@@ -193,9 +216,14 @@ def main() -> int:
         for sample in range(1, samples + 1):
             # Run both engines even if one fails. This retains useful candidate
             # evidence and makes the failed engine explicit in the artifact.
-            for name, binary in (("baseline", args.baseline), ("candidate", args.candidate)):
+            order = [("baseline", args.baseline), ("candidate", args.candidate)]
+            if sample % 2 == 0:
+                order.reverse()
+            for name, binary in order:
                 profile_result[name].append(
-                    run_sample(name, binary, positions, depth, timeout, profile, sample)
+                    run_sample(name, binary, positions, depth, timeout, profile, sample,
+                               network_file if name == "candidate" else None,
+                               identity.get("model_identifier") if name == "candidate" and identity else None)
                 )
         if profile == "standard":
             budget = float(config["benchmark"]["speed_budget_ratio"])
@@ -233,6 +261,11 @@ def main() -> int:
     if not gating_profiles:
         gating_profiles = list(output["profiles"].values())
     output["passed"] = all(item.get("passed", False) for item in gating_profiles)
+    if check_candidate_nnue(config, args.candidate_root) != identity:
+        raise ValueError("candidate network changed during benchmark")
+    if binaries != {"baseline": hashlib.sha256(args.baseline.read_bytes()).hexdigest(),
+                    "candidate": hashlib.sha256(args.candidate.read_bytes()).hexdigest()}:
+        raise ValueError("engine binary changed during benchmark")
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(output, indent=2, sort_keys=True) + "\n")
     if not output.get("passed"):
