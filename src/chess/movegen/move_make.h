@@ -11,9 +11,10 @@
  *
  * @param board The current game board.
  * @param move The move to make.
+ * @param changes Optional output, reset for this move; NULL skips recording.
  * @return UndoInfo
  */
-UndoInfo make_move(CBoard* board, Move move);
+UndoInfo make_move(CBoard* board, Move move, MoveChanges* changes);
 
 /**
  * @brief Unmakes the given move on the board, restoring all relevant

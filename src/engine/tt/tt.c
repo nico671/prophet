@@ -155,7 +155,7 @@ int extract_pv_line(CBoard* board, Move* pv_move_list, int max_depth)
 
         // Make the move on the board to update the Zobrist key for
         // the next lookup
-        undo_stack[count] = make_move(board, pv_move);
+        undo_stack[count] = make_move(board, pv_move, NULL);
         count++;
     }
 

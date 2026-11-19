@@ -85,8 +85,8 @@ static DrawStatus draw_status(const SearchContext* ctx, const CBoard* board, int
 static bool automatic_draw_ends_search(const SearchContext* ctx, const CBoard* board, int ply);
 static bool is_checkmate(const CBoard* board);
 static Move first_allowed_move(const SearchContext* ctx, const MoveList* move_list);
-static bool update_child_accumulator(SearchContext* ctx, const CBoard* parent, const CBoard* child,
-                                     int child_ply);
+static bool update_child_accumulator(SearchContext* ctx, const CBoard* child,
+                                     const MoveChanges* changes, int child_ply);
 static int evaluate_node(const SearchContext* ctx, const CBoard* board, int ply);
 
 static int evaluate_node(const SearchContext* ctx, const CBoard* board, int ply)
@@ -94,14 +94,14 @@ static int evaluate_node(const SearchContext* ctx, const CBoard* board, int ply)
     return evaluate_cboard(board, ctx->nnue_enabled ? &ctx->accumulators[ply] : NULL);
 }
 
-static bool update_child_accumulator(SearchContext* ctx, const CBoard* parent, const CBoard* child,
-                                     int child_ply)
+static bool update_child_accumulator(SearchContext* ctx, const CBoard* child,
+                                     const MoveChanges* changes, int child_ply)
 {
     if (!ctx->nnue_enabled) {
         return true;
     }
     return child_ply < MAX_PLY
-        && nnue_update_accumulator(parent, child, &ctx->accumulators[child_ply - 1],
+        && nnue_update_accumulator(child, changes, &ctx->accumulators[child_ply - 1],
                                    &ctx->accumulators[child_ply]);
 }
 
@@ -557,12 +557,9 @@ static int search_root_best_move(SearchContext* ctx, CBoard* board, int depth, i
             continue;
         }
 
-        CBoard parent_board;
-        if (ctx->nnue_enabled) {
-            parent_board = *board;
-        }
-        UndoInfo undo_info = make_move(board, move);
-        if (!update_child_accumulator(ctx, &parent_board, board, 1)) {
+        MoveChanges changes;
+        UndoInfo undo_info = make_move(board, move, ctx->nnue_enabled ? &changes : NULL);
+        if (!update_child_accumulator(ctx, board, &changes, 1)) {
             unmake_move(board, move, undo_info);
             return -MATE_SCORE;
         }
@@ -680,12 +677,9 @@ static int search_root_moves(SearchContext* ctx, CBoard* board, int depth, Move*
             continue;
         }
 
-        CBoard parent_board;
-        if (ctx->nnue_enabled) {
-            parent_board = *board;
-        }
-        UndoInfo undo_info = make_move(board, move);
-        if (!update_child_accumulator(ctx, &parent_board, board, 1)) {
+        MoveChanges changes;
+        UndoInfo undo_info = make_move(board, move, ctx->nnue_enabled ? &changes : NULL);
+        if (!update_child_accumulator(ctx, board, &changes, 1)) {
             unmake_move(board, move, undo_info);
             return 0;
         }
@@ -906,7 +900,7 @@ SearchResult search_run(const SearchInput* input, SearchControl* control)
                 pv_line[0]      = root_moves[rank].move;
 
                 CBoard pv_board = ctx.board;
-                make_move(&pv_board, pv_line[0]);
+                make_move(&pv_board, pv_line[0], NULL);
                 int pv_length = 1 + extract_pv_line(&pv_board, pv_line + 1, pv_limit - 1);
                 print_pv_info(current_depth, rank + 1, root_moves[rank].score, nodes, elapsed, nps,
                               pv_line, pv_length);
@@ -1144,14 +1138,11 @@ static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int
 
         bool prune_capture = !king_in_check && capture && !move_is_promotion(move)
             && see_capture(node, move) < -HC_PAWN_VALUE;
-        CBoard parent_board;
-        if (ctx->nnue_enabled) {
-            parent_board = *node;
-        }
-        UndoInfo undo_info = make_move(node, move);
-        if (!update_child_accumulator(ctx, &parent_board, node, ply + 1)) {
+        MoveChanges changes;
+        UndoInfo undo_info = make_move(node, move, ctx->nnue_enabled ? &changes : NULL);
+        if (!update_child_accumulator(ctx, node, &changes, ply + 1)) {
             unmake_move(node, move, undo_info);
-            return evaluate_node(ctx, &parent_board, ply);
+            return evaluate_node(ctx, node, ply);
         }
         bool gives_check = is_king_in_check(node, node->side_to_move);
         if (prune_capture && !gives_check) {
@@ -1289,14 +1280,11 @@ static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int b
         bool quiet = move_is_quiet(node, move);
 
         // Make the move
-        CBoard parent_board;
-        if (ctx->nnue_enabled) {
-            parent_board = *node;
-        }
-        UndoInfo undo_info = make_move(node, move);
-        if (!update_child_accumulator(ctx, &parent_board, node, ply + 1)) {
+        MoveChanges changes;
+        UndoInfo undo_info = make_move(node, move, ctx->nnue_enabled ? &changes : NULL);
+        if (!update_child_accumulator(ctx, node, &changes, ply + 1)) {
             unmake_move(node, move, undo_info);
-            return evaluate_node(ctx, &parent_board, ply);
+            return evaluate_node(ctx, node, ply);
         }
 
         if (is_king_in_check(node, side)) {

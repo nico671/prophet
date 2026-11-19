@@ -25,7 +25,7 @@ uint64_t perft(CBoard* board, int depth)
         Move move = moveList.moves[i];
 
         // Make the move
-        UndoInfo undoInfo = make_move(board, move);
+        UndoInfo undoInfo = make_move(board, move, NULL);
 
         // Recurse
         nodes += perft(board, depth - 1);
@@ -48,7 +48,7 @@ uint64_t divide(CBoard* board, int depth)
         Move move = moveList.moves[i];
 
         // Make the move
-        UndoInfo undoInfo = make_move(board, move);
+        UndoInfo undoInfo = make_move(board, move, NULL);
 
         // Recurse
         uint64_t nodes = perft(board, depth - 1);

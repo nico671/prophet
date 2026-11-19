@@ -132,6 +132,11 @@ class NnueValidationTest(unittest.TestCase):
             self.verify(False)
         self.verify(True)
 
+    def test_diagnostic_baseline_network_is_not_release_evidence(self):
+        self.manifest["benchmark"]["result"]["baseline_nnue"] = self.identity
+        with self.assertRaisesRegex(RuntimeError, "baseline network"):
+            self.verify()
+
     def test_explicit_baseline_is_resolved(self):
         with patch.object(validation, "ref_sha", return_value="pinned") as resolve:
             self.assertEqual(
@@ -224,7 +229,7 @@ class UciConfigurationTest(unittest.TestCase):
                 probe_engine(Path("candidate"), Path("network.pnue"))
             engine.terminate.assert_called_once()
 
-    def test_benchmark_alternates_order_and_configures_only_candidate(self):
+    def test_benchmark_alternates_order_and_records_selected_networks(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             for name in ("baseline", "candidate"):
@@ -236,6 +241,7 @@ class UciConfigurationTest(unittest.TestCase):
                     {
                         "architecture_id": "prophet-nnue-v1",
                         "pnue_sha256": digest,
+                        "source_checkpoint_manifest_sha256": "a" * 64,
                     }
                 )
             )
@@ -269,33 +275,51 @@ class UciConfigurationTest(unittest.TestCase):
                 "positions": [],
                 "failed_positions": [],
             }
-            with (
-                patch("sys.argv", argv),
-                patch.object(bench, "probe_engine"),
-                patch.object(bench, "run_sample", return_value=sample) as run,
-            ):
-                self.assertEqual(bench.main(), 0)
-            self.assertEqual(
-                [call.args[0] for call in run.call_args_list],
-                ["baseline", "candidate", "candidate", "baseline"],
-            )
-            for call in run.call_args_list:
+            for baseline_on, candidate_on in ((False, True), (True, True),
+                                               (False, False), (True, False)):
+                flags = ([] if not baseline_on else ["--baseline-nnue"])
+                flags += [] if candidate_on else ["--no-candidate-nnue"]
+                enabled = {"baseline": baseline_on, "candidate": candidate_on}
+                with (
+                    self.subTest(enabled=enabled),
+                    patch("sys.argv", argv + flags),
+                    patch.object(bench, "probe_engine") as probe,
+                    patch.object(bench, "run_sample", return_value=sample) as run,
+                ):
+                    self.assertEqual(bench.main(), 0)
                 self.assertEqual(
-                    call.args[7],
-                    (root / "network.pnue").resolve()
-                    if call.args[0] == "candidate"
-                    else None,
+                    [call.args[0] for call in run.call_args_list],
+                    ["baseline", "candidate", "candidate", "baseline"],
                 )
-            result = json.loads((root / "result.json").read_text())
-            self.assertEqual(result["candidate_nnue"]["sha256"], digest)
+                for call in run.call_args_list:
+                    on = enabled[call.args[0]]
+                    self.assertEqual(call.args[7], (root / "network.pnue").resolve() if on else None)
+                    self.assertEqual(call.args[8], "a" * 64 if on else None)
+                for call in probe.call_args_list:
+                    on = enabled[call.args[0].name]
+                    self.assertEqual(call.args[1], (root / "network.pnue").resolve() if on else None)
+                    self.assertEqual(call.args[2], "a" * 64 if on else None)
+                result = json.loads((root / "result.json").read_text())
+                for name, on in enabled.items():
+                    expected = check_candidate_nnue(config, root) if on else None
+                    self.assertEqual(result[name + "_nnue"], expected)
+
+            del config["candidate_nnue"]
+            (root / "config.json").write_text(json.dumps(config))
+            with (patch("sys.argv", argv + ["--baseline-nnue"]),
+                  patch.object(bench, "probe_engine") as probe):
+                with self.assertRaises(SystemExit) as error:
+                    bench.main()
+                self.assertEqual(error.exception.code, 2)
+                probe.assert_not_called()
 
     def test_benchmark_excludes_startup_from_search_timing(self):
         with patch.object(bench, "UciEngine") as create:
             engine = create.return_value
-            engine.expect.return_value = (
-                "bestmove e2e4",
-                ["info depth 2 multipv 1 score cp 1 nodes 100 time 900 pv e2e4"],
-            )
+            engine.expect.side_effect = [
+                ("readyok", ["readyok"]),
+                ("bestmove e2e4", ["info depth 2 multipv 1 score cp 1 nodes 100 time 900 pv e2e4"]),
+            ]
             with patch.object(bench.time, "monotonic", side_effect=[0, 10, 10, 11]):
                 result = bench.run_position(
                     Path("candidate"),

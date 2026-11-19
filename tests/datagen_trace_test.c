@@ -318,7 +318,7 @@ static bool validate_game(GameTrace* game, const char* path)
             valid = false;
             break;
         }
-        make_move(&board, move);
+        make_move(&board, move, NULL);
         keys[ply + 1] = board.zobrist_key;
     }
 

@@ -149,7 +149,7 @@ bool engine_apply_uci_move(const char* move_str, char* error_buf, size_t error_b
         return false;
     }
 
-    make_move(&engine_state.board, parsed_move);
+    make_move(&engine_state.board, parsed_move, NULL);
     update_position_history();
     return true;
 }

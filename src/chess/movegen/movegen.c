@@ -43,7 +43,7 @@ void generate_capture_moves(CBoard* board, MoveList* out)
             continue;
         }
 
-        UndoInfo undoInfo = make_move(board, move);
+        UndoInfo undoInfo = make_move(board, move, NULL);
         if (!is_king_in_check(board, side)) {
             out->moves[out->count++] = move;
         }
@@ -128,7 +128,7 @@ static bool pseudolegal_move_is_legal(CBoard* board, Move move)
     }
 
     Color side    = board->side_to_move;
-    UndoInfo undo = make_move(board, move);
+    UndoInfo undo = make_move(board, move, NULL);
     bool legal    = !is_king_in_check(board, side);
     unmake_move(board, move, undo);
     return legal;

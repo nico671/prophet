@@ -337,6 +337,8 @@ def verify_release_manifest(manifest: dict, settings: dict, root: Path,
         raise RuntimeError("validated binary hashes are absent")
     for name in ("benchmark", "sprt"):
         result = manifest.get(name, {}).get("result", {})
+        if name == "benchmark" and result.get("baseline_nnue") is not None:
+            raise RuntimeError("benchmark used a baseline network outside the release comparison")
         if name == "sprt" and identity is None and result.get("verdict") == "identical":
             continue
         if result.get("candidate_nnue") != identity or result.get("binaries") != binaries:

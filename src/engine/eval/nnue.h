@@ -2,6 +2,7 @@
 #define PROPHET_NNUE_H
 
 #include "chess/board/cboard.h"
+#include "chess/movegen/move.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -32,8 +33,8 @@ const char* nnue_model_identifier(void);
 /** Builds both king-perspective accumulators from a board. */
 bool nnue_refresh_accumulator(const CBoard* board, NnueAccumulator* accumulator);
 
-/** Copies and eagerly updates a child accumulator from its parent and child boards. */
-bool nnue_update_accumulator(const CBoard* parent, const CBoard* child,
+/** Updates a child accumulator from the move record and resulting board. */
+bool nnue_update_accumulator(const CBoard* child, const MoveChanges* changes,
                              const NnueAccumulator* parent_accumulator,
                              NnueAccumulator* child_accumulator);
 

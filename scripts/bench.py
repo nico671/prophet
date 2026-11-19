@@ -22,6 +22,7 @@ except ImportError:
 
 ROOT = Path(__file__).resolve().parents[1]
 
+PERFT_ONE = re.compile(r"^perft depth 1 nodes (\d+)\b")
 INFO = re.compile(r"^info depth (\d+) .*\bnodes (\d+) time (\d+)\b")
 
 
@@ -60,10 +61,25 @@ def run_position(engine_path: Path, position: dict[str, Any], depth: int, timeou
         if position.get("moves"):
             command += f" moves {position['moves']}"
         engine.send(command)
+        engine.send("isready")
+        _, setup_lines = engine.expect(lambda line: line == "readyok", "position setup")
+        for line in setup_lines:
+            if line.startswith(("info string Failed to parse FEN", "info string FEN too long")):
+                raise UciError(f"position rejected: {line}")
         started = last_report = time.monotonic()
         engine.send(f"go depth {depth}")
         bestmove, lines = engine.expect(lambda line: line.startswith("bestmove "), "bestmove", timeout,
                                         on_line=report)
+        if bestmove == "bestmove 0000":
+            engine.send("perft 1")
+            perft, _ = engine.expect(lambda line: bool(PERFT_ONE.match(line)), "depth-1 perft")
+            legal_moves = int(PERFT_ONE.match(perft).group(1))
+            if legal_moves:
+                raise UciError(f"bestmove 0000 with {legal_moves} legal moves available")
+            engine.quit()
+            progress(f"{label}: no move available")
+            return {"id": position["id"], "status": "no_move_available",
+                    "bestmove": "0000", "legal_moves": 0}
         if not re.fullmatch(r"bestmove [a-h][1-8][a-h][1-8][qrbn]?", bestmove):
             raise UciError(f"malformed {bestmove!r}")
         exact = []
@@ -117,15 +133,21 @@ def run_sample(name: str, binary: Path, positions: list[dict[str, Any]], depth: 
                network_file: Path | None = None, model_identifier: str | None = None) -> dict[str, Any]:
     entries = []
     failures = []
+    no_move_positions = []
     for index, item in enumerate(positions, 1):
         label = (f"{profile} sample {sample} {name} position {index}/{len(positions)} "
                  f"(id {item['id']})")
         try:
-            entries.append(run_position(binary, item, depth, timeout, label,
-                                        network_file, model_identifier))
+            entry = run_position(binary, item, depth, timeout, label,
+                                 network_file, model_identifier)
+            if entry.get("status") == "no_move_available":
+                no_move_positions.append(entry)
+            else:
+                entries.append(entry)
         except UciError as error:
             failures.append({"id": item["id"], "error": str(error)})
     result: dict[str, Any] = {"positions": entries, "failed_positions": failures,
+                              "no_move_positions": no_move_positions,
                               "complete": not failures}
     if entries:
         result.update(aggregate(entries))
@@ -154,18 +176,28 @@ def partial_standard_result(baselines: list[dict[str, Any]], candidates: list[di
     comparisons = [paired_comparison(baseline, candidate, budget)
                    for baseline, candidate in zip(baselines, candidates)]
     candidate_failures = []
+    disagreements = set()
     for baseline, candidate in zip(baselines, candidates):
         baseline_ids = {item["id"] for item in baseline["positions"]}
+        candidate_ids = {item["id"] for item in candidate["positions"]}
+        disagreements.update(baseline_ids & {item["id"] for item in candidate.get("no_move_positions", [])})
+        disagreements.update(candidate_ids & {item["id"] for item in baseline.get("no_move_positions", [])})
+        baseline_completed_ids = baseline_ids | {
+            item["id"] for item in baseline.get("no_move_positions", [])
+        }
         candidate_failures.extend(
             failure for failure in candidate["failed_positions"]
-            if failure["id"] in baseline_ids
+            if failure["id"] in baseline_completed_ids
         )
     result: dict[str, Any] = {
         "comparison_scope": "completed shared positions",
         "partial_comparisons": [item for item in comparisons if item is not None],
         "candidate_failures_against_completed_baseline": candidate_failures,
     }
-    if candidate_failures:
+    if disagreements:
+        result.update({"passed": False, "no_move_disagreements": sorted(disagreements),
+                       "error": "engines disagreed on positions with no legal moves"})
+    elif candidate_failures:
         result.update({"passed": False,
                        "error": "candidate failed positions completed by the baseline"})
     elif not result["partial_comparisons"]:
@@ -189,19 +221,30 @@ def main() -> int:
     parser.add_argument("--limit-positions", type=int)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--candidate-root", type=Path, default=ROOT)
+    parser.add_argument("--baseline-nnue", action="store_true",
+                        help="also load the verified candidate network in the baseline")
+    parser.add_argument("--no-candidate-nnue", action="store_true",
+                        help="leave candidate NNUE off for a control comparison")
     args = parser.parse_args()
     if not args.baseline.is_file() or not args.candidate.is_file():
         parser.error("baseline and candidate must be executable files")
     config = load_config(args.config)
     identity = check_candidate_nnue(config, args.candidate_root)
     network_file = (args.candidate_root / identity["file"]).resolve() if identity else None
+    if args.baseline_nnue and identity is None:
+        parser.error("--baseline-nnue requires candidate_nnue in the configuration")
+    identities = {"baseline": identity if args.baseline_nnue else None,
+                  "candidate": None if args.no_candidate_nnue else identity}
     binaries = {"baseline": hashlib.sha256(args.baseline.read_bytes()).hexdigest(),
                 "candidate": hashlib.sha256(args.candidate.read_bytes()).hexdigest()}
-    probe_engine(args.baseline)
-    probe_engine(args.candidate, network_file, identity.get("model_identifier") if identity else None)
+    for name, binary in (("baseline", args.baseline), ("candidate", args.candidate)):
+        selected = identities[name]
+        probe_engine(binary, network_file if selected else None,
+                     selected.get("model_identifier") if selected else None)
     output: dict[str, Any] = {"baseline": str(args.baseline), "candidate": str(args.candidate),
                               "profiles": {}, "passed": False,
-                              "candidate_nnue": identity, "binaries": binaries,
+                              "baseline_nnue": identities["baseline"],
+                              "candidate_nnue": identities["candidate"], "binaries": binaries,
                               "options": {"Hash": 64, "MultiPV": 1},
                               "timing": "search wall time; startup recorded separately"}
     for profile in args.profiles.split(","):
@@ -220,10 +263,11 @@ def main() -> int:
             if sample % 2 == 0:
                 order.reverse()
             for name, binary in order:
+                selected = identities[name]
                 profile_result[name].append(
                     run_sample(name, binary, positions, depth, timeout, profile, sample,
-                               network_file if name == "candidate" else None,
-                               identity.get("model_identifier") if name == "candidate" and identity else None)
+                               network_file if selected else None,
+                               selected.get("model_identifier") if selected else None)
                 )
         if profile == "standard":
             budget = float(config["benchmark"]["speed_budget_ratio"])
@@ -232,6 +276,8 @@ def main() -> int:
                 for baseline, candidate in zip(profile_result["baseline"],
                                                profile_result["candidate"])
                 if baseline["complete"] and candidate["complete"]
+                and "nps" in baseline and "nps" in candidate
+                and baseline.get("no_move_positions") == candidate.get("no_move_positions")
             ]
             if len(complete_pairs) == samples:
                 baseline_median = statistics.median(item["nps"] for item in profile_result["baseline"])

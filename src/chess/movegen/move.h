@@ -26,6 +26,20 @@
  */
 typedef uint16_t Move;
 
+typedef struct {
+    Color color;
+    PieceType piece;
+    Square square;
+} PieceChange;
+
+/** Piece mutations for one standard chess move; castling needs two of each. */
+typedef struct {
+    PieceChange removed[2];
+    PieceChange added[2];
+    uint8_t removed_count;
+    uint8_t added_count;
+} MoveChanges;
+
 // Special move value representing no move (used as a sentinel)
 #define MOVE_NONE ((Move)0xFFFF)
 

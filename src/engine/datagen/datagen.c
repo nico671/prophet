@@ -1052,7 +1052,7 @@ static bool run_game(const DatagenConfig* config, const OpeningSet* openings, si
         }
 
         game.moves[game.move_count++] = selected;
-        make_move(&board, selected);
+        make_move(&board, selected, NULL);
         keys[ply + 1] = board.zobrist_key;
         add_position_history(&history, board.zobrist_key, board.half_move_clock);
     }

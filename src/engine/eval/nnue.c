@@ -374,57 +374,41 @@ bool nnue_refresh_accumulator(const CBoard* board, NnueAccumulator* accumulator)
     return accumulator->valid[WHITE] && accumulator->valid[BLACK];
 }
 
-/** Returns the color and piece at square when that square is occupied. */
-static bool piece_on_square(const CBoard* board, Square square, Color* color, PieceType* piece)
-{
-    *piece = cboard_get_piece_at_square(board, square);
-    if (*piece == NO_PIECE) {
-        return false;
-    }
-    *color = bitboard_is_bit_set(board->occupancy_bbs[WHITE], square) ? WHITE : BLACK;
-    return true;
-}
-
 /** Updates one perspective by removing and adding the pieces that changed squares. */
-static bool update_perspective(const CBoard* parent, const CBoard* child, Color perspective,
+static bool update_perspective(const CBoard* child, const MoveChanges* changes, Color perspective,
                                const int16_t source[256], int16_t destination[256])
 {
     if (!active_network || !source || !destination) {
         return false;
     }
-    if (parent->piece_bbs[perspective][KING] != child->piece_bbs[perspective][KING]) {
-        return refresh_perspective(child, perspective, destination);
+    for (uint8_t index = 0; index < changes->removed_count; index++) {
+        const PieceChange* piece = &changes->removed[index];
+        if (piece->color == perspective && piece->piece == KING) {
+            return refresh_perspective(child, perspective, destination);
+        }
     }
     int32_t totals[NNUE_ACCUMULATOR_SIZE];
     nnue_kernel_copy_i16_to_i32(source, totals);
-    for (Square square = A1; square < NO_SQUARE; square++) {
-        Color parent_color = WHITE, child_color = WHITE;
-        PieceType parent_piece = NO_PIECE, child_piece = NO_PIECE;
-        bool had_parent = piece_on_square(parent, square, &parent_color, &parent_piece);
-        bool has_child  = piece_on_square(child, square, &child_color, &child_piece);
-        if (had_parent == has_child
-            && (!had_parent || (parent_color == child_color && parent_piece == child_piece))) {
-            continue;
-        }
+    // This perspective's king did not move, so the child frame also maps removed pieces.
+    for (uint8_t index = 0; index < changes->removed_count; index++) {
+        const PieceChange* piece = &changes->removed[index];
         uint16_t feature;
-        if (had_parent
-            && !nnue_feature_index_for_piece(parent, perspective, parent_color, parent_piece,
-                                             square, &feature)) {
+        if (!nnue_feature_index_for_piece(child, perspective, piece->color, piece->piece,
+                                         piece->square, &feature)) {
             return false;
         }
-        if (had_parent) {
-            nnue_kernel_subtract_i16_from_i32(
-                totals, &active_network->feature_weight[(size_t)feature * NNUE_ACCUMULATOR_SIZE]);
-        }
-        if (has_child
-            && !nnue_feature_index_for_piece(child, perspective, child_color, child_piece, square,
-                                             &feature)) {
+        nnue_kernel_subtract_i16_from_i32(
+            totals, &active_network->feature_weight[(size_t)feature * NNUE_ACCUMULATOR_SIZE]);
+    }
+    for (uint8_t index = 0; index < changes->added_count; index++) {
+        const PieceChange* piece = &changes->added[index];
+        uint16_t feature;
+        if (!nnue_feature_index_for_piece(child, perspective, piece->color, piece->piece,
+                                         piece->square, &feature)) {
             return false;
         }
-        if (has_child) {
-            nnue_kernel_add_i16_to_i32(
-                totals, &active_network->feature_weight[(size_t)feature * NNUE_ACCUMULATOR_SIZE]);
-        }
+        nnue_kernel_add_i16_to_i32(
+            totals, &active_network->feature_weight[(size_t)feature * NNUE_ACCUMULATOR_SIZE]);
     }
     for (int index = 0; index < NNUE_ACCUMULATOR_SIZE; index++) {
         if (totals[index] < INT16_MIN || totals[index] > INT16_MAX) {
@@ -435,18 +419,19 @@ static bool update_perspective(const CBoard* parent, const CBoard* child, Color 
     return true;
 }
 
-bool nnue_update_accumulator(const CBoard* parent, const CBoard* child,
+bool nnue_update_accumulator(const CBoard* child, const MoveChanges* changes,
                              const NnueAccumulator* parent_accumulator,
                              NnueAccumulator* child_accumulator)
 {
-    if (!parent || !child || !parent_accumulator || !child_accumulator
+    if (!child || !changes || changes->removed_count > 2 || changes->added_count > 2
+        || !parent_accumulator || !child_accumulator
         || !parent_accumulator->valid[WHITE] || !parent_accumulator->valid[BLACK]) {
         return false;
     }
     child_accumulator->valid[WHITE] = update_perspective(
-        parent, child, WHITE, parent_accumulator->values[WHITE], child_accumulator->values[WHITE]);
+        child, changes, WHITE, parent_accumulator->values[WHITE], child_accumulator->values[WHITE]);
     child_accumulator->valid[BLACK] = update_perspective(
-        parent, child, BLACK, parent_accumulator->values[BLACK], child_accumulator->values[BLACK]);
+        child, changes, BLACK, parent_accumulator->values[BLACK], child_accumulator->values[BLACK]);
     return child_accumulator->valid[WHITE] && child_accumulator->valid[BLACK];
 }
 
