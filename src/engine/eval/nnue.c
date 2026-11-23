@@ -414,6 +414,40 @@ static bool update_perspective(const CBoard* child, const MoveChanges* changes, 
             = &active_network->feature_weight[(size_t)feature * NNUE_ACCUMULATOR_SIZE];
     }
 
+    if (changes->removed_count == 1 && changes->added_count == 1) {
+        for (int i = 0; i < NNUE_ACCUMULATOR_SIZE; ++i) {
+            const int32_t total = source[i] - removed_rows[0][i] + added_rows[0][i];
+            if (total < INT16_MIN || total > INT16_MAX) {
+                return false;
+            }
+            destination[i] = (int16_t)total;
+        }
+        return true;
+    }
+    if (changes->removed_count == 2 && changes->added_count == 1) {
+        for (int i = 0; i < NNUE_ACCUMULATOR_SIZE; ++i) {
+            const int32_t total = source[i] - removed_rows[0][i] - removed_rows[1][i]
+                                  + added_rows[0][i];
+            if (total < INT16_MIN || total > INT16_MAX) {
+                return false;
+            }
+            destination[i] = (int16_t)total;
+        }
+        return true;
+    }
+    if (changes->removed_count == 2 && changes->added_count == 2) {
+        for (int i = 0; i < NNUE_ACCUMULATOR_SIZE; ++i) {
+            const int32_t total = source[i] - removed_rows[0][i] - removed_rows[1][i]
+                                  + added_rows[0][i] + added_rows[1][i];
+            if (total < INT16_MIN || total > INT16_MAX) {
+                return false;
+            }
+            destination[i] = (int16_t)total;
+        }
+        return true;
+    }
+
+    // Other count combinations accepted by nnue_update_accumulator.
     for (int index = 0; index < NNUE_ACCUMULATOR_SIZE; index++) {
         int32_t total = source[index];
 
