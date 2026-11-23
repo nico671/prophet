@@ -1,10 +1,12 @@
 #include "engine/eval/nnue.h"
 
 #include "chess/core/bitboard.h"
+#include "chess/movegen/move.h"
 #include "engine/eval/nnue_features.h"
 #include "engine/eval/nnue_kernels.h"
 
 #include <limits.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -387,34 +389,45 @@ static bool update_perspective(const CBoard* child, const MoveChanges* changes, 
             return refresh_perspective(child, perspective, destination);
         }
     }
-    int32_t totals[NNUE_ACCUMULATOR_SIZE];
-    nnue_kernel_copy_i16_to_i32(source, totals);
+
+    const int16_t* removed_rows[2];
+    const int16_t* added_rows[2];
     // This perspective's king did not move, so the child frame also maps removed pieces.
     for (uint8_t index = 0; index < changes->removed_count; index++) {
         const PieceChange* piece = &changes->removed[index];
         uint16_t feature;
         if (!nnue_feature_index_for_piece(child, perspective, piece->color, piece->piece,
-                                         piece->square, &feature)) {
+                                          piece->square, &feature)) {
             return false;
         }
-        nnue_kernel_subtract_i16_from_i32(
-            totals, &active_network->feature_weight[(size_t)feature * NNUE_ACCUMULATOR_SIZE]);
+        removed_rows[index]
+            = &active_network->feature_weight[(size_t)feature * NNUE_ACCUMULATOR_SIZE];
     }
     for (uint8_t index = 0; index < changes->added_count; index++) {
         const PieceChange* piece = &changes->added[index];
         uint16_t feature;
         if (!nnue_feature_index_for_piece(child, perspective, piece->color, piece->piece,
-                                         piece->square, &feature)) {
+                                          piece->square, &feature)) {
             return false;
         }
-        nnue_kernel_add_i16_to_i32(
-            totals, &active_network->feature_weight[(size_t)feature * NNUE_ACCUMULATOR_SIZE]);
+        added_rows[index]
+            = &active_network->feature_weight[(size_t)feature * NNUE_ACCUMULATOR_SIZE];
     }
+
     for (int index = 0; index < NNUE_ACCUMULATOR_SIZE; index++) {
-        if (totals[index] < INT16_MIN || totals[index] > INT16_MAX) {
+        int32_t total = source[index];
+
+        for (uint8_t r = 0; r < changes->removed_count; ++r) {
+            total -= removed_rows[r][index];
+        }
+        for (uint8_t a = 0; a < changes->added_count; ++a) {
+            total += added_rows[a][index];
+        }
+
+        if (total < INT16_MIN || total > INT16_MAX) {
             return false;
         }
-        destination[index] = (int16_t)totals[index];
+        destination[index] = (int16_t)total;
     }
     return true;
 }
@@ -424,8 +437,8 @@ bool nnue_update_accumulator(const CBoard* child, const MoveChanges* changes,
                              NnueAccumulator* child_accumulator)
 {
     if (!child || !changes || changes->removed_count > 2 || changes->added_count > 2
-        || !parent_accumulator || !child_accumulator
-        || !parent_accumulator->valid[WHITE] || !parent_accumulator->valid[BLACK]) {
+        || !parent_accumulator || !child_accumulator || !parent_accumulator->valid[WHITE]
+        || !parent_accumulator->valid[BLACK]) {
         return false;
     }
     child_accumulator->valid[WHITE] = update_perspective(
