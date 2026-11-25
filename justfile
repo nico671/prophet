@@ -1,7 +1,7 @@
 cc := "gcc"
 builddir := "build"
 
-# 1. Grab the branch globally using backticks so `just` knows it immediately
+# Grab the branch globally using backticks so `just` knows it immediately
 branch := `git branch --show-current || echo detached`
 
 cstd := "-std=c17"
@@ -10,6 +10,7 @@ cppflags := "-I src"
 
 # Recursively find all C files and replace newlines with spaces
 sources := `find src -name "*.c" ! -name "magic_gen.c" ! -name "perft_test.c" | tr '\n' ' '`
+search_sources := `find src/chess src/engine/eval src/engine/search src/engine/tt -name "*.c" | tr '\n' ' '`
 
 debug_cflags   := "-O0 -g3 -fno-omit-frame-pointer"
 dev_cflags     := "-O3 -g1 -DNDEBUG"
@@ -30,14 +31,169 @@ build build_mode="dev" output="" strict="0":
     if [[ "{{build_mode}}" == "sanitize" ]]; then flags="{{debug_cflags}} -fsanitize=address,undefined"; fi
     if [[ "{{strict}}" == "1" ]]; then flags="$flags -Werror"; fi
     echo "Building [{{build_mode}}] at $target..."
-    {{cc}} {{cstd}} {{warnflags}} {{cppflags}} $flags {{sources}} -o "$target"
+    {{cc}} {{cstd}} {{warnflags}} {{cppflags}} -DPROPHET_GIT_COMMIT=\"$(git rev-parse HEAD)\" $flags {{sources}} -o "$target"
 
 run build_mode="dev":
     @echo "Running chess engine in [{{build_mode}}] mode for branch [{{branch}}]..."
     @artifacts/{{branch}}/prophet-{{build_mode}}
 
+nnue-kernels mode="debug" backend="scalar":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    tmpdir="$(mktemp -d)"
+    target="$tmpdir/nnue-kernels"
+    trap 'rm -rf "$tmpdir"' EXIT
+    flags="{{debug_cflags}}"
+    if [[ "{{mode}}" == "sanitize" ]]; then flags="$flags -fsanitize=address,undefined"; fi
+    if [[ "{{backend}}" == "scalar" ]]; then
+        backend_define="-DPROPHET_NNUE_FORCE_SCALAR"
+    elif [[ "{{backend}}" == "neon" ]]; then
+        backend_define="-DPROPHET_NNUE_FORCE_NEON"
+        flags="$flags -march=armv8-a"
+    elif [[ "{{backend}}" == "dotprod" ]]; then
+        backend_define="-DPROPHET_NNUE_FORCE_DOTPROD"
+        flags="$flags -march=armv8.2-a+dotprod"
+    else
+        echo "unsupported NNUE kernel backend: {{backend}}" >&2
+        exit 2
+    fi
+    echo "Building NNUE {{backend}} kernel test [{{mode}}]..."
+    {{cc}} {{cstd}} {{warnflags}} -Werror -I src "$backend_define" $flags \
+        src/engine/eval/nnue_kernels.c \
+        tests/nnue_kernels_test.c \
+        -o "$target"
+    if [[ "{{mode}}" == "sanitize" ]]; then
+        ASAN_OPTIONS=halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 "$target"
+    else
+        "$target"
+    fi
+
+nnue-kernel-negative:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    tmpdir="$(mktemp -d)"
+    trap 'rm -rf "$tmpdir"' EXIT
+    expect_failure() {
+        label="$1"
+        shift
+        if {{cc}} {{cstd}} {{warnflags}} -Werror -I src "$@" \
+            -c src/engine/eval/nnue_kernels.c -o "$tmpdir/$label.o" >/dev/null 2>&1; then
+            echo "NNUE negative compile check unexpectedly succeeded: $label" >&2
+            exit 1
+        fi
+    }
+    expect_failure scalar-neon -DPROPHET_NNUE_FORCE_SCALAR -DPROPHET_NNUE_FORCE_NEON
+    expect_failure scalar-dotprod -DPROPHET_NNUE_FORCE_SCALAR -DPROPHET_NNUE_FORCE_DOTPROD
+    expect_failure neon-dotprod -DPROPHET_NNUE_FORCE_NEON -DPROPHET_NNUE_FORCE_DOTPROD
+    unavailable_flags=""
+    if [[ "$(uname -m)" == "arm64" || "$(uname -m)" == "aarch64" ]]; then
+        unavailable_flags="-march=armv8-a"
+    fi
+    if {{cc}} {{cstd}} {{warnflags}} -Werror -I src $unavailable_flags \
+        -DPROPHET_NNUE_FORCE_DOTPROD -c src/engine/eval/nnue_kernels.c \
+        -o "$tmpdir/unavailable.o" >/dev/null 2>&1; then
+        echo "NNUE negative compile check unexpectedly succeeded: unavailable-dotprod" >&2
+        exit 1
+    fi
+    echo "NNUE negative backend compile checks passed"
+
 clean:
     rm -rf {{builddir}} artifacts/{{branch}}/prophet-*
+
+nnue-contract mode="debug":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    tmpdir="$(mktemp -d)"
+    target="$tmpdir/nnue-contract"
+    trap 'rm -rf "$tmpdir"' EXIT
+    flags="{{debug_cflags}}"
+    if [[ "{{mode}}" == "sanitize" ]]; then flags="$flags -fsanitize=address,undefined"; fi
+    echo "Building NNUE feature contract test [{{mode}}]..."
+    {{cc}} {{cstd}} {{warnflags}} -Werror -I src -I tests $flags \
+        src/chess/board/cboard.c \
+        src/chess/board/zobrist.c \
+        src/chess/utils/prng.c \
+        src/engine/eval/nnue_features.c \
+        tests/halfkav2_hm_test.c \
+        -o "$target"
+    if [[ "{{mode}}" == "sanitize" ]]; then
+        ASAN_OPTIONS=halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 "$target"
+    else
+        "$target"
+    fi
+
+search-result mode="debug" engine="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    tmpdir="$(mktemp -d)"
+    target="$tmpdir/search-result"
+    trap 'rm -rf "$tmpdir"' EXIT
+    flags="{{debug_cflags}}"
+    if [[ "{{mode}}" == "sanitize" ]]; then flags="$flags -fsanitize=address,undefined"; fi
+    echo "Building search result API test [{{mode}}]..."
+    {{cc}} {{cstd}} {{warnflags}} -Werror -I src $flags \
+        {{search_sources}} \
+        tests/search_result_test.c \
+        -o "$target"
+    if [[ "{{mode}}" == "sanitize" ]]; then
+        ASAN_OPTIONS=halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 "$target"
+    else
+        "$target"
+    fi
+    if [[ -n "{{engine}}" ]]; then
+        python3 scripts/search_result_uci.py --engine "{{engine}}" --probe "$target"
+    fi
+
+search-castling mode="debug":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    tmpdir="$(mktemp -d)"
+    target="$tmpdir/search-castling"
+    trap 'rm -rf "$tmpdir"' EXIT
+    flags="{{debug_cflags}}"
+    if [[ "{{mode}}" == "sanitize" ]]; then flags="$flags -fsanitize=address,undefined"; fi
+    # The test includes search.c to reach its private negamax function.
+    test_sources=$(find src/chess src/engine/eval src/engine/search src/engine/tt -name "*.c" ! -path "src/engine/search/search.c")
+    {{cc}} {{cstd}} {{warnflags}} -Werror -I src $flags $test_sources \
+        tests/search_castling_test.c -o "$target"
+    if [[ "{{mode}}" == "sanitize" ]]; then
+        ASAN_OPTIONS=halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 "$target"
+    else
+        "$target"
+    fi
+
+search-stalemate mode="debug":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    tmpdir="$(mktemp -d)"
+    target="$tmpdir/search-stalemate"
+    trap 'rm -rf "$tmpdir"' EXIT
+    flags="{{debug_cflags}}"
+    if [[ "{{mode}}" == "sanitize" ]]; then flags="$flags -fsanitize=address,undefined"; fi
+    # The test includes search.c to reach its private quiescence function.
+    test_sources=$(find src/chess src/engine/eval src/engine/search src/engine/tt -name "*.c" ! -path "src/engine/search/search.c")
+    {{cc}} {{cstd}} {{warnflags}} -Werror -I src $flags $test_sources \
+        tests/search_stalemate_test.c -o "$target"
+    if [[ "{{mode}}" == "sanitize" ]]; then
+        ASAN_OPTIONS=halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 "$target"
+    else
+        "$target"
+    fi
+
+datagen-audit build_mode="debug" output="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    target="{{output}}"
+    if [[ -z "$target" ]]; then target="artifacts/{{branch}}/datagen-trace-audit-{{build_mode}}"; fi
+    mkdir -p "$(dirname "$target")"
+    flags="{{dev_cflags}}"
+    if [[ "{{build_mode}}" == "debug" ]]; then flags="{{debug_cflags}}"; fi
+    if [[ "{{build_mode}}" == "sanitize" ]]; then flags="{{debug_cflags}} -fsanitize=address,undefined"; fi
+    echo "Building datagen trace audit [{{build_mode}}] at $target..."
+    {{cc}} {{cstd}} {{warnflags}} -Werror -I src $flags \
+        {{search_sources}} \
+        tests/datagen_trace_test.c \
+        -o "$target"
 
 # Run perft testing using the engine's standard output
 perft build_mode="dev":
@@ -66,15 +222,41 @@ check:
     set -euo pipefail
     python3 -u scripts/check_config.py
     python3 -m unittest discover -s tests
+    just nnue-kernels debug scalar
+    just nnue-kernel-negative
+    if [[ "$(uname -m)" == "arm64" || "$(uname -m)" == "aarch64" ]]; then
+        just nnue-kernels debug neon
+        just nnue-kernels debug dotprod
+    fi
+    just nnue-contract
     mkdir -p validation-runs
     run_dir="$(mktemp -d validation-runs/check.XXXXXX)"
     target="$run_dir/prophet-dev"
     just build dev "$target" 1
+    just search-result debug "$target"
+    just search-castling debug
+    just search-stalemate debug
+    validator="$run_dir/datagen-audit-dev"
+    just datagen-audit dev "$validator"
+    python3 -u scripts/datagen_smoke.py --engine "$target" --validator "$validator"
     python3 -u scripts/strict_perft.py --engine "$target"
     python3 -u scripts/uci_smoke.py --engine "$target"
     python3 -u scripts/draw_rules_smoke.py --engine "$target"
     target="$run_dir/prophet-sanitize"
     just build sanitize "$target" 1
+    just nnue-kernels sanitize scalar
+    if [[ "$(uname -m)" == "arm64" || "$(uname -m)" == "aarch64" ]]; then
+        just nnue-kernels sanitize neon
+        just nnue-kernels sanitize dotprod
+    fi
+    just nnue-contract sanitize
+    ASAN_OPTIONS=halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 just search-result sanitize "$target"
+    just search-castling sanitize
+    just search-stalemate sanitize
+    validator="$run_dir/datagen-audit-sanitize"
+    just datagen-audit sanitize "$validator"
+    ASAN_OPTIONS=halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 \
+        python3 -u scripts/datagen_smoke.py --engine "$target" --validator "$validator"
     ASAN_OPTIONS=halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 python3 -u scripts/uci_smoke.py --engine "$target"
     ASAN_OPTIONS=halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1 python3 -u scripts/draw_rules_smoke.py --engine "$target"
 

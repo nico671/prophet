@@ -16,6 +16,24 @@ class FastchessCommandTest(unittest.TestCase):
         names = [item.removeprefix("name=") for item in command
                  if item.startswith("name=")]
         self.assertEqual(names, ["candidate", "baseline"])
+        self.assertIn("model=normalized", command)
+        self.assertNotIn("option.UseNNUE=true", command)
+        command_with_nnue = fastchess_command(
+            "fastchess", settings, Path("baseline"), Path("candidate"),
+            Path("output"), Path("network with spaces.pnue"),
+        )
+        baseline_index = command_with_nnue.index("cmd=baseline")
+        self.assertLess(command_with_nnue.index("option.UseNNUE=true"), baseline_index)
+        self.assertIn("option.EvalFile=network with spaces.pnue", command_with_nnue)
+        self.assertEqual(command_with_nnue.count("option.UseNNUE=true"), 1)
+        self.assertIn("option.Hash=64", command_with_nnue)
+        self.assertIn("option.MultiPV=1", command_with_nnue)
+        for model in ("normalized", "logistic", "bayesian"):
+            with self.subTest(model=model):
+                settings["model"] = model
+                command = fastchess_command("fastchess", settings, Path("baseline"),
+                                            Path("candidate"), Path("output"))
+                self.assertIn(f"model={model}", command)
 
     def test_display_filter_keeps_results_and_summaries(self) -> None:
         self.assertTrue(should_display("Finished game 3 (candidate vs baseline): 1-0\n"))

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import shutil
@@ -11,6 +12,16 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import Any
+
+
+try:
+    from .check_config import check_candidate_nnue
+    from .uci_client import probe_engine
+except ImportError:
+    from check_config import check_candidate_nnue
+    from uci_client import probe_engine
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 DISPLAY_LINE = re.compile(
@@ -25,7 +36,8 @@ def should_display(line: str) -> bool:
 
 
 def fastchess_command(fastchess: str, settings: dict[str, Any], baseline: Path,
-                      candidate: Path, output_dir: Path) -> list[str]:
+                      candidate: Path, output_dir: Path,
+                      network_file: Path | None = None) -> list[str]:
     """Build a command that tests the candidate against the baseline."""
     pgn = output_dir / "games.pgn"
     return [
@@ -34,11 +46,13 @@ def fastchess_command(fastchess: str, settings: dict[str, Any], baseline: Path,
         # Fastchess applies the SPRT hypotheses to its first engine.  The
         # candidate must therefore be first: H1 means candidate > baseline.
         "-engine", f"cmd={candidate}", "name=candidate", "proto=uci",
+        *([f"option.EvalFile={network_file}", "option.UseNNUE=true"] if network_file else []),
         "-engine", f"cmd={baseline}", "name=baseline", "proto=uci",
-        "-each", f"tc={settings['time_control']}",
+        "-each", f"tc={settings['time_control']}", "option.Hash=64", "option.MultiPV=1",
         "-openings", f"file={settings['openings']}", "format=epd", "order=random",
         "-sprt", f"elo0={settings['elo0']}", f"elo1={settings['elo1']}",
         f"alpha={settings['alpha']}", f"beta={settings['beta']}",
+        f"model={settings.get('model', 'normalized')}",
         "-config", f"outname={output_dir / 'fastchess-config.json'}",
         "-pgnout", f"file={pgn}", "append=false",
     ]
@@ -50,12 +64,23 @@ def main() -> int:
     parser.add_argument("--candidate", required=True, type=Path)
     parser.add_argument("--config", type=Path, default=Path("config/validation.json"))
     parser.add_argument("--output-dir", required=True, type=Path)
+    parser.add_argument("--candidate-root", type=Path, default=ROOT)
     args = parser.parse_args()
     fastchess = shutil.which("fastchess")
     if not fastchess:
         parser.error("fastchess is required for SPRT")
     config: dict[str, Any] = json.loads(args.config.read_text())
-    settings = config["sprt"]
+    settings = dict(config["sprt"])
+    identity = check_candidate_nnue(config, args.candidate_root)
+    network_file = (args.candidate_root / identity["file"]).resolve() if identity else None
+    settings["openings"] = str((ROOT / settings["openings"]).resolve())
+    args.baseline, args.candidate = args.baseline.resolve(), args.candidate.resolve()
+    probe_engine(args.baseline)
+    probe_engine(args.candidate, network_file, identity.get("model_identifier") if identity else None)
+    binaries = {"baseline": hashlib.sha256(args.baseline.read_bytes()).hexdigest(),
+                "candidate": hashlib.sha256(args.candidate.read_bytes()).hexdigest()}
+    fastchess_version = subprocess.run([fastchess, "-version"], check=True, text=True,
+                                      capture_output=True).stdout.strip()
     opening = Path(settings["openings"])
     if not opening.is_file():
         parser.error(f"tracked opening suite is missing: {opening}")
@@ -63,7 +88,7 @@ def main() -> int:
     pgn = args.output_dir / "games.pgn"
     log = args.output_dir / "fastchess.log"
     command = fastchess_command(fastchess, settings, args.baseline, args.candidate,
-                                args.output_dir)
+                                args.output_dir, network_file)
     print(f"[sprt] starting Fastchess: {settings['rounds']} rounds, concurrency {settings['concurrency']}", flush=True)
     with log.open("w") as output:
         process = subprocess.Popen(command, text=True, stdout=subprocess.PIPE,
@@ -84,7 +109,14 @@ def main() -> int:
         verdict = "rejected"
     else:
         verdict = "inconclusive"
+    if check_candidate_nnue(config, args.candidate_root) != identity:
+        raise ValueError("candidate network changed during SPRT")
+    if binaries != {"baseline": hashlib.sha256(args.baseline.read_bytes()).hexdigest(),
+                    "candidate": hashlib.sha256(args.candidate.read_bytes()).hexdigest()}:
+        raise ValueError("engine binary changed during SPRT")
     evidence = {"command": command, "fastchess_exit_code": process.returncode,
+                "fastchess_version": fastchess_version, "model": settings.get("model", "normalized"),
+                "candidate_nnue": identity, "binaries": binaries,
                 "tested_engine": "candidate", "reference_engine": "baseline",
                 "engine_order": ["candidate", "baseline"],
                 "log": str(log), "pgn": str(pgn), "verdict": verdict}

@@ -43,7 +43,7 @@ void generate_capture_moves(CBoard* board, MoveList* out)
             continue;
         }
 
-        UndoInfo undoInfo = make_move(board, move);
+        UndoInfo undoInfo = make_move(board, move, NULL);
         if (!is_king_in_check(board, side)) {
             out->moves[out->count++] = move;
         }
@@ -108,6 +108,45 @@ bool is_king_in_check(CBoard* board, Color side)
     return is_square_attacked(board, king_square, opponent_color);
 }
 
+bool is_castling_path_safe(CBoard* board, Move move)
+{
+    Color side = board->side_to_move;
+    if (is_king_in_check(board, side)) {
+        return false;
+    }
+
+    bool kingside = move_get_to_square(move) == G1 || move_get_to_square(move) == G8;
+    Square through_square = side == WHITE ? (kingside ? F1 : D1) : (kingside ? F8 : D8);
+    return !is_square_attacked(board, through_square, color_opposite(side));
+}
+
+// The candidate must come from pseudolegal move generation.
+static bool pseudolegal_move_is_legal(CBoard* board, Move move)
+{
+    if (move_is_castling(move) && !is_castling_path_safe(board, move)) {
+        return false;
+    }
+
+    Color side    = board->side_to_move;
+    UndoInfo undo = make_move(board, move, NULL);
+    bool legal    = !is_king_in_check(board, side);
+    unmake_move(board, move, undo);
+    return legal;
+}
+
+bool has_legal_move(CBoard* board)
+{
+    MoveList moves;
+    init_move_list(&moves);
+    gen_all_pseudolegal_moves(board, &moves);
+    for (int i = 0; i < moves.count; i++) {
+        if (pseudolegal_move_is_legal(board, moves.moves[i])) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void generate_legal_moves(CBoard* board, MoveList* out)
 {
     MoveList pseudoLegalMoves;
@@ -116,42 +155,8 @@ void generate_legal_moves(CBoard* board, MoveList* out)
 
     for (int i = 0; i < pseudoLegalMoves.count; i++) {
         Move move = pseudoLegalMoves.moves[i];
-
-        // Special handling for castling
-        if (move_is_castling(move)) {
-            Color side     = board->side_to_move;
-            Color opponent = color_opposite(side);
-
-            // Cannot castle if in check
-            if (is_king_in_check(board, side)) {
-                continue;
-            }
-
-            // Check squares the king moves through
-            if ((side == WHITE && move_get_from_square(move) == E1
-                 && move_get_to_square(move) == G1)
-                || (side == BLACK && move_get_from_square(move) == E8
-                    && move_get_to_square(move) == G8)) // KINGSIDE_CASTLE
-            {
-                Square through_square = (side == WHITE) ? F1 : F8;
-                if (is_square_attacked(board, through_square, opponent)) {
-                    continue;
-                }
-            } else // QUEENSIDE_CASTLE
-            {
-                Square through_square = (side == WHITE) ? D1 : D8;
-                if (is_square_attacked(board, through_square, opponent)) {
-                    continue;
-                }
-            }
-        }
-
-        // Normal legality check for all moves (including castling
-        // destination)
-        UndoInfo undoInfo = make_move(board, move);
-        if (!is_king_in_check(board, color_opposite(board->side_to_move))) {
+        if (pseudolegal_move_is_legal(board, move)) {
             out->moves[out->count++] = move;
         }
-        unmake_move(board, move, undoInfo);
     }
 }

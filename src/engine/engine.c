@@ -5,7 +5,9 @@
 #include "chess/movegen/movegen.h"
 #include "chess/movegen/sliding_attacks.h"
 #include "engine/benchmark.h"
+#include "engine/eval/evaluate.h"
 #include "engine/eval/hceval.h"
+#include "engine/eval/nnue.h"
 #include "engine/search/search.h"
 #include "engine/tt/tt.h"
 
@@ -31,6 +33,7 @@ static void set_error(char* error_buf, size_t error_buf_size, const char* messag
 }
 
 typedef struct {
+    // current board
     CBoard board;
     pthread_t search_thread;
     SearchInput search_input;
@@ -80,6 +83,7 @@ void engine_init(void)
     init_sliding_attacks();
     init_zobrist_keys();
     hc_eval_init();
+    evaluate_set_use_nnue(false);
 
     // initialize 64 MB TT by default, can be overridden by UCI option
     // later
@@ -102,6 +106,7 @@ void engine_shutdown(void)
     // ensure any active search thread is stopped before shutting down
     // the engine and freeing resources
     engine_stop_search();
+    nnue_unload();
     free_tt();
 }
 
@@ -144,7 +149,7 @@ bool engine_apply_uci_move(const char* move_str, char* error_buf, size_t error_b
         return false;
     }
 
-    make_move(&engine_state.board, parsed_move);
+    make_move(&engine_state.board, parsed_move, NULL);
     update_position_history();
     return true;
 }
@@ -165,6 +170,10 @@ bool engine_start_search(const SearchLimits* limits, char* error_buf, size_t err
 {
     if (!limits) {
         set_error(error_buf, error_buf_size, "Search limits not provided");
+        return false;
+    }
+    if (evaluate_uses_nnue() && !nnue_is_loaded()) {
+        set_error(error_buf, error_buf_size, "UseNNUE requires a valid EvalFile");
         return false;
     }
 
@@ -348,6 +357,40 @@ bool engine_set_multipv(int requested_multipv, int* applied_multipv)
     }
 
     return true;
+}
+
+bool engine_set_eval_file(const char* path, char* error_buf, size_t error_buf_size)
+{
+    engine_stop_search();
+    if (!nnue_load_file(path, error_buf, error_buf_size)) {
+        return false;
+    }
+    clear_tt();
+    return true;
+}
+
+bool engine_set_use_nnue(bool enabled, char* error_buf, size_t error_buf_size)
+{
+    engine_stop_search();
+    if (enabled && !nnue_is_loaded()) {
+        set_error(error_buf, error_buf_size, "UseNNUE requires a valid EvalFile");
+        return false;
+    }
+    if (evaluate_uses_nnue() != enabled) {
+        evaluate_set_use_nnue(enabled);
+        clear_tt();
+    }
+    return true;
+}
+
+const char* engine_nnue_architecture_id(void)
+{
+    return nnue_architecture_id();
+}
+
+const char* engine_nnue_model_identifier(void)
+{
+    return nnue_model_identifier();
 }
 
 int engine_get_multipv(void)

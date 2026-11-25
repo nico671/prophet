@@ -1,0 +1,513 @@
+#include "engine/eval/nnue.h"
+
+#include "chess/core/bitboard.h"
+#include "chess/movegen/move.h"
+#include "engine/eval/nnue_features.h"
+#include "engine/eval/nnue_kernels.h"
+
+#include <limits.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+enum {
+    PNUE_HEADER_BYTES     = 188,
+    PNUE_FEATURE_COUNT    = 22528,
+    PNUE_DENSE_INPUTS     = 512,
+    PNUE_HIDDEN           = 32,
+    PNUE_ACTIVATION_SCALE = 127,
+    PNUE_DENSE_SCALE      = 64,
+    PNUE_EVAL_SCALE       = 841,
+    PNUE_MATE_THRESHOLD   = 199999000,
+};
+
+/** Returns the exact V1 payload length, excluding the fixed PNUE header. */
+static size_t expected_payload_bytes(void);
+
+typedef struct {
+    const char* architecture_id;
+    const char* feature_id;
+    const char* quantization_id;
+    uint32_t eval_scale_cp;
+    uint32_t dimensions[8];
+    size_t (*payload_bytes)(void);
+} NnueProfile;
+
+static const NnueProfile V1_PROFILE = {
+    .architecture_id = "prophet-nnue-v1",
+    .feature_id      = "halfkav2_hm-v1",
+    .quantization_id = "QA127_QW64_V1",
+    .eval_scale_cp   = PNUE_EVAL_SCALE,
+    .dimensions      = { PNUE_FEATURE_COUNT, NNUE_ACCUMULATOR_SIZE, PNUE_DENSE_INPUTS, PNUE_HIDDEN,
+                         PNUE_HIDDEN, PNUE_HIDDEN, PNUE_HIDDEN, 1 },
+    .payload_bytes   = expected_payload_bytes,
+};
+
+static const NnueProfile* const SUPPORTED_PROFILES[] = { &V1_PROFILE };
+
+typedef struct {
+    const NnueProfile* profile;
+    int16_t feature_bias[NNUE_ACCUMULATOR_SIZE];
+    int16_t* feature_weight;
+    int32_t dense_1_bias[PNUE_HIDDEN];
+    int8_t dense_1_weight[PNUE_HIDDEN][PNUE_DENSE_INPUTS];
+    int32_t dense_2_bias[PNUE_HIDDEN];
+    int8_t dense_2_weight[PNUE_HIDDEN][PNUE_HIDDEN];
+    int32_t output_bias;
+    int8_t output_weight[PNUE_HIDDEN];
+    char model_identifier[65];
+} NnueNetwork;
+
+static NnueNetwork* active_network;
+
+_Static_assert(NNUE_KERNEL_VECTOR_SIZE == NNUE_ACCUMULATOR_SIZE,
+               "NNUE kernel and accumulator sizes must match");
+
+/** Writes one bounded loader error message when the caller supplied storage. */
+static void set_error(char* error, size_t error_size, const char* message)
+{
+    if (error && error_size) {
+        snprintf(error, error_size, "%s", message);
+    }
+}
+
+/** Decodes one unsigned 32-bit little-endian value without struct casting. */
+static uint32_t read_u32_le(const uint8_t* bytes)
+{
+    return (uint32_t)bytes[0] | ((uint32_t)bytes[1] << 8) | ((uint32_t)bytes[2] << 16)
+        | ((uint32_t)bytes[3] << 24);
+}
+
+/** Decodes one unsigned 64-bit little-endian value without struct casting. */
+static uint64_t read_u64_le(const uint8_t* bytes)
+{
+    uint64_t value = 0;
+    for (int index = 7; index >= 0; index--) {
+        value = (value << 8) | bytes[index];
+    }
+    return value;
+}
+
+/** Decodes one signed 16-bit little-endian payload value. */
+static int16_t read_i16_le(const uint8_t* bytes)
+{
+    return (int16_t)((uint16_t)bytes[0] | ((uint16_t)bytes[1] << 8));
+}
+
+/** Decodes one signed 32-bit little-endian payload value. */
+static int32_t read_i32_le(const uint8_t* bytes)
+{
+    return (int32_t)read_u32_le(bytes);
+}
+
+/** Returns the exact V1 payload length, excluding the fixed PNUE header. */
+static size_t expected_payload_bytes(void)
+{
+    return NNUE_ACCUMULATOR_SIZE * sizeof(int16_t)
+        + (size_t)PNUE_FEATURE_COUNT * NNUE_ACCUMULATOR_SIZE * sizeof(int16_t)
+        + PNUE_HIDDEN * sizeof(int32_t) + PNUE_HIDDEN * PNUE_DENSE_INPUTS * sizeof(int8_t)
+        + PNUE_HIDDEN * sizeof(int32_t) + PNUE_HIDDEN * PNUE_HIDDEN * sizeof(int8_t)
+        + sizeof(int32_t) + PNUE_HIDDEN * sizeof(int8_t);
+}
+
+/** Validates one NUL-padded ASCII identifier. */
+static bool fixed_identifier(const uint8_t* bytes, const char* expected)
+{
+    size_t expected_length = strlen(expected);
+    if (expected_length == 0 || expected_length > 32 || memcmp(bytes, expected, expected_length)) {
+        return false;
+    }
+    for (size_t index = expected_length; index < 32; index++) {
+        if (bytes[index] != 0) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/** Selects the locally supported profile that exactly matches a PNUE header. */
+static const NnueProfile* profile_for_header(const uint8_t header[PNUE_HEADER_BYTES],
+                                             uint64_t payload_bytes)
+{
+    for (size_t profile_index = 0;
+         profile_index < sizeof(SUPPORTED_PROFILES) / sizeof(SUPPORTED_PROFILES[0]);
+         profile_index++) {
+        const NnueProfile* profile = SUPPORTED_PROFILES[profile_index];
+        if (payload_bytes != profile->payload_bytes()
+            || read_u32_le(header + 16) != profile->eval_scale_cp
+            || !fixed_identifier(header + 60, profile->architecture_id)
+            || !fixed_identifier(header + 92, profile->feature_id)
+            || !fixed_identifier(header + 124, profile->quantization_id)) {
+            continue;
+        }
+        bool dimensions_match = true;
+        for (size_t index = 0; index < sizeof(profile->dimensions) / sizeof(profile->dimensions[0]);
+             index++) {
+            dimensions_match &= read_u32_le(header + 20 + index * 4) == profile->dimensions[index];
+        }
+        if (dimensions_match) {
+            return profile;
+        }
+    }
+    return NULL;
+}
+
+/** Frees all heap storage owned by one staged or active network. */
+static void free_network(NnueNetwork* network)
+{
+    if (!network) {
+        return;
+    }
+    free(network->feature_weight);
+    free(network);
+}
+
+/** Inserts one magnitude into a descending fixed-size top-32 list. */
+static void insert_top_abs(int64_t values[32], int64_t value)
+{
+    if (value <= values[31]) {
+        return;
+    }
+    int index = 31;
+    while (index > 0 && value > values[index - 1]) {
+        values[index] = values[index - 1];
+        index--;
+    }
+    values[index] = value;
+}
+
+/** Checks that this profile cannot overflow its accumulator or scalar arithmetic. */
+static bool validate_bounds(const NnueNetwork* network)
+{
+    for (int output = 0; output < NNUE_ACCUMULATOR_SIZE; output++) {
+        int64_t largest[32] = { 0 };
+        for (int feature = 0; feature < PNUE_FEATURE_COUNT; feature++) {
+            int64_t value
+                = network->feature_weight[(size_t)feature * NNUE_ACCUMULATOR_SIZE + output];
+            insert_top_abs(largest, value < 0 ? -value : value);
+        }
+        int64_t bound = network->feature_bias[output];
+        bound         = bound < 0 ? -bound : bound;
+        for (int index = 0; index < 32; index++) {
+            bound += largest[index];
+        }
+        if (bound > INT16_MAX) {
+            return false;
+        }
+    }
+
+    const int32_t* biases[]
+        = { network->dense_1_bias, network->dense_2_bias, &network->output_bias };
+    const int8_t* weights[] = { &network->dense_1_weight[0][0], &network->dense_2_weight[0][0],
+                                network->output_weight };
+    const int inputs[]      = { PNUE_DENSE_INPUTS, PNUE_HIDDEN, PNUE_HIDDEN };
+    const int outputs[]     = { PNUE_HIDDEN, PNUE_HIDDEN, 1 };
+    int64_t final_bound     = 0;
+    for (int layer = 0; layer < 3; layer++) {
+        for (int output = 0; output < outputs[layer]; output++) {
+            int64_t bound = biases[layer][output];
+            bound         = bound < 0 ? -bound : bound;
+            for (int input = 0; input < inputs[layer]; input++) {
+                int64_t weight = weights[layer][output * inputs[layer] + input];
+                bound += PNUE_ACTIVATION_SCALE * (weight < 0 ? -weight : weight);
+            }
+            if (bound > INT32_MAX) {
+                return false;
+            }
+            if (layer == 2) {
+                final_bound = bound;
+            }
+        }
+    }
+    return final_bound <= INT64_MAX / PNUE_EVAL_SCALE
+        && final_bound * PNUE_EVAL_SCALE / (PNUE_ACTIVATION_SCALE * PNUE_DENSE_SCALE)
+        < PNUE_MATE_THRESHOLD;
+}
+
+/** Decodes the V1 payload into a staged network in its documented tensor order. */
+static bool decode_payload(const uint8_t* payload, NnueNetwork* network)
+{
+    size_t offset = 0;
+    for (int index = 0; index < NNUE_ACCUMULATOR_SIZE; index++, offset += 2) {
+        network->feature_bias[index] = read_i16_le(payload + offset);
+    }
+    for (size_t index = 0; index < (size_t)PNUE_FEATURE_COUNT * NNUE_ACCUMULATOR_SIZE;
+         index++, offset += 2) {
+        network->feature_weight[index] = read_i16_le(payload + offset);
+    }
+    for (int index = 0; index < PNUE_HIDDEN; index++, offset += 4) {
+        network->dense_1_bias[index] = read_i32_le(payload + offset);
+    }
+    memcpy(network->dense_1_weight, payload + offset, sizeof(network->dense_1_weight));
+    offset += sizeof(network->dense_1_weight);
+    for (int index = 0; index < PNUE_HIDDEN; index++, offset += 4) {
+        network->dense_2_bias[index] = read_i32_le(payload + offset);
+    }
+    memcpy(network->dense_2_weight, payload + offset, sizeof(network->dense_2_weight));
+    offset += sizeof(network->dense_2_weight);
+    network->output_bias = read_i32_le(payload + offset);
+    offset += 4;
+    memcpy(network->output_weight, payload + offset, sizeof(network->output_weight));
+    return offset + sizeof(network->output_weight) == expected_payload_bytes();
+}
+
+bool nnue_load_file(const char* path, char* error, size_t error_size)
+{
+    set_error(error, error_size, "invalid NNUE file");
+    if (!path || !*path) {
+        set_error(error, error_size, "EvalFile requires a path");
+        return false;
+    }
+    FILE* file = fopen(path, "rb");
+    if (!file) {
+        set_error(error, error_size, "cannot open EvalFile");
+        return false;
+    }
+    uint8_t header[PNUE_HEADER_BYTES];
+    bool okay = fread(header, 1, sizeof(header), file) == sizeof(header);
+    if (!okay || fseek(file, 0, SEEK_END) != 0) {
+        fclose(file);
+        set_error(error, error_size, "truncated PNUE header");
+        return false;
+    }
+    long file_length = ftell(file);
+    if (file_length < 0 || fseek(file, PNUE_HEADER_BYTES, SEEK_SET) != 0) {
+        fclose(file);
+        set_error(error, error_size, "cannot read PNUE file");
+        return false;
+    }
+    bool header_valid = !memcmp(header, "PNUE", 4) && read_u32_le(header + 4) == 1
+        && read_u32_le(header + 8) == 0x01020304U && read_u32_le(header + 12) == 1;
+    const uint64_t payload_bytes = read_u64_le(header + 52);
+    const NnueProfile* profile   = header_valid ? profile_for_header(header, payload_bytes) : NULL;
+    header_valid = profile != NULL && (uint64_t)file_length == PNUE_HEADER_BYTES + payload_bytes;
+    NnueNetwork* candidate = NULL;
+    if (header_valid) {
+        candidate    = calloc(1, sizeof(*candidate));
+        header_valid = candidate != NULL;
+    }
+    if (header_valid) {
+        candidate->profile = profile;
+        candidate->feature_weight
+            = malloc((size_t)payload_bytes - NNUE_ACCUMULATOR_SIZE * 2 - PNUE_HIDDEN * 4
+                     - PNUE_HIDDEN * PNUE_DENSE_INPUTS - PNUE_HIDDEN * 4 - PNUE_HIDDEN * PNUE_HIDDEN
+                     - 4 - PNUE_HIDDEN);
+        header_valid = candidate->feature_weight != NULL;
+        for (size_t index = 0; header_valid && index < 32; index++) {
+            snprintf(candidate->model_identifier + index * 2,
+                     sizeof(candidate->model_identifier) - index * 2, "%02x", header[156 + index]);
+        }
+    }
+    uint8_t* payload = NULL;
+    if (header_valid) {
+        payload      = malloc((size_t)payload_bytes);
+        header_valid = payload != NULL
+            && fread(payload, 1, (size_t)payload_bytes, file) == payload_bytes && fgetc(file) == EOF
+            && decode_payload(payload, candidate) && validate_bounds(candidate);
+    }
+    free(payload);
+    fclose(file);
+    if (!header_valid) {
+        free_network(candidate);
+        set_error(error, error_size, "invalid or unsafe V1 PNUE file");
+        return false;
+    }
+    NnueNetwork* previous = active_network;
+    active_network        = candidate;
+    free_network(previous);
+    return true;
+}
+
+void nnue_unload(void)
+{
+    free_network(active_network);
+    active_network = NULL;
+}
+
+bool nnue_is_loaded(void)
+{
+    return active_network != NULL;
+}
+
+const char* nnue_architecture_id(void)
+{
+    return active_network ? active_network->profile->architecture_id : "";
+}
+
+const char* nnue_model_identifier(void)
+{
+    return active_network ? active_network->model_identifier : "";
+}
+
+/** Rebuilds one king-perspective accumulator from active feature rows. */
+static bool refresh_perspective(const CBoard* board, Color perspective, int16_t output[256])
+{
+    uint16_t features[NNUE_MAX_ACTIVE_FEATURES];
+    size_t count = 0;
+    if (!active_network
+        || !nnue_generate_features(board, perspective, features, NNUE_MAX_ACTIVE_FEATURES,
+                                   &count)) {
+        return false;
+    }
+    int32_t totals[NNUE_ACCUMULATOR_SIZE];
+    nnue_kernel_copy_i16_to_i32(active_network->feature_bias, totals);
+    for (size_t feature = 0; feature < count; feature++) {
+        nnue_kernel_add_i16_to_i32(
+            totals,
+            &active_network->feature_weight[(size_t)features[feature] * NNUE_ACCUMULATOR_SIZE]);
+    }
+    for (int output_index = 0; output_index < NNUE_ACCUMULATOR_SIZE; output_index++) {
+        if (totals[output_index] < INT16_MIN || totals[output_index] > INT16_MAX) {
+            return false;
+        }
+        output[output_index] = (int16_t)totals[output_index];
+    }
+    return true;
+}
+
+bool nnue_refresh_accumulator(const CBoard* board, NnueAccumulator* accumulator)
+{
+    if (!accumulator) {
+        return false;
+    }
+    accumulator->valid[WHITE] = refresh_perspective(board, WHITE, accumulator->values[WHITE]);
+    accumulator->valid[BLACK] = refresh_perspective(board, BLACK, accumulator->values[BLACK]);
+    return accumulator->valid[WHITE] && accumulator->valid[BLACK];
+}
+
+/** Updates one perspective by removing and adding the pieces that changed squares. */
+static bool update_perspective(const CBoard* child, const MoveChanges* changes, Color perspective,
+                               const int16_t source[256], int16_t destination[256])
+{
+    if (!active_network || !source || !destination) {
+        return false;
+    }
+    for (uint8_t index = 0; index < changes->removed_count; index++) {
+        const PieceChange* piece = &changes->removed[index];
+        if (piece->color == perspective && piece->piece == KING) {
+            return refresh_perspective(child, perspective, destination);
+        }
+    }
+
+    const int16_t* removed_rows[2];
+    const int16_t* added_rows[2];
+    // This perspective's king did not move, so the child frame also maps removed pieces.
+    for (uint8_t index = 0; index < changes->removed_count; index++) {
+        const PieceChange* piece = &changes->removed[index];
+        uint16_t feature;
+        if (!nnue_feature_index_for_piece(child, perspective, piece->color, piece->piece,
+                                          piece->square, &feature)) {
+            return false;
+        }
+        removed_rows[index]
+            = &active_network->feature_weight[(size_t)feature * NNUE_ACCUMULATOR_SIZE];
+    }
+    for (uint8_t index = 0; index < changes->added_count; index++) {
+        const PieceChange* piece = &changes->added[index];
+        uint16_t feature;
+        if (!nnue_feature_index_for_piece(child, perspective, piece->color, piece->piece,
+                                          piece->square, &feature)) {
+            return false;
+        }
+        added_rows[index]
+            = &active_network->feature_weight[(size_t)feature * NNUE_ACCUMULATOR_SIZE];
+    }
+
+    if (changes->removed_count == 1 && changes->added_count == 1) {
+        return nnue_kernel_update_move(source, removed_rows[0], added_rows[0], destination);
+    }
+    if (changes->removed_count == 2 && changes->added_count == 1) {
+        return nnue_kernel_update_capture(source, removed_rows[0], removed_rows[1],
+                                          added_rows[0], destination);
+    }
+    if (changes->removed_count == 2 && changes->added_count == 2) {
+        for (int i = 0; i < NNUE_ACCUMULATOR_SIZE; ++i) {
+            const int32_t total = source[i] - removed_rows[0][i] - removed_rows[1][i]
+                                  + added_rows[0][i] + added_rows[1][i];
+            if (total < INT16_MIN || total > INT16_MAX) {
+                return false;
+            }
+            destination[i] = (int16_t)total;
+        }
+        return true;
+    }
+
+    // Other count combinations accepted by nnue_update_accumulator.
+    for (int index = 0; index < NNUE_ACCUMULATOR_SIZE; index++) {
+        int32_t total = source[index];
+
+        for (uint8_t r = 0; r < changes->removed_count; ++r) {
+            total -= removed_rows[r][index];
+        }
+        for (uint8_t a = 0; a < changes->added_count; ++a) {
+            total += added_rows[a][index];
+        }
+
+        if (total < INT16_MIN || total > INT16_MAX) {
+            return false;
+        }
+        destination[index] = (int16_t)total;
+    }
+    return true;
+}
+
+bool nnue_update_accumulator(const CBoard* child, const MoveChanges* changes,
+                             const NnueAccumulator* parent_accumulator,
+                             NnueAccumulator* child_accumulator)
+{
+    if (!child || !changes || changes->removed_count > 2 || changes->added_count > 2
+        || !parent_accumulator || !child_accumulator || !parent_accumulator->valid[WHITE]
+        || !parent_accumulator->valid[BLACK]) {
+        return false;
+    }
+    child_accumulator->valid[WHITE] = update_perspective(
+        child, changes, WHITE, parent_accumulator->values[WHITE], child_accumulator->values[WHITE]);
+    child_accumulator->valid[BLACK] = update_perspective(
+        child, changes, BLACK, parent_accumulator->values[BLACK], child_accumulator->values[BLACK]);
+    return child_accumulator->valid[WHITE] && child_accumulator->valid[BLACK];
+}
+
+int nnue_evaluate_accumulator(const CBoard* board, const NnueAccumulator* accumulator)
+{
+    if (!active_network || !board || !accumulator || !accumulator->valid[WHITE]
+        || !accumulator->valid[BLACK]) {
+        return 0;
+    }
+    uint8_t activation[PNUE_DENSE_INPUTS];
+    Color first  = board->side_to_move;
+    Color second = color_opposite(first);
+    nnue_kernel_clamp_i16_to_u8(accumulator->values[first], activation);
+    nnue_kernel_clamp_i16_to_u8(accumulator->values[second], activation + NNUE_ACCUMULATOR_SIZE);
+    uint8_t hidden_1[PNUE_HIDDEN];
+    uint8_t hidden_2[PNUE_HIDDEN];
+    // C17 signed division truncates toward zero, as required by the integer contract.
+    for (int output = 0; output < PNUE_HIDDEN; output++) {
+        int64_t sum = (int64_t)active_network->dense_1_bias[output]
+            + nnue_kernel_dot_u8_i8(activation, active_network->dense_1_weight[output],
+                                    PNUE_DENSE_INPUTS);
+        int value        = (int)(sum / PNUE_DENSE_SCALE);
+        hidden_1[output] = (uint8_t)(value < 0                           ? 0
+                                         : value > PNUE_ACTIVATION_SCALE ? PNUE_ACTIVATION_SCALE
+                                                                         : value);
+    }
+    for (int output = 0; output < PNUE_HIDDEN; output++) {
+        int64_t sum = (int64_t)active_network->dense_2_bias[output]
+            + nnue_kernel_dot_u8_i8(hidden_1, active_network->dense_2_weight[output], PNUE_HIDDEN);
+        int value        = (int)(sum / PNUE_DENSE_SCALE);
+        hidden_2[output] = (uint8_t)(value < 0                           ? 0
+                                         : value > PNUE_ACTIVATION_SCALE ? PNUE_ACTIVATION_SCALE
+                                                                         : value);
+    }
+    int64_t final_sum = (int64_t)active_network->output_bias
+        + nnue_kernel_dot_u8_i8(hidden_2, active_network->output_weight, PNUE_HIDDEN);
+    return (int)(final_sum * PNUE_EVAL_SCALE / (PNUE_ACTIVATION_SCALE * PNUE_DENSE_SCALE));
+}
+
+int nnue_evaluate_cboard(const CBoard* board)
+{
+    NnueAccumulator accumulator = { 0 };
+    return nnue_refresh_accumulator(board, &accumulator)
+        ? nnue_evaluate_accumulator(board, &accumulator)
+        : 0;
+}

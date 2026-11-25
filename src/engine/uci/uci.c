@@ -95,7 +95,7 @@ static bool parse_next_int_token(const char** command, int* out)
 /**
  * @brief Applies one supported UCI `setoption` command.
  *
- * Supports `Hash`, `Clear Hash`, and `MultiPV`.
+ * Supports `Hash`, `Clear Hash`, `MultiPV`, `UseNNUE`, and `EvalFile`.
  *
  * @param command Remaining text from a `setoption` command.
  */
@@ -149,8 +149,8 @@ static void handle_set_option_command(const char* command)
             return;
         }
 
-        char* end_ptr = NULL;
-        errno         = 0;
+        char* end_ptr  = NULL;
+        errno          = 0;
         long requested = strtol(value, &end_ptr, 10);
         if (errno != 0 || end_ptr == value || *end_ptr != '\0') {
             printf("info string Invalid MultiPV value: %s\n", value);
@@ -159,8 +159,9 @@ static void handle_set_option_command(const char* command)
         }
 
         int requested_multipv = requested < 1 ? 1
-            : requested > MAX_LEGAL_MOVES ? MAX_LEGAL_MOVES : (int)requested;
-        int applied_multipv = 1;
+            : requested > MAX_LEGAL_MOVES     ? MAX_LEGAL_MOVES
+                                              : (int)requested;
+        int applied_multipv   = 1;
         if (!engine_set_multipv(requested_multipv, &applied_multipv)) {
             printf("info string Failed to set MultiPV value\n");
             fflush(stdout);
@@ -168,6 +169,50 @@ static void handle_set_option_command(const char* command)
         }
 
         printf("info string MultiPV set to %d\n", applied_multipv);
+        fflush(stdout);
+        return;
+    }
+
+    if (!strcmp(option, "UseNNUE")) {
+        char value[16];
+        if (!next_token(&command, token, sizeof(token)) || strcmp(token, "value")
+            || !next_token(&command, value, sizeof(value))
+            || (strcmp(value, "true") && strcmp(value, "false"))) {
+            printf("info string setoption UseNNUE requires true or false\n");
+            fflush(stdout);
+            return;
+        }
+        char error[128] = "";
+        if (!engine_set_use_nnue(!strcmp(value, "true"), error, sizeof(error))) {
+            printf("info string %s\n", error[0] ? error : "failed to set UseNNUE");
+            fflush(stdout);
+            return;
+        }
+        printf("info string UseNNUE %s\n", value);
+        fflush(stdout);
+        return;
+    }
+
+    if (!strcmp(option, "EvalFile")) {
+        if (!next_token(&command, token, sizeof(token)) || strcmp(token, "value")) {
+            printf("info string setoption EvalFile requires a path\n");
+            fflush(stdout);
+            return;
+        }
+        skip_whitespace(&command);
+        if (!*command) {
+            printf("info string setoption EvalFile requires a path\n");
+            fflush(stdout);
+            return;
+        }
+        char error[128] = "";
+        if (!engine_set_eval_file(command, error, sizeof(error))) {
+            printf("info string EvalFile error: %s\n", error[0] ? error : "load failed");
+            fflush(stdout);
+            return;
+        }
+        printf("info string EvalFile loaded architecture %s model %s\n",
+               engine_nnue_architecture_id(), engine_nnue_model_identifier());
         fflush(stdout);
         return;
     }
@@ -247,7 +292,7 @@ static bool safe_line_read(char** line_input, size_t* capacity)
 void handle_go_command(const char* command)
 {
     SearchLimits go_cmd         = { 0 };
-    go_cmd.multipv               = engine_get_multipv();
+    go_cmd.multipv              = engine_get_multipv();
     bool search_moves_specified = false;
     CBoard current_board;
     bool have_current_board = engine_copy_board(&current_board);
@@ -562,6 +607,8 @@ void uci_loop(void)
                    "1024\n");
             printf("option name Clear Hash type button\n");
             printf("option name MultiPV type spin default 1 min 1 max 256\n");
+            printf("option name UseNNUE type check default false\n");
+            printf("option name EvalFile type string default \n");
             printf("uciok\n");
             fflush(stdout);
         } else if (!strcmp(command, "setoption")) {

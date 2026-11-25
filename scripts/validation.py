@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import hashlib
 import json
 import platform
 import re
@@ -12,6 +13,11 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import Any
+
+try:
+    from .check_config import check_candidate_nnue
+except ImportError:
+    from check_config import check_candidate_nnue
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = ROOT / "config/validation.json"
@@ -58,11 +64,19 @@ def select_baseline(settings: dict[str, Any]) -> tuple[str, str]:
     return cutover, ref_sha(cutover)
 
 
+def choose_baseline(settings: dict, baseline: str | None) -> tuple[str, str]:
+    return (baseline, ref_sha(baseline)) if baseline else select_baseline(settings)
+
+
+def require_clean() -> None:
+    if git("status", "--porcelain"):
+        raise RuntimeError("working tree must be clean; commit the candidate and preserve unrelated changes first")
+
+
 def require_current_main() -> None:
     if git("branch", "--show-current") != "main":
         raise RuntimeError("must run on local main")
-    if git("status", "--porcelain"):
-        raise RuntimeError("working tree must be clean")
+    require_clean()
     remote = git("rev-parse", "-q", "--verify", "refs/remotes/origin/main", check=False)
     if not remote or git("rev-parse", "HEAD") != remote:
         raise RuntimeError("HEAD must equal refs/remotes/origin/main; fetch or update main first")
@@ -195,7 +209,8 @@ def machine_data() -> dict[str, str]:
 
 def local_match(kind: str, baseline_arg: str | None) -> int:
     settings = config()
-    baseline_ref, baseline_sha = (baseline_arg, ref_sha(baseline_arg)) if baseline_arg else select_baseline(settings)
+    baseline_ref, baseline_sha = choose_baseline(settings, baseline_arg)
+    check_candidate_nnue(settings, ROOT)
     run = new_run(kind)
     print(f"[validation] {kind}: baseline {baseline_ref} ({baseline_sha})", flush=True)
     baseline_tree = WORKTREES / run.name / "baseline"
@@ -209,7 +224,7 @@ def local_match(kind: str, baseline_arg: str | None) -> int:
         entry = result_entry(args, ROOT, run / "benchmark.log", "comparative benchmark")
     else:
         candidate_sha = git("rev-parse", "HEAD")
-        if candidate_sha == baseline_sha:
+        if candidate_sha == baseline_sha and "candidate_nnue" not in settings:
             entry = identical_sprt(run / "sprt", run / "sprt.log", baseline_sha)
         else:
             args = [sys.executable, "-u", str(ROOT / "scripts/sprt.py"), "--baseline", str(baseline_bin), "--candidate", str(candidate_bin),
@@ -220,9 +235,13 @@ def local_match(kind: str, baseline_arg: str | None) -> int:
     return 0 if entry["passed"] else 1
 
 
-def validate(version: str, speed_override: bool) -> int:
+def validate(version: str, speed_override: bool, baseline_arg: str | None = None) -> int:
+    if not re.fullmatch(r"[0-9]+(?:\.[0-9]+){1,2}(?:[-+][0-9A-Za-z.-]+)?", version):
+        raise RuntimeError("version must omit the leading v and use a semantic version")
+    require_clean()
     settings = config()
-    baseline_ref, baseline_sha = select_baseline(settings)
+    baseline_ref, baseline_sha = choose_baseline(settings, baseline_arg)
+    identity = check_candidate_nnue(settings, ROOT)
     candidate_sha = git("rev-parse", "HEAD")
     run = new_run(version)
     print(f"[validation] validating {version} at {candidate_sha}", flush=True)
@@ -230,20 +249,35 @@ def validate(version: str, speed_override: bool) -> int:
     baseline_tree, candidate_tree = WORKTREES / run.name / "baseline", WORKTREES / run.name / "candidate"
     add_worktree(baseline_tree, baseline_ref)
     add_worktree(candidate_tree, candidate_sha)
+    candidate_config_path = candidate_tree / "config/validation.json"
+    if read_json(candidate_config_path) != settings or check_candidate_nnue(settings, candidate_tree) != identity:
+        raise RuntimeError("candidate worktree differs from the configured release")
     baseline_bin, candidate_bin = run / "bin" / "baseline", run / "bin" / "candidate"
     build(baseline_tree, "release", baseline_bin)
     build(candidate_tree, "release", candidate_bin)
     checks = result_entry(["just", "check"], candidate_tree, run / "check.log", "strict checks")
+    if not checks["passed"]:
+        raise RuntimeError(f"strict checks failed; see {run / 'check.log'}")
     benchmark = result_entry([sys.executable, "-u", str(ROOT / "scripts/bench.py"), "--baseline", str(baseline_bin), "--candidate", str(candidate_bin),
-                              "--config", str(CONFIG_PATH), "--output", str(run / "benchmark.json")], ROOT, run / "benchmark.log", "comparative benchmark")
-    if candidate_sha == baseline_sha:
+                              "--config", str(candidate_config_path), "--candidate-root", str(candidate_tree),
+                              "--output", str(run / "benchmark.json")], ROOT, run / "benchmark.log", "comparative benchmark")
+    if candidate_sha == baseline_sha and identity is None:
         sprt = identical_sprt(run / "sprt", run / "sprt.log", baseline_sha)
     else:
         sprt = result_entry([sys.executable, "-u", str(ROOT / "scripts/sprt.py"), "--baseline", str(baseline_bin), "--candidate", str(candidate_bin),
-                             "--config", str(CONFIG_PATH), "--output-dir", str(run / "sprt")], ROOT, run / "sprt.log", "SPRT")
+                             "--config", str(candidate_config_path), "--candidate-root", str(candidate_tree),
+                             "--output-dir", str(run / "sprt")], ROOT, run / "sprt.log", "SPRT")
     benchmark["result"] = read_json(run / "benchmark.json")
     sprt["result"] = read_json(run / "sprt" / "sprt.json")
+    require_clean()
+    if git("rev-parse", "HEAD") != candidate_sha:
+        raise RuntimeError("candidate commit changed during validation")
+    if config() != settings or check_candidate_nnue(settings, candidate_tree) != identity:
+        raise RuntimeError("release configuration or network changed during validation")
+    binaries = {"baseline": hashlib.sha256(baseline_bin.read_bytes()).hexdigest(),
+                "candidate": hashlib.sha256(candidate_bin.read_bytes()).hexdigest()}
     manifest = {
+        "candidate_nnue": identity, "binaries": binaries,
         "version": version, "candidate": {"ref": "HEAD", "sha": candidate_sha},
         "baseline": {"ref": baseline_ref, "sha": baseline_sha}, "machine": machine_data(),
         "release": settings["release"], "configuration": settings,
@@ -255,6 +289,9 @@ def validate(version: str, speed_override: bool) -> int:
     manifest_path = write_manifest(run, manifest)
     speed_ok = benchmark["passed"] or speed_override
     passed = checks["passed"] and speed_ok and sprt["passed"]
+    if passed:
+        verify_release_manifest(manifest, settings, candidate_tree, candidate_sha,
+                                baseline_sha, speed_override)
     print(f"baseline: {baseline_ref} ({baseline_sha})", flush=True)
     print(f"validation {'passed' if passed else 'failed'}; manifest: {manifest_path}", flush=True)
     return 0 if passed else 1
@@ -272,13 +309,50 @@ def bootstrap() -> int:
     return 0
 
 
-def release(version: str, manifest_arg: str | None, speed_override: bool) -> int:
+def verify_release_manifest(manifest: dict, settings: dict, root: Path,
+                            candidate_sha: str, baseline_sha: str,
+                            speed_override: bool = False) -> None:
+    if manifest.get("candidate", {}).get("sha") != candidate_sha:
+        raise RuntimeError("validation candidate commit differs")
+    if manifest.get("baseline", {}).get("sha") != baseline_sha:
+        raise RuntimeError("validation baseline commit differs")
+    if manifest.get("configuration") != settings:
+        raise RuntimeError("validation configuration differs")
+    identity = check_candidate_nnue(settings, root)
+    if manifest.get("candidate_nnue") != identity:
+        raise RuntimeError("validated NNUE identity differs")
+    if not manifest.get("checks", {}).get("passed"):
+        raise RuntimeError("strict checks did not pass")
+    if not manifest.get("benchmark", {}).get("passed") and not (
+        speed_override and manifest.get("speed_override_requested")
+    ):
+        raise RuntimeError("benchmark failed; a recorded speed override is required")
+    sprt = manifest.get("sprt", {})
+    if not sprt.get("passed"):
+        raise RuntimeError("SPRT is not accepted")
+    if identity is not None and sprt.get("result", {}).get("verdict") != "accepted":
+        raise RuntimeError("NNUE release requires an accepted SPRT; a skipped test is insufficient")
+    binaries = manifest.get("binaries")
+    if not isinstance(binaries, dict) or set(binaries) != {"baseline", "candidate"}:
+        raise RuntimeError("validated binary hashes are absent")
+    for name in ("benchmark", "sprt"):
+        result = manifest.get(name, {}).get("result", {})
+        if name == "benchmark" and result.get("baseline_nnue") is not None:
+            raise RuntimeError("benchmark used a baseline network outside the release comparison")
+        if name == "sprt" and identity is None and result.get("verdict") == "identical":
+            continue
+        if result.get("candidate_nnue") != identity or result.get("binaries") != binaries:
+            raise RuntimeError(f"{name} evidence differs from validated network or binaries")
+
+
+def release(version: str, manifest_arg: str | None, speed_override: bool,
+            baseline_arg: str | None = None) -> int:
     if not re.fullmatch(r"[0-9]+(?:\.[0-9]+){1,2}(?:[-+][0-9A-Za-z.-]+)?", version):
         raise RuntimeError("version must omit the leading v and use a semantic version")
     settings = config()
     require_current_main()
     ensure_cutover(settings)
-    baseline_ref, baseline_sha = select_baseline(settings)
+    baseline_ref, baseline_sha = choose_baseline(settings, baseline_arg)
     tag = f"v{version}"
     if git("rev-parse", "-q", "--verify", f"refs/tags/{tag}", check=False):
         raise RuntimeError(f"tag already exists: {tag}")
@@ -298,13 +372,12 @@ def release(version: str, manifest_arg: str | None, speed_override: bool) -> int
     if not manifest_path:
         raise RuntimeError("no validation manifest found; pass `manifest=<path>`")
     assert manifest is not None
-    if not manifest.get("checks", {}).get("passed"):
-        raise RuntimeError("strict checks did not pass")
-    bench_ok = manifest.get("benchmark", {}).get("passed")
-    if not bench_ok and not (speed_override and manifest.get("speed_override_requested")):
-        raise RuntimeError("benchmark failed; rerun validate with a recorded speed override and pass speed_override=1")
-    if not manifest.get("sprt", {}).get("passed"):
-        raise RuntimeError("SPRT is not accepted")
+    verify_release_manifest(manifest, settings, ROOT, git("rev-parse", "HEAD"),
+                            baseline_sha, speed_override)
+    for name in ("baseline", "candidate"):
+        binary = Path(manifest["artifacts"][f"{name}_binary"])
+        if hashlib.sha256(binary.read_bytes()).hexdigest() != manifest["binaries"][name]:
+            raise RuntimeError(f"validated {name} binary has changed")
     command(["git", "tag", "-a", tag, "-F", str(manifest_path), "HEAD"])
     command(["git", "push", "origin", f"refs/tags/{tag}"])
     print(f"created and pushed {tag}")
@@ -321,9 +394,11 @@ def main() -> int:
         item.add_argument("--baseline")
     item = actions.add_parser("validate")
     item.add_argument("version")
+    item.add_argument("--baseline")
     item.add_argument("--speed-override", action="store_true")
     item = actions.add_parser("release")
     item.add_argument("version")
+    item.add_argument("--baseline")
     item.add_argument("--manifest")
     item.add_argument("--speed-override", action="store_true")
     item = actions.add_parser("repair-sprt")
@@ -337,9 +412,9 @@ def main() -> int:
             print(f"wrote repaired manifest: {repair_sprt_manifest(args.manifest)}", flush=True)
             return 0
         if args.action in ("benchmark", "sprt"): return local_match(args.action, args.baseline)
-        if args.action == "validate": return validate(args.version, args.speed_override)
-        return release(args.version, args.manifest, args.speed_override)
-    except RuntimeError as error:
+        if args.action == "validate": return validate(args.version, args.speed_override, args.baseline)
+        return release(args.version, args.manifest, args.speed_override, args.baseline)
+    except (RuntimeError, OSError, ValueError, KeyError, TypeError) as error:
         print(f"validation error: {error}", file=sys.stderr)
         return 1
 

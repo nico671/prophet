@@ -4,6 +4,7 @@
 #include "chess/board/zobrist.h"
 #include "chess/movegen/move_make.h"
 #include "chess/movegen/movegen.h"
+#include "engine/eval/evaluate.h"
 #include "engine/eval/hceval.h"
 #include "engine/search/see.h"
 #include "engine/tt/tt.h"
@@ -16,18 +17,18 @@
 #include <string.h>
 #include <time.h>
 
-typedef struct {
+typedef struct ScoredMove {
     Move move;
     int score;
     int secondary_score;
 } ScoredMove;
 
-typedef struct {
+typedef struct RootMove {
     Move move;
     int score;
 } RootMove;
 
-typedef struct {
+typedef struct TimeLimits {
     long long soft_limit_ms;
     long long hard_limit_ms;
 } TimeLimits;
@@ -38,7 +39,7 @@ typedef struct {
  * All mutable search data (limits, timers, heuristics, counters) live
  * here so concurrent searches do not overwrite each other.
  */
-typedef struct {
+typedef struct SearchContext {
     CBoard board; // Working copy of the root board
     PositionHistory position_history;
     SearchLimits limits;
@@ -49,10 +50,12 @@ typedef struct {
     Move killer_moves[MAX_PLY][MAX_KILLER_MOVES];
     int history[2][64][64];
     uint64_t path_keys[MAX_PLY];
+    NnueAccumulator* accumulators;
+    bool nnue_enabled;
     int null_move_depth;
 } SearchContext;
 
-typedef enum {
+typedef enum DrawStatus {
     DRAW_NONE,
     DRAW_CLAIMABLE,
     DRAW_AUTOMATIC,
@@ -82,6 +85,25 @@ static DrawStatus draw_status(const SearchContext* ctx, const CBoard* board, int
 static bool automatic_draw_ends_search(const SearchContext* ctx, const CBoard* board, int ply);
 static bool is_checkmate(const CBoard* board);
 static Move first_allowed_move(const SearchContext* ctx, const MoveList* move_list);
+static bool update_child_accumulator(SearchContext* ctx, const CBoard* child,
+                                     const MoveChanges* changes, int child_ply);
+static int evaluate_node(const SearchContext* ctx, const CBoard* board, int ply);
+
+static int evaluate_node(const SearchContext* ctx, const CBoard* board, int ply)
+{
+    return evaluate_cboard(board, ctx->nnue_enabled ? &ctx->accumulators[ply] : NULL);
+}
+
+static bool update_child_accumulator(SearchContext* ctx, const CBoard* child,
+                                     const MoveChanges* changes, int child_ply)
+{
+    if (!ctx->nnue_enabled) {
+        return true;
+    }
+    return child_ply < MAX_PLY
+        && nnue_update_accumulator(child, changes, &ctx->accumulators[child_ply - 1],
+                                   &ctx->accumulators[child_ply]);
+}
 
 static int repetition_count(const SearchContext* ctx, uint64_t key, int ply)
 {
@@ -509,8 +531,8 @@ static int search_root_best_move(SearchContext* ctx, CBoard* board, int depth, i
     ScoredMove scored_moves[MAX_LEGAL_MOVES];
     score_moves(ctx, board, &move_list, scored_moves, tt_move, 0);
 
-    int original_alpha                  = alpha;
-    bool claimable_draw                 = draw_status(ctx, board, 0) == DRAW_CLAIMABLE;
+    int original_alpha  = alpha;
+    bool claimable_draw = draw_status(ctx, board, 0) == DRAW_CLAIMABLE;
     if (claimable_draw && beta <= 0) {
         *prev_best_move = first_allowed_move(ctx, &move_list);
         return 0;
@@ -535,7 +557,12 @@ static int search_root_best_move(SearchContext* ctx, CBoard* board, int depth, i
             continue;
         }
 
-        UndoInfo undo_info = make_move(board, move);
+        MoveChanges changes;
+        UndoInfo undo_info = make_move(board, move, ctx->nnue_enabled ? &changes : NULL);
+        if (!update_child_accumulator(ctx, board, &changes, 1)) {
+            unmake_move(board, move, undo_info);
+            return -MATE_SCORE;
+        }
         ctx->path_keys[0] = board->zobrist_key;
         int eval;
         if (!has_searched_at_least_one_move) {
@@ -650,8 +677,13 @@ static int search_root_moves(SearchContext* ctx, CBoard* board, int depth, Move*
             continue;
         }
 
-        UndoInfo undo_info = make_move(board, move);
-        ctx->path_keys[0]  = board->zobrist_key;
+        MoveChanges changes;
+        UndoInfo undo_info = make_move(board, move, ctx->nnue_enabled ? &changes : NULL);
+        if (!update_child_accumulator(ctx, board, &changes, 1)) {
+            unmake_move(board, move, undo_info);
+            return 0;
+        }
+        ctx->path_keys[0] = board->zobrist_key;
         int score
             = -negamax(ctx, board, depth - 1, -MATE_SCORE, MATE_SCORE, board->side_to_move, 1);
         unmake_move(board, move, undo_info);
@@ -693,7 +725,7 @@ static void print_pv_info(int depth, int multipv, int score, long long nodes, lo
     }
 
     if (is_mate_score(score)) {
-        int mate_moves = (MATE_SCORE - abs(score)) / 2;
+        int mate_moves = (MATE_SCORE - abs(score) + 1) / 2;
         mate_moves     = score >= 0 ? mate_moves : -mate_moves;
         printf("info depth %d multipv %d score mate %d nodes %lld time %lld nps %lld pv %s\n",
                depth, multipv, mate_moves, nodes, elapsed, nps, pv_string);
@@ -705,7 +737,7 @@ static void print_pv_info(int depth, int multipv, int score, long long nodes, lo
 
 SearchResult search_run(const SearchInput* input, SearchControl* control)
 {
-    SearchResult result = { 0 };
+    SearchResult result = { .best_move = MOVE_NONE };
     if (!input || !control) {
         return result;
     }
@@ -719,6 +751,15 @@ SearchResult search_run(const SearchInput* input, SearchControl* control)
     ctx.root_side_to_move = ctx.board.side_to_move;
     ctx.start_time_ms     = now_ms();
     ctx.node_count        = 0;
+    ctx.nnue_enabled      = evaluate_uses_nnue();
+    if (ctx.nnue_enabled) {
+        ctx.accumulators = calloc(MAX_PLY, sizeof(*ctx.accumulators));
+        if (!ctx.accumulators || !nnue_refresh_accumulator(&ctx.board, &ctx.accumulators[0])) {
+            free(ctx.accumulators);
+            result.completed = false;
+            return result;
+        }
+    }
 
     if (ctx.limits.multipv < 1) {
         ctx.limits.multipv = 1;
@@ -748,9 +789,12 @@ SearchResult search_run(const SearchInput* input, SearchControl* control)
         atomic_store(&control->soft_limit_ms, soft_limit_ms);
     }
 
-    int current_depth = 1;
-    int best_score    = 0;
-    Move best_move    = create_move(NO_SQUARE, NO_SQUARE, 0, 0);
+    int current_depth                                    = 1;
+    int best_score                                       = 0;
+    Move best_move                                       = MOVE_NONE;
+    int completed_depth                                  = 0;
+    SearchRootLine completed_root_lines[MAX_LEGAL_MOVES] = { 0 };
+    int completed_root_line_count                        = 0;
     // for the instability check
     Move previous_best_move = MOVE_NONE;
 
@@ -772,6 +816,7 @@ SearchResult search_run(const SearchInput* input, SearchControl* control)
         RootMove root_moves[MAX_LEGAL_MOVES];
         int root_move_count      = 0;
         bool completed_iteration = false;
+        int depth_score          = best_score;
         if (ctx.limits.multipv > 1) {
             Move depth_best_move = best_move;
             root_move_count
@@ -794,8 +839,9 @@ SearchResult search_run(const SearchInput* input, SearchControl* control)
                 }
 
                 Move depth_best_move = best_move;
-                int score = search_root_best_move(&ctx, &ctx.board, current_depth, alpha, beta,
-                                                  &depth_best_move);
+                int score   = search_root_best_move(&ctx, &ctx.board, current_depth, alpha, beta,
+                                                    &depth_best_move);
+                depth_score = score;
                 if (should_stop_search(&ctx)) {
                     break;
                 }
@@ -805,8 +851,10 @@ SearchResult search_run(const SearchInput* input, SearchControl* control)
                     if (move_get_from_square(depth_best_move) != NO_SQUARE) {
                         root_moves[0]   = (RootMove) { .move = depth_best_move, .score = score };
                         root_move_count = 1;
-                        completed_iteration = true;
                     }
+                    // A terminal root has no move to report, but its score is
+                    // still a complete result for this depth.
+                    completed_iteration = true;
                     break;
                 }
 
@@ -824,6 +872,16 @@ SearchResult search_run(const SearchInput* input, SearchControl* control)
         if (root_move_count > 0) {
             best_move  = root_moves[0].move;
             best_score = root_moves[0].score;
+        } else if (ctx.limits.multipv == 1) {
+            // Preserve a complete terminal-root score even though there is no
+            // move to store or print.
+            best_score = depth_score;
+        }
+        completed_depth           = current_depth;
+        completed_root_line_count = root_move_count;
+        for (int i = 0; i < completed_root_line_count; i++) {
+            completed_root_lines[i].move  = root_moves[i].move;
+            completed_root_lines[i].score = root_moves[i].score;
         }
 
         long long elapsed = now_ms() - ctx.start_time_ms;
@@ -833,13 +891,16 @@ SearchResult search_run(const SearchInput* input, SearchControl* control)
         int report_count
             = root_move_count < ctx.limits.multipv ? root_move_count : ctx.limits.multipv;
         if (!input->suppress_uci_output) {
+            if (root_move_count == 0) {
+                print_pv_info(current_depth, 1, best_score, nodes, elapsed, nps, NULL, 0);
+            }
             for (int rank = 0; rank < report_count; rank++) {
                 Move pv_line[MAX_LEGAL_MOVES];
                 int pv_limit    = current_depth < MAX_LEGAL_MOVES ? current_depth : MAX_LEGAL_MOVES;
                 pv_line[0]      = root_moves[rank].move;
 
                 CBoard pv_board = ctx.board;
-                make_move(&pv_board, pv_line[0]);
+                make_move(&pv_board, pv_line[0], NULL);
                 int pv_length = 1 + extract_pv_line(&pv_board, pv_line + 1, pv_limit - 1);
                 print_pv_info(current_depth, rank + 1, root_moves[rank].score, nodes, elapsed, nps,
                               pv_line, pv_length);
@@ -882,7 +943,7 @@ SearchResult search_run(const SearchInput* input, SearchControl* control)
 
         if (!atomic_load(&control->pondering) && ctx.limits.search_for_mate_in_n_moves > 0
             && is_mate_score(best_score)) {
-            int mate_moves = (MATE_SCORE - abs(best_score)) / 2;
+            int mate_moves = (MATE_SCORE - abs(best_score) + 1) / 2;
             if (mate_moves <= ctx.limits.search_for_mate_in_n_moves) {
                 break;
             }
@@ -896,9 +957,17 @@ SearchResult search_run(const SearchInput* input, SearchControl* control)
         fflush(stdout);
     }
 
-    result.nodes      = (uint64_t)ctx.node_count;
-    result.elapsed_ms = (int64_t)(now_ms() - ctx.start_time_ms);
-    result.completed  = !atomic_load(&control->stop_requested);
+    result.nodes           = (uint64_t)ctx.node_count;
+    result.elapsed_ms      = (int64_t)(now_ms() - ctx.start_time_ms);
+    result.best_move       = best_move;
+    result.score           = best_score;
+    result.completed_depth = completed_depth;
+    result.completed       = !atomic_load(&control->stop_requested);
+    result.root_line_count = completed_root_line_count;
+    for (int i = 0; i < completed_root_line_count; i++) {
+        result.root_lines[i] = completed_root_lines[i];
+    }
+    free(ctx.accumulators);
     return result;
 }
 
@@ -968,7 +1037,7 @@ static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int
     ctx->node_count++;
 
     if (should_stop_search(ctx)) {
-        return hc_evaluate_cboard(node);
+        return evaluate_node(ctx, node, ply);
     }
 
     DrawStatus status = draw_status(ctx, node, ply);
@@ -976,8 +1045,16 @@ static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int
         return 0;
     }
 
+    bool king_in_check = is_king_in_check(node, node->side_to_move);
+    if (!king_in_check && !has_legal_move(node)) {
+        if (!should_stop_search(ctx)) {
+            store_tt(node->zobrist_key, TT_QSEARCH_DEPTH, 0, TT_PV, MOVE_NONE);
+        }
+        return 0;
+    }
+
     if (ply >= MAX_PLY - 1) {
-        return hc_evaluate_cboard(node);
+        return evaluate_node(ctx, node, ply);
     }
 
     int original_alpha = alpha;
@@ -997,8 +1074,7 @@ static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int
         }
     }
 
-    bool king_in_check = is_king_in_check(node, node->side_to_move);
-    int stand_pat      = hc_evaluate_cboard(node);
+    int stand_pat = evaluate_node(ctx, node, ply);
     if (!king_in_check) {
         if (stand_pat >= beta) {
             if (!should_stop_search(ctx)) {
@@ -1062,8 +1138,9 @@ static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int
 
         bool prune_capture = !king_in_check && capture && !move_is_promotion(move)
             && see_capture(node, move) < -HC_PAWN_VALUE;
-        UndoInfo undo_info = make_move(node, move);
-        bool gives_check   = is_king_in_check(node, node->side_to_move);
+        MoveChanges changes;
+        UndoInfo undo_info = make_move(node, move, ctx->nnue_enabled ? &changes : NULL);
+        bool gives_check = is_king_in_check(node, node->side_to_move);
         if (prune_capture && !gives_check) {
             unmake_move(node, move, undo_info);
             continue;
@@ -1078,8 +1155,13 @@ static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int
             continue;
         }
 
+        if (!update_child_accumulator(ctx, node, &changes, ply + 1)) {
+            unmake_move(node, move, undo_info);
+            return evaluate_node(ctx, node, ply);
+        }
+
         ctx->path_keys[ply] = node->zobrist_key;
-        int eval = -quiescence(ctx, node, -beta, -alpha, ply + 1);
+        int eval            = -quiescence(ctx, node, -beta, -alpha, ply + 1);
         unmake_move(node, move, undo_info);
 
         if (should_stop_search(ctx)) {
@@ -1116,7 +1198,7 @@ static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int b
     ctx->node_count++;
 
     if (should_stop_search(ctx)) {
-        return hc_evaluate_cboard(node);
+        return evaluate_node(ctx, node, ply);
     }
 
     DrawStatus status = draw_status(ctx, node, ply);
@@ -1159,7 +1241,10 @@ static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int b
     if (!king_in_check && depth >= 3 && !is_mate_score(alpha) && !is_mate_score(beta)) {
         int reduction               = 2 + (depth >= 6 ? 1 : 0);
         NullMoveUndo null_undo_info = make_null_move(node);
-        Color next_side             = color_opposite(side);
+        if (ctx->nnue_enabled) {
+            ctx->accumulators[ply + 1] = ctx->accumulators[ply];
+        }
+        Color next_side = color_opposite(side);
         ctx->null_move_depth++;
         int null_score
             = -negamax(ctx, node, depth - 1 - reduction, -beta, -beta + 1, next_side, ply + 1);
@@ -1189,14 +1274,24 @@ static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int b
         pick_next_best_move(scored_moves, i, move_list.count);
         Move move  = scored_moves[i].move;
 
+        if (move_is_castling(move) && !is_castling_path_safe(node, move)) {
+            continue;
+        }
+
         bool quiet = move_is_quiet(node, move);
 
         // Make the move
-        UndoInfo undo_info = make_move(node, move);
+        MoveChanges changes;
+        UndoInfo undo_info = make_move(node, move, ctx->nnue_enabled ? &changes : NULL);
 
         if (is_king_in_check(node, side)) {
             unmake_move(node, move, undo_info);
             continue;
+        }
+
+        if (!update_child_accumulator(ctx, node, &changes, ply + 1)) {
+            unmake_move(node, move, undo_info);
+            return evaluate_node(ctx, node, ply);
         }
 
         num_legal_moves_searched++;
@@ -1205,6 +1300,7 @@ static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int b
         int eval;
 
         if (num_legal_moves_searched == 1) {
+            // keep scoring in terms of player whose turn it is with -negamax
             eval = -negamax(ctx, node, depth - 1, -beta, -alpha, next_side, ply + 1);
         } else {
             int reduced_depth = depth - 1;
