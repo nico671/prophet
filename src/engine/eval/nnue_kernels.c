@@ -37,6 +37,63 @@
 #include <arm_neon.h>
 #endif
 
+/* Each caller fixes the row count before the loop. */
+static inline bool update_rows(const int16_t* source, const int16_t* removed,
+                               const int16_t* captured, const int16_t* added,
+                               int16_t* destination)
+{
+    size_t i = 0;
+#if PROPHET_NNUE_USE_NEON
+    for (; i < NNUE_KERNEL_VECTOR_SIZE; i += 8) {
+        int16x8_t parent = vld1q_s16(source + i);
+        int16x8_t old = vld1q_s16(removed + i);
+        int32x4_t low = vsubl_s16(vget_low_s16(parent), vget_low_s16(old));
+        int32x4_t high = vsubl_high_s16(parent, old);
+        if (captured) {
+            int16x8_t extra = vld1q_s16(captured + i);
+            low = vsubw_s16(low, vget_low_s16(extra));
+            high = vsubw_high_s16(high, extra);
+        }
+        int16x8_t row = vld1q_s16(added + i);
+        low = vaddw_s16(low, vget_low_s16(row));
+        high = vaddw_high_s16(high, row);
+        int16x8_t result = vmovn_high_s32(vmovn_s32(low), high);
+        uint32x4_t fits = vandq_u32(vceqq_s32(low, vmovl_s16(vget_low_s16(result))),
+                                    vceqq_s32(high, vmovl_high_s16(result)));
+        if (!vminvq_u32(fits)) {
+            // Replay this block to stop at the first invalid entry.
+            break;
+        }
+        vst1q_s16(destination + i, result);
+    }
+#endif
+    for (; i < NNUE_KERNEL_VECTOR_SIZE; ++i) {
+        int32_t total = source[i] - removed[i];
+        if (captured) {
+            total -= captured[i];
+        }
+        total += added[i];
+        if (total < INT16_MIN || total > INT16_MAX) {
+            return false;
+        }
+        destination[i] = (int16_t)total;
+    }
+    return true;
+}
+
+bool nnue_kernel_update_move(const int16_t* source, const int16_t* removed,
+                             const int16_t* added, int16_t* destination)
+{
+    return update_rows(source, removed, NULL, added, destination);
+}
+
+bool nnue_kernel_update_capture(const int16_t* source, const int16_t* removed,
+                                const int16_t* captured, const int16_t* added,
+                                int16_t* destination)
+{
+    return update_rows(source, removed, captured, added, destination);
+}
+
 #if PROPHET_NNUE_USE_NEON
 
 void nnue_kernel_copy_i16_to_i32(const int16_t source[NNUE_KERNEL_VECTOR_SIZE],

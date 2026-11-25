@@ -1140,10 +1140,6 @@ static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int
             && see_capture(node, move) < -HC_PAWN_VALUE;
         MoveChanges changes;
         UndoInfo undo_info = make_move(node, move, ctx->nnue_enabled ? &changes : NULL);
-        if (!update_child_accumulator(ctx, node, &changes, ply + 1)) {
-            unmake_move(node, move, undo_info);
-            return evaluate_node(ctx, node, ply);
-        }
         bool gives_check = is_king_in_check(node, node->side_to_move);
         if (prune_capture && !gives_check) {
             unmake_move(node, move, undo_info);
@@ -1157,6 +1153,11 @@ static int quiescence(SearchContext* ctx, CBoard* node, int alpha, int beta, int
         if (prune_delta) {
             unmake_move(node, move, undo_info);
             continue;
+        }
+
+        if (!update_child_accumulator(ctx, node, &changes, ply + 1)) {
+            unmake_move(node, move, undo_info);
+            return evaluate_node(ctx, node, ply);
         }
 
         ctx->path_keys[ply] = node->zobrist_key;
@@ -1282,14 +1283,15 @@ static int negamax(SearchContext* ctx, CBoard* node, int depth, int alpha, int b
         // Make the move
         MoveChanges changes;
         UndoInfo undo_info = make_move(node, move, ctx->nnue_enabled ? &changes : NULL);
-        if (!update_child_accumulator(ctx, node, &changes, ply + 1)) {
-            unmake_move(node, move, undo_info);
-            return evaluate_node(ctx, node, ply);
-        }
 
         if (is_king_in_check(node, side)) {
             unmake_move(node, move, undo_info);
             continue;
+        }
+
+        if (!update_child_accumulator(ctx, node, &changes, ply + 1)) {
+            unmake_move(node, move, undo_info);
+            return evaluate_node(ctx, node, ply);
         }
 
         num_legal_moves_searched++;

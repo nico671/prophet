@@ -415,25 +415,11 @@ static bool update_perspective(const CBoard* child, const MoveChanges* changes, 
     }
 
     if (changes->removed_count == 1 && changes->added_count == 1) {
-        for (int i = 0; i < NNUE_ACCUMULATOR_SIZE; ++i) {
-            const int32_t total = source[i] - removed_rows[0][i] + added_rows[0][i];
-            if (total < INT16_MIN || total > INT16_MAX) {
-                return false;
-            }
-            destination[i] = (int16_t)total;
-        }
-        return true;
+        return nnue_kernel_update_move(source, removed_rows[0], added_rows[0], destination);
     }
     if (changes->removed_count == 2 && changes->added_count == 1) {
-        for (int i = 0; i < NNUE_ACCUMULATOR_SIZE; ++i) {
-            const int32_t total = source[i] - removed_rows[0][i] - removed_rows[1][i]
-                                  + added_rows[0][i];
-            if (total < INT16_MIN || total > INT16_MAX) {
-                return false;
-            }
-            destination[i] = (int16_t)total;
-        }
-        return true;
+        return nnue_kernel_update_capture(source, removed_rows[0], removed_rows[1],
+                                          added_rows[0], destination);
     }
     if (changes->removed_count == 2 && changes->added_count == 2) {
         for (int i = 0; i < NNUE_ACCUMULATOR_SIZE; ++i) {

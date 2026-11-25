@@ -59,6 +59,39 @@ static int check_add_subtract(void)
     return memcmp(accumulator, original, sizeof(accumulator)) != 0;
 }
 
+static int check_update_bounds(void)
+{
+    int16_t parent[NNUE_KERNEL_VECTOR_SIZE];
+    int16_t removed[NNUE_KERNEL_VECTOR_SIZE];
+    int16_t added[NNUE_KERNEL_VECTOR_SIZE];
+    int16_t extra[NNUE_KERNEL_VECTOR_SIZE] = { 0 };
+    int16_t child[NNUE_KERNEL_VECTOR_SIZE];
+    for (int capture = 0; capture <= 1; ++capture) {
+        for (int bad = 0; bad <= 16; ++bad) {
+            for (int i = 0; i < NNUE_KERNEL_VECTOR_SIZE; ++i) {
+                parent[i] = i % 2 ? INT16_MIN : INT16_MAX;
+                removed[i] = i % 2 ? INT16_MAX : INT16_MIN;
+                added[i] = removed[i];
+                child[i] = 0;
+            }
+            if (bad < 16) {
+                added[bad] += bad % 2 ? -1 : 1;
+            }
+            bool ok = capture ? nnue_kernel_update_capture(parent, removed, extra, added, child)
+                              : nnue_kernel_update_move(parent, removed, added, child);
+            if (ok != (bad == 16)) {
+                return 1;
+            }
+            for (int i = 0; i < NNUE_KERNEL_VECTOR_SIZE; ++i) {
+                if (child[i] != (ok || i < bad ? parent[i] : 0)) {
+                    return 1;
+                }
+            }
+        }
+    }
+    return 0;
+}
+
 static int check_clamp(void)
 {
     int16_t values[NNUE_KERNEL_VECTOR_SIZE] = { 0 };
@@ -115,7 +148,7 @@ static int check_dot_products(void)
 int main(void)
 {
     if (strcmp(nnue_kernel_backend(), EXPECTED_BACKEND) || check_copy() || check_add_subtract()
-        || check_clamp() || check_dot_products()) {
+        || check_update_bounds() || check_clamp() || check_dot_products()) {
         fprintf(stderr, "%s NNUE kernel vector failure\n", EXPECTED_BACKEND);
         return 1;
     }

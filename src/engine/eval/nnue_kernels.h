@@ -1,11 +1,17 @@
 #ifndef PROPHET_NNUE_KERNELS_H
 #define PROPHET_NNUE_KERNELS_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 #define NNUE_KERNEL_VECTOR_SIZE 256
 
+bool nnue_kernel_update_move(const int16_t* source, const int16_t* removed,
+                             const int16_t* added, int16_t* destination);
+bool nnue_kernel_update_capture(const int16_t* source, const int16_t* removed,
+                                const int16_t* captured, const int16_t* added,
+                                int16_t* destination);
 void nnue_kernel_copy_i16_to_i32(const int16_t source[NNUE_KERNEL_VECTOR_SIZE],
                                  int32_t destination[NNUE_KERNEL_VECTOR_SIZE]);
 void nnue_kernel_add_i16_to_i32(int32_t accumulator[NNUE_KERNEL_VECTOR_SIZE],
